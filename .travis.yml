@@ -8,7 +8,8 @@ branches:
 language: generic
 
 install:
-- sudo snap install hugo
+- wget -O /tmp/hugo.deb https://github.com/gohugoio/hugo/releases/download/v0.83.1/hugo_0.83.1_Linux-ARM64.tar.gz
+- sudo dpkg -i /tmp/hugo.deb
 
 script:
   - HUGO_ENV=production hugo --gc --minify -v
