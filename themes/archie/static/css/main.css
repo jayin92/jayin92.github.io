@@ -8,7 +8,7 @@
 }
 html {
   color: #232333;
-  font-family: 'Roboto Mono', monospace;
+  font-family: 'Roboto Mono', 'Noto Sans TC', monospace;
   font-size: 15px;
   line-height: 1.6em;
 }
@@ -26,7 +26,7 @@ body{
 }
 
 p {
-  font-family: 'Fira Sans', sans-serif;
+  font-family: 'Fira Sans', 'Noto Sans TC', sans-serif;
   line-height: 1.5;
 }
 
@@ -186,7 +186,7 @@ article .title {
 }
 
 .callout p {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'IBM Plex Mono', 'Noto Sans TC', monospace;
   margin: 0;
 }
 
@@ -274,7 +274,7 @@ background: dodgerblue;
 }
 .highlight pre code[class*='language-python']::before,
 .highlight pre code[class*='language-py']::before {
-content: 'py';
+content: 'python';
 background: blue;
 color: yellow ;
 }
@@ -291,6 +291,13 @@ color: royalblue ;
 .highlight pre code[class*='language-md']::before,
 .highlight pre code[class*='language-md']::before{
 content: 'Markdown';
+background: royalblue;
+color: whitesmoke ;
+}
+
+.highlight pre code[class*='language-cpp']::before,
+.highlight pre code[class*='language-cpp']::before{
+content: 'C++';
 background: royalblue;
 color: whitesmoke ;
 }
