@@ -20,7 +20,7 @@ deploy:
   token: $GITHUB_TOKEN
   local_dir: $TRAVIS_BUILD_DIR/public
   on:
-    branch: mainmaster
+    branch: main
 
 notifications:
   email:
