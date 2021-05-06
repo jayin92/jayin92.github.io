@@ -3,6 +3,7 @@ title: "證明巴斯卡定理"
 description: "本篇文章介紹了巴斯卡三角形，並透過兩種方式證明巴斯卡定理"
 date: 2018-05-05
 tags: [數學, 證明, 排列組合]
+katex: true
 draft: false
 ---
 

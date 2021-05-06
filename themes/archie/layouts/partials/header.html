@@ -1,4 +1,5 @@
 <!-- KaTeX -->
+{{- if .Params.katex -}}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.6/dist/katex.min.css" integrity="sha384-81hI3kRV62VEhJBKVz7JsJzaUcP5Ty/E1FFdkLh6yz8uWthgdssaWCD1j8R1r2iU" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.6/dist/katex.min.js" integrity="sha384-8swauRFcjK634lyiWVXOA0GdycMCzfbC+6qXGQroVKYve7SFHawYjryBtaLve4xl" crossorigin="anonymous"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.6/dist/contrib/auto-render.min.js" integrity="sha384-vZTG03m+2yp6N6BNi5iM4rW4oIwk5DfcNdFfxkk9ZWpDriOkXX8voJBFrAO7MpVl" crossorigin="anonymous"></script>
@@ -23,6 +24,7 @@
         });
     });
 </script>
+{{- end -}}
 
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-F8LB42LKHE"></script>
 	<script>
