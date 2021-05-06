@@ -1,4 +1,17 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC&display=swap');
+/* noto-sans-tc-regular - chinese-traditional */
+@font-face {
+  font-family: 'Noto Sans TC';
+  font-style: normal;
+  font-weight: 400;
+  src: url('../fonts/noto-sans-tc-v11-chinese-traditional-regular.eot'); /* IE9 Compat Modes */
+  src: local(''),
+       url('../fonts/noto-sans-tc-v11-chinese-traditional-regular.eot?#iefix') format('embedded-opentype'), /* IE6-IE8 */
+       url('../fonts/noto-sans-tc-v11-chinese-traditional-regular.woff2') format('woff2'), /* Super Modern Browsers */
+       url('../fonts/noto-sans-tc-v11-chinese-traditional-regular.woff') format('woff'), /* Modern Browsers */
+       url('../fonts/noto-sans-tc-v11-chinese-traditional-regular.ttf') format('truetype'), /* Safari, Android, iOS */
+       url('../fonts/noto-sans-tc-v11-chinese-traditional-regular.svg#NotoSansTC') format('svg'); /* Legacy iOS */
+}
+
 /* fira-sans-regular - latin */
 @font-face {
   font-family: 'Fira Sans';
