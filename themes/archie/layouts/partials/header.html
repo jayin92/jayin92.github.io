@@ -1,0 +1,80 @@
+<!-- KaTeX -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.6/dist/katex.min.css" integrity="sha384-81hI3kRV62VEhJBKVz7JsJzaUcP5Ty/E1FFdkLh6yz8uWthgdssaWCD1j8R1r2iU" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.6/dist/katex.min.js" integrity="sha384-8swauRFcjK634lyiWVXOA0GdycMCzfbC+6qXGQroVKYve7SFHawYjryBtaLve4xl" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.6/dist/contrib/auto-render.min.js" integrity="sha384-vZTG03m+2yp6N6BNi5iM4rW4oIwk5DfcNdFfxkk9ZWpDriOkXX8voJBFrAO7MpVl" crossorigin="anonymous"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        renderMathInElement(document.body, {
+          // customised options
+          // • auto-render specific keys, e.g.:
+          delimiters: [
+			{left: "$$", right: "$$", display: true},
+			{left: "$", right: "$", display: false},
+			{left: "\\(", right: "\\)", display: false},
+			{left: "\\begin{equation}", right: "\\end{equation}", display: true},
+			{left: "\\begin{align}", right: "\\end{align}", display: true},
+			{left: "\\begin{alignat}", right: "\\end{alignat}", display: true},
+			{left: "\\begin{gather}", right: "\\end{gather}", display: true},
+			{left: "\\begin{CD}", right: "\\end{CD}", display: true},
+			{left: "\\[", right: "\\]", display: true}
+			],
+          // • rendering keys, e.g.:
+          throwOnError : false
+        });
+    });
+</script>
+
+<head>
+	<meta charset="utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	{{- $title := ( .Title ) -}}
+	{{- $siteTitle := ( .Site.Title ) -}}
+	{{- if .IsHome -}}
+	<title>{{ $siteTitle }} | Home </title>
+	{{- else -}}
+	<title>{{ $title }} - {{ $siteTitle }}</title>
+	{{- end -}}
+
+	{{- if isset .Site.Params "favicon" -}}
+	<link rel="icon" type="image/png" href={{ .Site.Params.favicon }} />
+	{{- end -}}
+
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+
+	<meta property="og:image" content="{{ .Site.Params.og_image }}"/>
+	{{ with .OutputFormats.Get "rss" -}}
+	{{ printf `<link rel="%s" type="%s" href="%s" title="%s" />` .Rel .MediaType.Type .Permalink $.Site.Title | safeHTML }}
+	{{ end -}}
+	
+	{{- template "_internal/opengraph.html" . -}}
+	{{- template "_internal/twitter_cards.html" . -}}
+	{{ if and (isset .Site.Params "social") (.Site.Params.useCDN | default false) -}}
+		<script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+	{{- else if (isset .Site.Params "social") -}}
+		<script src="{{ .Site.BaseURL }}js/feather.min.js"></script>
+	{{ end }}
+	{{ if .Site.Params.useCDN | default false -}}
+        <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@1,500&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Fira+Sans&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css?family=Roboto+Mono" rel="stylesheet">
+	{{- else -}}
+        <link href="{{ .Site.BaseURL }}css/fonts.css" rel="stylesheet">
+	{{ end }}
+	<link rel="stylesheet" type="text/css" media="screen" href="{{ .Site.BaseURL }}css/main.css" />
+	{{- if or (eq .Site.Params.mode "auto") (eq .Site.Params.mode "dark") -}}
+		<link rel="stylesheet" type="text/css" href="{{ .Site.BaseURL }}css/dark.css" {{ if eq .Site.Params.mode "auto" }}media="(prefers-color-scheme: dark)"{{ end }} />
+	{{ end }}
+	<!-- Custom CSS style get applied last -->
+	{{- if isset .Site.Params "customcss" }}
+		{{ range .Site.Params.customCSS }}
+		<link rel="stylesheet" type="text/css" href="{{ . | relURL }}">
+		{{ end }}
+	{{- end -}}
+	{{- range .Site.Params.customJS }}
+	{{- if or (hasPrefix . "http://") (hasPrefix . "https://") }}
+	<script src="{{ . }}"></script>
+	{{- else }}
+	<script src="{{ $.Site.BaseURL }}{{ . }}"></script>
+	{{- end }}
+	{{- end }}
+</head>
