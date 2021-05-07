@@ -9,12 +9,12 @@
 html {
   color: #232333;
   font-family: 'Roboto Mono', 'Noto Sans TC', monospace;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.6em;
 }
 body{
   display: block;
-  margin: 8px;
+  margin: 20px;
 }
 * {
   -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
@@ -27,7 +27,7 @@ body{
 
 p {
   font-family: 'Fira Sans', 'Noto Sans TC', sans-serif;
-  line-height: 1.5;
+  line-height: 1.7;
 }
 
 hr {
