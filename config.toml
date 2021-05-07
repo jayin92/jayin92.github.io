@@ -14,7 +14,6 @@ paginate=4 # articles per page
 	mode="auto" # color-mode → light,dark or auto
 	useCDN=false # don't use CDNs for fonts and icons, instead serve them locally.
 	subtitle = "A Blog about My Daily Life"
-  favicon = "favicon.ico"
 
 # Social Tags
 

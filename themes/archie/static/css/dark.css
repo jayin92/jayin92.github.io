@@ -10,13 +10,13 @@ body {
 }
 
 ::selection {
-  background: red;
+  background: #89000e;
   color: #fff;
   text-shadow: none;
 }
 
 hr {
-  border-top: 3px dotted blue;
+  border-top: 3px dotted #81d0ef;
 }
 code {
   background-color: lightblue;
@@ -137,7 +137,7 @@ a:hover {
 }
 .highlight pre code[class*='language-python']::before,
 .highlight pre code[class*='language-py']::before {
-  content: 'python';
+  content: 'Python';
   background: blue;
   color: yellow ;
 }

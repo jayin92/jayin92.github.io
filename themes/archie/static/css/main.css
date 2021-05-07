@@ -1,21 +1,21 @@
 /* Markdown */
 :root{
---maincolor: red;
---bordercl:rebeccapurple;
+--maincolor: #00897B;
+--bordercl: #0782bf;
 --callouctcolor:dodgerblue;
---hovercolor:navy;
---darkMaincolor: #50fa7b;
+--hovercolor: #00897B;
+--darkMaincolor: #80CBC4;
 }
 html {
   color: #232333;
   font-family: 'Roboto Mono', 'Noto Sans TC', monospace;
   text-align: justify;
   font-size: 16px;
-  line-height: 1.6em;
+  line-height: 1.5em;
 }
 body{
   display: block;
-  margin: 20px;
+  margin: 0px;
 }
 * {
   -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
@@ -143,10 +143,11 @@ header {
 
 header .main {
   font-size: 1.5rem;
+  line-height: 2em;
 }
 h1, h2, h3, h4, h5, h6 {
   font-size: 1.2rem;
-  margin-top: 2em;
+  margin-top: 1.5em;
 }
 
 h1::before { color: var(--maincolor); content: '# '; }
@@ -198,8 +199,8 @@ article .title {
 }
 
 .site-description {
-display: flex;
-justify-content: space-between;
+  display: block;
+  justify-content: space-between;
 }
 .tags li::before{
   content: "🏷 ";
@@ -272,7 +273,7 @@ background: dodgerblue;
 }
 .highlight pre code[class*='language-python']::before,
 .highlight pre code[class*='language-py']::before {
-content: 'python';
+content: 'Python';
 background: blue;
 color: yellow ;
 }
