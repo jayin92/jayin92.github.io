@@ -152,7 +152,7 @@ I'm curious, innovative and have executive ability. I'm ready to join you.
 
 #### 準備
 
-交大資工面試只有一個場次，7分鐘，含1分鐘自我介紹這讓。
+交大資工面試只有一個場次，7分鐘，含1分鐘自我介紹。
 
 準備就自我介紹背一下就差不多了，不過因為演算法問題被清大嚇到，所以這次面試前有很認真準備相關的題目。
 
