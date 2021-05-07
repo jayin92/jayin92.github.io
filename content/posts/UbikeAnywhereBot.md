@@ -15,7 +15,6 @@ draft: false
 ## 介紹
 這個Telegram Bot是我在SITCON夏令營做的一個Ubike站點路徑規劃機器人，這個機器人主要可以幫你找到離出發地和目的地最近且可用的兩個Ubike站點，並且回傳導航路線給用戶，也同時會傳送給用戶那兩個站點目前的車輛數和空位數。
 
-<!-- more -->
 
 ## Telegram ?
 > Telegram是一個跨平台的即時通訊軟體，它的用戶端是自由及開放原始碼軟體，但是它的伺服器是專有軟體。使用者可以相互交換加密與自毀訊息，傳送相片、影片等所有類型檔案。官方提供手機版（Android、iOS、Windows Phone）、電腦版（Windows、macOS、Linux）和網頁版等多種平台用戶端；同時官方開放應用程式介面，因此擁有許多第三方的用戶端可供選擇，其中多款內建中文。 *From Wikipedia*
@@ -49,7 +48,7 @@ Bot 首先會詢問使用者的出發地及目的地（支援模糊搜尋），�
 - destination: 終點 (可以是座標、地點名稱、Google的placeID)
 - waypoints: 中途點 (格式與上面相同，中途點間用`|`分隔)
 - travelmode: 導航模式 (driving, walking, motorcycling, etc...)
-所以上面那段網址點進去後，會出現Google Maps的導航畫面，路線是 **海洋大學 -> 臺北動物園 -> 臺北101 -> 臺灣大學** 而導航模式是開車。
+所以上面那段網址點進去後，會出現Google Maps的導航畫面，路線是 **海洋大學 → 臺北動物園 → 臺北101 → 臺灣大學** 而導航模式是開車。
 
 可以發現，這串網址如果直接發給用戶會相當的難看，而且並不會直接導向到Google Maps的APP，當我試著用各家的縮網址服務時，隊友找到了一個叫Dynamic Link的東西。Dynamic Link是一個由Google Firebase提供的服務，它不僅可以縮網址，而且網址的域名還是自訂的([https://bikeanywhere.page.link](https://bikeanywhere.page.link))，更強的是，它可以自動導向到Google Maps的APP，用戶不用再做其他的動作，這東西簡直就是完美。
 

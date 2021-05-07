@@ -24,9 +24,12 @@ draft: false
 6. 重複3.
 
 以下是執行的結果
-![](/image/Sierpinskitriangle.png)
+
+{{<figure src="/image/Sierpinskitriangle.png">}}
+
 可以很清楚的看到這個圖形是用點點出來的
-##程式碼介紹
+
+## 程式碼介紹
 這次的程式簡單到可以直接全部貼上來
 
 ```python

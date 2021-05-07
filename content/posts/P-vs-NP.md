@@ -47,8 +47,6 @@ P 代表的是 Polynomial (多項式)，若有一個問題可以在多項式時�
 
 這個問題顯然是這個問題顯然是$O(n)$，所以我們可以說 $\text{maximum problem} \in P$
 
-#### Python
-
 ``` python
 def maximum(a):
     Max = a[0]
@@ -58,7 +56,6 @@ def maximum(a):
     return Max
 ```
 
-#### C++
 
 ```cpp
 int maximum(int arr[], int len){
@@ -152,7 +149,8 @@ $$ \Phi = (x_1 || !x_2 || x_3) \text{ and } (!x_2 || !x_4 || x_5) \text{ and } (
 
 綜合以上3-SAT是一個NP Complete問題。
 
-![描述P, NP, NP完全，以及NP困難之間關係的歐拉圖](/image/PNP.png "描述P, NP, NP完全，以及NP困難之間關係的歐拉圖")
+{{<figure src="/image/PNP.png" title="描述P, NP, NP完全，以及NP困難之間關係的歐拉圖">}}
+
 
 ## P = NP
 

@@ -11,11 +11,12 @@ draft: false
 大家都知道巴斯卡公式是排列組合中一個十分有用的公式，都叫做巴斯卡公式了，可想而知一定跟巴斯卡三角形有關係
 
 其實巴斯卡三角形也可以被寫成以下形式：
-![](/image/Pascaltrianglewithc.png "巴斯卡三角形<組合形式> source:https://www.quora.com/Why-does-Pascals-Triangle-work")
+{{<figure src="/image/Pascaltrianglewithc.png" title="巴斯卡三角形<組合形式>">}}
+
 
 大家都知道巴斯卡三角形有以下性質:
 
-![](/image/Pascaltrianglepro.png "巴斯卡三角形的性質 source:https://www.quora.com/Why-does-Pascals-Triangle-work")
+{{<figure src="/image/Pascaltrianglepro.png" title="巴斯卡三角形的性質">}}
 
 於是我們可以利用巴斯卡三角形推導出以下等式:
 

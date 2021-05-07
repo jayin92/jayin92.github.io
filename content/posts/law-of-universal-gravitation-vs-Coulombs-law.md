@@ -24,7 +24,8 @@ draft: false
 
 卡文迪西被稱作牛頓之後最偉大的科學家之一，因其首次發現庫侖定律及歐姆定律(但都沒有公布)，且精確的測量了地球的密度(透過這個實驗我們可以間接算出萬有引力常數G)。
 
-![](/image/CavendishFig04.jpg "卡文迪西扭秤實驗")
+{{<figure src="/image/CavendishFig04.jpg" title="卡文迪西扭秤實驗">}}
+
 
 卡文迪西是透過一個稱作扭秤的實驗工具，其構造大概長這樣，由兩顆大球、兩顆小球、一條已知扭轉係數的絲線、光源及精準的游標尺所組成的。
 
@@ -44,7 +45,7 @@ draft: false
 
 ## 庫侖扭秤
 
-![庫侖扭秤（torsion balance）示意圖。庫侖使用扭秤來測量兩個點電荷彼此互相作用的靜電力，因此發現庫侖定律。](https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/Bcoulomb.png/400px-Bcoulomb.png)
+{{<figure src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/Bcoulomb.png/400px-Bcoulomb.png" title="卡文迪西扭秤實驗" title="庫侖扭秤（torsion balance）示意圖。庫侖使用扭秤來測量兩個點電荷彼此互相作用的靜電力，因此發現庫侖定律。">}}
 
 庫侖使用庫侖扭秤測量兩點電荷之間的作用力，因而發現庫侖定律。
 

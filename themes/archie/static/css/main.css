@@ -9,6 +9,7 @@
 html {
   color: #232333;
   font-family: 'Roboto Mono', 'Noto Sans TC', monospace;
+  text-align: justify;
   font-size: 16px;
   line-height: 1.6em;
 }
@@ -69,9 +70,6 @@ ul > li::before {
 img {
   border: 3px solid #ececec;
   max-width: 100%;
-  /* width: 60%; */
-  margin: auto;
-  display: block;
 }
 
 figure {

@@ -9,7 +9,8 @@ draft: false
 
 ## 前言
 
-![](https://upload.wikimedia.org/wikipedia/commons/7/76/Barnsley_fern_plotted_with_VisSim.PNG)
+{{<figure src="https://upload.wikimedia.org/wikipedia/commons/7/76/Barnsley_fern_plotted_with_VisSim.PNG" title="Barnsley Fern">}}
+
 
 引用英文版Wikipedia對Barnsley Fern的介紹:
 
@@ -22,11 +23,13 @@ draft: false
 我們再次引用Wikipedia，不過這次是中文版(我懶得翻譯阿)
 > 碎形（英語：Fractal），又稱分形、殘形，通常被定義為「一個粗糙或零碎的幾何形狀，可以分成數個部分，且每一部分都（至少近似地）是整體縮小後的形狀」，即具有自相似的性質。*From Wikipedia*
 
-有名的碎形有**科赫雪花** 與 **謝爾賓斯基三角形** (關於它我還會再寫一篇)
+有名的碎形有**科赫雪花** 與 **謝爾賓斯基三角形**，有關謝爾賓斯基三角形可以參考部落格的另外一篇文章 https://jayin92.github.io/posts/sierpinski-triangle/
 
-![](https://upload.wikimedia.org/wikipedia/commons/f/fd/Von_Koch_curve.gif)
+{{<figure src="https://upload.wikimedia.org/wikipedia/commons/f/fd/Von_Koch_curve.gif" title="科赫雪花">}}
 
-![](https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/Animated_construction_of_Sierpinski_Triangle.gif/300px-Animated_construction_of_Sierpinski_Triangle.gif)
+
+{{<figure src="https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/Animated_construction_of_Sierpinski_Triangle.gif/300px-Animated_construction_of_Sierpinski_Triangle.gif" title="謝爾賓斯基三角形">}}
+
 我們可以很容易的看到說不管你把一個碎形放大多少倍，它所呈現的圖形會跟原本一模一樣，這就是碎形自相似的性質。
 
 不過我們今天不會太深入去講碎形，因為其實我也不太會😭
@@ -112,14 +115,14 @@ while True:
 	print(tracepoint)
     i += 1
 ```
-drawdot 為利用turtle寫成的繪點函數 (回傳值及傳入值皆為tuple)
+`drawdot` 為利用turtle寫成的繪點函數 (回傳值及傳入值皆為tuple)
 所以我們可以利用無限迴圈不斷迭代來繪出Barnsley Fern
 
 這是畫出的結果
 
 ![](/image/barnsley-fern.png)
 
-可以明顯看到這張圖是全部用點點出來的，謝爾賓斯基三角形也會利用類似方法產生
+可以明顯看到這張圖是全部用點點出來的，謝爾賓斯基三角形也會利用類似方法產生。
 ## 參考資料
 https://en.wikipedia.org/wiki/Barnsley_fern
 
