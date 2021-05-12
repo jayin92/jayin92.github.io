@@ -23,7 +23,7 @@ draft: false
 我們再次引用Wikipedia，不過這次是中文版(我懶得翻譯阿)
 > 碎形（英語：Fractal），又稱分形、殘形，通常被定義為「一個粗糙或零碎的幾何形狀，可以分成數個部分，且每一部分都（至少近似地）是整體縮小後的形狀」，即具有自相似的性質。*From Wikipedia*
 
-有名的碎形有**科赫雪花** 與 **謝爾賓斯基三角形**，有關謝爾賓斯基三角形可以參考部落格的另外一篇文章 https://jayin92.github.io/posts/sierpinski-triangle/
+有名的碎形有**科赫雪花**與**謝爾賓斯基三角形**，有關謝爾賓斯基三角形可以參考部落格的另外一篇文章 https://jayin92.github.io/posts/sierpinski-triangle/
 
 {{<figure src="https://upload.wikimedia.org/wikipedia/commons/f/fd/Von_Koch_curve.gif" title="科赫雪花">}}
 
