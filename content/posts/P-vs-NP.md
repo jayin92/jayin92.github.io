@@ -1,6 +1,6 @@
 ---
 title: "P vs NP"
-description: "這篇主要介紹P, NP, NP Complete 和 NP Hard。還有一些已經被證明是NP Complete 的問題。"
+description: "本篇主要介紹P, NP, NP Complete 和 NP Hard。還有一些已經被證明是NP Complete 的問題。"
 date: 2019-08-20
 tags: [資訊, 數學, 演算法]
 katex: true
