@@ -2,7 +2,7 @@
 title: "從 Hexo 到 Hugo"
 description: "本篇文章介紹我選擇Hugo的原因及從Hexo搬遷到Hugo過程中遇到的問題及解決方法"
 date: 2021-05-12T22:28:44+08:00
-tags: [資訊]
+tags: [資訊, Hugo]
 tldr: Hugo 很棒
 katex: true
 outline: true
