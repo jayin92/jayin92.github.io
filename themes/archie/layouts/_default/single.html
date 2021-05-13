@@ -11,9 +11,19 @@
 			{{ .Params.tldr }}
 		</div>{{ end }}
 
+		{{ if isset .Params "outline" }}
+		<aside>
+			<br>
+			<strong>Outline:</strong>
+			{{ .TableOfContents }}
+		</aside>
+		{{ end }}
+
 		<section class="body">
 			{{ .Content }}
 		</section>
+
+		
 
 		<div class="post-tags">
 			{{ if ne .Type "page" }}
