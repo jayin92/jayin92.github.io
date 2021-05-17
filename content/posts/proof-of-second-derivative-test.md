@@ -9,7 +9,7 @@ draft: false
 
 ## Second (Partial) Derivative Test
 
-let $f : D \rightarrow \mathbb{R}$ be a function in two variables x and y. Suppose that $f, f_{x}, f_{y}, f_{xx}, f_{yy}, f_{xy}, f_{yx}$ are all continuous in an open disk centered at $(a, b)$ and $f_{x}(a, b) = f_{y}(a, b) = 0$. (Then $f_{xy}(a, b) = f_{yx}(a, b)$) 
+Let $f : D \rightarrow \mathbb{R}$ be a function in two variables x and y. Suppose that $f, f_{x}, f_{y}, f_{xx}, f_{yy}, f_{xy}, f_{yx}$ are all continuous in an open disk centered at $(a, b)$ and $f_{x}(a, b) = f_{y}(a, b) = 0$. (Then $f_{xy}(a, b) = f_{yx}(a, b)$) 
 
 Let
 
