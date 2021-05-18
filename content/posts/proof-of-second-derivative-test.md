@@ -23,7 +23,7 @@ Then
 3. if $D(a, b) < 0$, then $(a, b)$ is **saddle point** of f,
 4. if $D(a, b) = 0$, **no conclusion**.
 
-$D(x, y)$ is called the **Discriminat** or **Hessian** of f.
+$D(x, y)$ is called the **Discriminant** or **Hessian** of f.
 
 ## Proof of Second (Partial) Derivative Test
 
