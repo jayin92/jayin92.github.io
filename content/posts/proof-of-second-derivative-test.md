@@ -2,6 +2,7 @@
 title: "證明 Second (Partial) Derivative Test"
 description: "本篇文章給出雙變數函數的 Second (Partial) Derivative Test之證明。"
 date: 2021-05-18T05:56:33+08:00
+tags: [數學, 微積分]
 katex: true
 markup: "mmark"
 draft: false
