@@ -61,7 +61,7 @@ $$\frac{\phi''_{\vec{u}}(0)}{u_2^{2}} = f_{xx}(a, b) \cdot \left(\frac{u_{1}}{u_
 
 which is equal to $Q(\frac{u_1}{u_2})$ (if $u_2 = 0$, we can divide $u_1$ instead, because $\vec{u}$ is a unit vector, $u_1u_2 \neq 0$).
 
-So if the discriminant of $Q$, $-4D(a, b) < 0$, it indicates $Q$ have no root. Then we can tell Q is always positive of negative by its leading coefficient $f_{xx}(a, b)$. If $f_{xx}(a, b) > 0$, then $Q$ is always postive. If$f_{xx}(a, b) < 0$, then $Q$ is always negative.
+So if the discriminant of $Q$, $-4D(a, b) < 0$, it indicates $Q$ have no root. Then we can tell $Q$ is always positive or negative by its leading coefficient $f_{xx}(a, b)$. If $f_{xx}(a, b) > 0$, then $Q$ is always postive. If$f_{xx}(a, b) < 0$, then $Q$ is always negative.
 
 In conclusion, we have
 
