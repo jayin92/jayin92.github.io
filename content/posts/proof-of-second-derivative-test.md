@@ -18,12 +18,12 @@ $$D(x, y) = f_{xx}(x, y) f_{yy}(x, y) - \left(f_{xy}(x, y)\right)^{2}$$
 
 Then
 
-1. if $D(a, b) > 0$ and $f_{xx}(a, b) > 0$, then $f(a, b)$ is a **local minimum** of f,
-2. if $D(a, b) > 0$ and $f_{xx}(a, b) < 0$, then $f(a, b)$ is a **local maximum** of f,
-3. if $D(a, b) < 0$, then $(a, b)$ is **saddle point** of f,
+1. if $D(a, b) > 0$ and $f_{xx}(a, b) > 0$, then $f(a, b)$ is a **local minimum** of $f$,
+2. if $D(a, b) > 0$ and $f_{xx}(a, b) < 0$, then $f(a, b)$ is a **local maximum** of $f$,
+3. if $D(a, b) < 0$, then $(a, b)$ is **saddle point** of $f$,
 4. if $D(a, b) = 0$, **no conclusion**.
 
-$D(x, y)$ is called the **Discriminant** or **Hessian** of f.
+$D(x, y)$ is called the **Discriminant** or **Hessian** of $f$.
 
 ## Proof of Second (Partial) Derivative Test
 
@@ -43,7 +43,7 @@ So
 
 $$\phi'_{\vec{u}}(0) = f_{x}(a, b)\cdot u_{1} + f_{y}(a, b) \cdot u_{2}=0$$
 
-Hence $t=0$ is a critical point of $\phi_{\vec{u}}$. 
+Hence $(a, b)$ is a critical point of $f$, therefore $f_{x}(a,b)=f_{y}(a,b)=0$. 
 
 Use The Chain Rule again, one has
 
@@ -70,3 +70,7 @@ In conclusion, we have
 3. Suppose $D(a, b) \< 0$. Then one has $$\phi^{\prime\prime}_{\vec{u}}(0) > 0$$ for some $\vec{u}$ and has $\phi^{\prime\prime}_{\vec{u}}(0) \< 0$ for some $\vec{u}$. Therefore, $(a, b)$ **is saddle point** of $f$.
 
 {{<figure src="/image/second-fig2.jpg">}}
+
+## Credit
+
+- 中央大學微積分講義
