@@ -1,6 +1,7 @@
 ---
 title: "2019 SITCON Camp 回顧"
-description: "本篇文章紀錄了參加SITCON Camp的過程，"
+description: "本篇文章紀錄了參加SITCON Camp的過程。"
+keywords: "SITCON, SITCON Camp, 資訊, SITCON 營隊"
 date: 2019-08-25
 tags: [SITCON, 資訊]
 draft: false

@@ -2,6 +2,7 @@
 title: "第一個Telegram Bot:@BikeAnywhereBot"
 description: "在2019 SITCON Camp，我與隊友共同合作，開發出一個 Ubike 路徑規劃機器人"
 date: 2019-08-22
+keywords: "SITCON Camp, 專題, chat bot, telegram bot, Ubike"
 tags: ["Project", "Telegram", "Python", "SITCON"]
 draft: false
 ---

@@ -1,6 +1,7 @@
 ---
 title: "有關 Barnsley Fern"
 description: "本篇文章介紹Barnsley Fern並利用Python實作Chaos Game來繪製。"
+keywords: "Python, 碎形, 數學"
 date: 2018-05-07
 tags: ['數學', 'Python', '碎形']
 katex: true
