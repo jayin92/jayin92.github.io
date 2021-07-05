@@ -1,0 +1,25 @@
+---
+label: Blog Post 1
+hide_body: false
+fields:
+- type: text
+  name: title
+  label: title
+- type: text
+  name: description
+  label: description
+- type: datetime
+  name: date
+  label: date
+- type: text
+  name: keywords
+  label: keywords
+- type: list
+  name: tags
+  label: tags
+- type: boolean
+  name: katex
+  label: katex
+- type: text
+  name: markup
+  label: markup
