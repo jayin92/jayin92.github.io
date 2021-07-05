@@ -11,9 +11,7 @@ fields:
 - type: datetime
   name: date
   label: date
-- type: text
-  name: keywords
-  label: keywords
+  default: now
 - type: list
   name: tags
   label: tags
@@ -23,3 +21,4 @@ fields:
 - type: text
   name: markup
   label: markup
+  default: md
