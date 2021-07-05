@@ -35,3 +35,5 @@ fields:
   type: tag_list
   default: []
   label: tags
+pages:
+- content/posts/test-of-forestry.md
