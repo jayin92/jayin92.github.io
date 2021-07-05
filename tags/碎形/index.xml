@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>碎形 on Jayinnn's Blog</title><link>https://jayinnn.ml/tags/%E7%A2%8E%E5%BD%A2/</link><description>Recent content in 碎形 on Jayinnn's Blog</description><generator>Hugo -- gohugo.io</generator><language>zh-tw</language><lastBuildDate>Thu, 10 May 2018 00:00:00 +0000</lastBuildDate><atom:link href="https://jayinnn.ml/tags/%E7%A2%8E%E5%BD%A2/index.xml" rel="self" type="application/rss+xml"/><item><title>有關謝爾賓斯基三角形 aka Sierpinski triangle</title><link>https://jayinnn.ml/posts/sierpinski-triangle/</link><pubDate>Thu, 10 May 2018 00:00:00 +0000</pubDate><guid>https://jayinnn.ml/posts/sierpinski-triangle/</guid><description>介紹 在上一篇文章中，我們知道Barnsley Fern與這次介紹的謝爾賓斯基三角形都是碎形。
+照慣例(XD)我們再次引用Wikipedia的內容
+謝爾賓斯基三角形（英語：Sierpinski triangle）是一種碎形，由波蘭數學家謝爾賓斯基在1915年提出。它是自相似集的例子。From Wikipedia
+我們這次所介紹的繪圖方法，維基百科把它稱作Chaos Game。也就是隨機的方法。
+主要的方法如下:
+隨便畫個三角形(原始的謝爾賓斯基三角形為正三角形) 在三角形內部隨便找一個點P 從三角形三個頂點隨機找一個頂點 點出點P跟選定的頂點的中點 把那個中點當作新的點P 重複3. 以下是執行的結果
+可以很清楚的看到這個圖形是用點點出來的
+程式碼介紹 這次的程式簡單到可以直接全部貼上來
+# import package import turtle import random import math random.seed() # 定義三角形三頂點 pointa = (0,400) pointb = (-650,-300) pointc = (650,-300) point = [pointa, pointb, pointc] # 定義第一個點(若這個點為隨機產出一樣對產出三角形完全沒有影響) firstpoint = (-200,250) # 定義繪點函數(傳入tuple) def drawdot(point, color=&amp;#39;black&amp;#39;): turtle.penup() turtle.goto(point[0],point[1]) turtle.pendown() turtle.dot(2, color) # 傳入兩個點(tuple)回傳兩點中點座標(tuple) def gohalf(point1,point2): point = ((point1[0] + point2[0]) / 2, ((point1[1] + point2[1]) / 2)) return point # turtle package init turtle.</description></item><item><title>有關 Barnsley Fern</title><link>https://jayinnn.ml/posts/barnsley-fern/</link><pubDate>Mon, 07 May 2018 00:00:00 +0000</pubDate><guid>https://jayinnn.ml/posts/barnsley-fern/</guid><description>前言 Barnsley Fern 引用英文版Wikipedia對Barnsley Fern的介紹:
+The Barnsley fern is a fractal named after the British mathematician Michael Barnsley who first described it in his book Fractals Everywhere. From Wikipedia
+翻譯成中文大概就是: &amp;ldquo;Barnsley Fern 是一個由一位英國數學家 Michael Barnsley 在他所寫的書 Fractals Everywhere 中所描述的一種碎形&amp;rdquo;
+那甚麼是碎形呢? 我們再次引用Wikipedia，不過這次是中文版(我懶得翻譯阿)
+碎形（英語：Fractal），又稱分形、殘形，通常被定義為「一個粗糙或零碎的幾何形狀，可以分成數個部分，且每一部分都（至少近似地）是整體縮小後的形狀」，即具有自相似的性質。From Wikipedia
+有名的碎形有科赫雪花與謝爾賓斯基三角形，有關謝爾賓斯基三角形可以參考部落格的另外一篇文章 https://jayin92.github.io/posts/sierpinski-triangle/
+科赫雪花 謝爾賓斯基三角形 我們可以很容易的看到說不管你把一個碎形放大多少倍，它所呈現的圖形會跟原本一模一樣，這就是碎形自相似的性質。
+不過我們今天不會太深入去講碎形，因為其實我也不太會😭
+Barnsley Fern 介紹 其實Barnsley Fern的描繪過程可以由下面方程組 (Transmotions functions &amp;ldquo;變換函數?&amp;quot;) 決定:</description></item></channel></rss>
