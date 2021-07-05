@@ -1,12 +1,14 @@
 ---
-title: "110 成大電機普渡雙聯組 & 清交APCS組 個人申請及面試分享"
-description: "這篇文章主要分享自己在個人申請的過程和心得，希望會對有要申請跟我相同校系的有幫助。"
-date: 2021-05-06T16:58:15+08:00
-keywords: "武陵高中, 科學班, 升學, 學測, 個人申請, 成大電機普渡雙聯, 成大普渡雙聯, APCS組, 清大, 交大, 陽交大"
-tags: ["武陵", "升學", "學測"]
-draft: false
----
+title: 110 成大電機普渡雙聯組 & 清交APCS組 個人申請及面試分享
+description: 這篇文章主要分享自己在個人申請的過程和心得，希望會對有要申請跟我相同校系的有幫助。
+date: 2021-05-06T16:58:15.000+08:00
+keywords: 武陵高中, 科學班, 升學, 學測, 個人申請, 成大電機普渡雙聯, 成大普渡雙聯, APCS組, 清大, 交大, 陽交大
+tags:
+- 武陵
+- 升學
+- 學測
 
+---
 這篇文章主要分享自己在個人申請的過程和心得，希望會對有要申請跟我相同校系的有幫助。
 
 ## 為何決定個申
@@ -19,12 +21,12 @@ draft: false
 
 先提一下自己的學測成績好了。
 
-- 國文：12
-- 英文：15
-- 數學：12
-- 自然：15
-- 社會：15
-- APCS：觀念題 5 級分、實作題 4 級分
+* 國文：12
+* 英文：15
+* 數學：12
+* 自然：15
+* 社會：15
+* APCS：觀念題 5 級分、實作題 4 級分
 
 p.s. APCS的成績是台師大會自己取歷次最高分上傳到徵委會，不需要自己上傳。
 
@@ -32,15 +34,15 @@ p.s. APCS的成績是台師大會自己取歷次最高分上傳到徵委會，�
 
 落點分析六顆星的大概有這幾間：
 
-- 清大資工APCS組
-- 清大資工人工智慧組
-- 清大電資學院學士班
-- 交大資工APCS組
-- 成大電機普渡雙聯組
-- 成大資工普渡雙聯組
-- 台大土木
-- 台大農藝
-- ...
+* 清大資工APCS組
+* 清大資工人工智慧組
+* 清大電資學院學士班
+* 交大資工APCS組
+* 成大電機普渡雙聯組
+* 成大資工普渡雙聯組
+* 台大土木
+* 台大農藝
+* ...
 
 基本上跟台清交成的電資無緣了，不過清交APCS組和成大電機普渡雙聯組還可以拚一下，所以最後決定還是同時準備指考和個人申請，到時候如果有上再決定要不要指考。
 
@@ -58,15 +60,16 @@ p.s. APCS的成績是台師大會自己取歷次最高分上傳到徵委會，�
 ### 篩選結果
 
 最後有過的有四個系：
+
 1. 清大資工APCS組
 2. 清大資工人工智慧組
 3. 交大資工APCS組
 4. 成大電機普渡雙聯組
 
 未通過的：
+
 1. 清大電資學院學士班 (未通過總級分超額篩選: 英＋數＋自＝43)
 2. 台大資工APCS組 (未通過數學超額篩選: 13級分) 這個組我最後聽說好像要英數自＋APCS觀念實作滿級分，有點誇張。
-
 
 ## 備審資料
 
@@ -80,7 +83,7 @@ p.s. APCS的成績是台師大會自己取歷次最高分上傳到徵委會，�
 
 ### 成大電機普渡雙聯組
 
-#### 準備 
+#### 準備
 
 成大電機普渡雙聯組是與普渡大學進行雙聯學制，所以面試是採全英文。一開始需要自我介紹2分鐘，後面則是教授Q&A六分鐘。Q&A部份如果真的沒辦法用英文回答，可以改用中文，不過我覺得如果真的改用中文應該會滿扣分的。
 
@@ -91,10 +94,10 @@ Good afternoon, professors. I'm Jay, Lee Jie-Ying and I'm from the science-talen
 I would like to introduce my personalities
 
 1. I have good executive ability. For example, I am the first person to set up a study group about computer science in our school.
-2. I like to explore and learn new stuff by myself. When I was 15, I develop a system to manage books in the library for my junior high school, writing all the code by myself. When finding a bug, I will go search for the solution on the internet and try to fix it. 
+2. I like to explore and learn new stuff by myself. When I was 15, I develop a system to manage books in the library for my junior high school, writing all the code by myself. When finding a bug, I will go search for the solution on the internet and try to fix it.
 3. The third is my innovation. I often think about how to improve the current method or apply it to a new field of study. For example, I have researched a topic about using generative adversarial networks to generate realistic terrain.
 
-I have received two renowned awards. 
+I have received two renowned awards.
 
 1. The first is Macronix Award. It is the top award among six hundred and sixty-two contestants in the Macronix Science Award, which known as "The Nobel Prize for Taiwan high school students". The last appearance of this special award was six years ago.
 2. And the second is I received second place in the national science fair. It is the top prize since there was no first prize winner.
@@ -114,7 +117,7 @@ I'm curious, innovative and have executive ability. I'm ready to join you.
 1. 你對普渡大學有甚麼了解
 2. 得到旺宏獎有甚麼心得
 3. 你要怎麼確認神經網路的好壞 (我會用ground truth 跑 L1 Loss)
-    1. 你用同一個資料集進行測試？ (分 train/test)
+   1. 你用同一個資料集進行測試？ (分 train/test)
 4. 對於調整神經網路的超參數有甚麼心得
 5. 你覺得國內大學和國外大學有甚麼分別如讀書環境等等
 6. 請解釋一下導數 (derivative)
@@ -137,6 +140,7 @@ I'm curious, innovative and have executive ability. I'm ready to join you.
 面試兩個場次分別有兩個教授，總共有四個教授。
 
 教授Q&A：
+
 1. 學校先前沒有資訊相關社團嗎
 2. 為甚麼APCS實作只有4級分
 3. 你的專題是不是有跟其他人合作
@@ -189,4 +193,4 @@ I'm curious, innovative and have executive ability. I'm ready to join you.
 
 對於同時準備個人申請和指考的學生，我建議落點分析完，填完一階志願後就先不要管備審那些的，先專心在指考。等到一階結果公佈再開始準備也不遲。
 
-最後，我應該會選擇去交大資工。雖然自己目前兩次指考模擬考都算考得不錯，不過我覺得為了再往上一個志願讓自己痛苦兩個月不太值得，而且也不能保證指考當天會不會失常。希望這篇文章對於要準備以上校系的學生有幫助。如果有問題想問的，可以私訊我的Facebook或telegram。
+最後，我應該會選擇去交大資工。雖然自己目前兩次指考模擬考都算考得不錯，不過我覺得為了再往上一個志願讓自己痛苦兩個月不太值得，而且也不能保證指考當天會不會失常。希望這篇文章對於要準備以上校系的學生有幫助。如果有問題想問的，可以私訊我的Facebook或Telegram。
