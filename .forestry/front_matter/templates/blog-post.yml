@@ -1,4 +1,37 @@
 ---
 label: Blog Post
 hide_body: true
-fields: []
+fields:
+- name: title
+  type: text
+  config:
+    required: false
+  label: title
+- name: description
+  type: text
+  config:
+    required: false
+  label: description
+- name: date
+  type: datetime
+  label: date
+  description: ''
+  config:
+    required: false
+    date_format: YYYY-MM-DD
+    time_format: 
+    display_utc: false
+    export_format: ''
+  default: now
+- name: katex
+  type: boolean
+  label: katex
+  default: false
+- name: draft
+  type: boolean
+  label: draft
+  default: true
+- name: tags
+  type: tag_list
+  default: []
+  label: tags
