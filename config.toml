@@ -67,3 +67,8 @@ weight = 5
     endLevel = 2
     ordered = false
     startLevel = 2
+
+[sitemap]
+  changefreq = "weekly"
+  filename = "sitemap.xml"
+  priority = 0.5
