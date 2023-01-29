@@ -101,7 +101,12 @@ figure h4::before {
 /* Code blocks */
 code {
   background-color: #f1f1f1;
-  padding: .1em .2em;
+  text-decoration: bold;
+  padding: 0.2em 0.4em;
+  margin: 0;
+  font-size: 85%;
+  white-space: break-spaces;
+  border-radius: 6px;
 }
 
 pre {

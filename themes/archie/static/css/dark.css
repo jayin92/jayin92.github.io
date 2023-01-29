@@ -19,10 +19,13 @@ hr {
   border-top: 3px dotted #81d0ef;
 }
 code {
-  background-color: lightblue;
-  color: black;
+  background-color: #6e768166;
   text-decoration: bold;
-  padding: 0.1em 0.2em;
+  padding: 0.2em 0.4em;
+  margin: 0;
+  font-size: 85%;
+  white-space: break-spaces;
+  border-radius: 6px;
 }
 pre {
   background-color: #272822;
