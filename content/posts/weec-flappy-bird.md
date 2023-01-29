@@ -16,7 +16,7 @@ draft: false
 - [Github 程式碼](https://github.com/jayin92/twyc-winter-camp)
 - [簡報](https://slides.com/jayinnn_nycu/winter_camp)
 - [Processing 官方參考文件](https://processing.org/reference)
-- [補充教材](https://jayinnn.dev/posts/weec-flappy-bird/)
+- [補充教材](https://jayin92.github.io/posts/weec-flappy-bird/)
 
 ## 常用函數
 ### `background()`
