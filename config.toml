@@ -8,7 +8,7 @@ pygmentsstyle = "monokai"
 pygmentscodefences = true
 pygmentscodefencesguesssyntax = true
 
-paginate=4 # articles per page
+paginate=10 # articles per page
 
 
 [params]
@@ -31,7 +31,7 @@ paginate=4 # articles per page
 [[params.social]]
   name = "Email"
   icon = "mail"
-  url = "mailto:jayin920805@gmail.com"
+  url = "mailto:me@jayinnn.dev"
 
 # Main menu Items
 

@@ -34,13 +34,16 @@
 	{{- $siteTitle := ( .Site.Title ) -}}
 	{{- if .IsHome -}}
 	<title>{{ $siteTitle }} | Home </title>
+	<meta name="description" content="A blog of jayinnn's daily life">
+    <meta name="KEYWORDS" content="Home Page">
 	{{- else -}}
 	<title>{{ $title }} - {{ $siteTitle }}</title>
+	<meta name="description" content="{{ .Description }}">
+    <meta name="KEYWORDS" content="{{ .Keywords }}">
 	{{- end -}}
 
 	
-	<meta name="description" content="{{ .Description }}">
-    <meta name="KEYWORDS" content="{{ .Keywords }}">
+	
 
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
