@@ -2,6 +2,7 @@ baseurl = "https://blog.jayinnn.dev/"
 languageCode = "zh-tw"
 title = "Jayinnn's Blog"
 theme = "archie"
+copyright = "Jayinnn © CC BY-NC-SA 4.0"
 
 # Code Highlight
 pygmentsstyle = "monokai"
@@ -22,6 +23,11 @@ paginate=10 # articles per page
   name = "GitHub"
   icon = "github"
   url = "https://github.com/jayin92/"
+
+[[params.social]]
+  name = "Linkedin"
+  icon = "linkedin"
+  url = "https://www.linkedin.com/in/jayinnn/"
 
 [[params.social]]
   name = "Facebook"
