@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>資訊 on Jayinnn's Blog</title><link>https://blog.jayinnn.dev/tags/%E8%B3%87%E8%A8%8A/</link><description>Recent content in 資訊 on Jayinnn's Blog</description><generator>Hugo -- gohugo.io</generator><language>zh-tw</language><copyright>Jayinnn © CC BY-NC-SA 4.0</copyright><lastBuildDate>Wed, 12 May 2021 22:28:44 +0800</lastBuildDate><atom:link href="https://blog.jayinnn.dev/tags/%E8%B3%87%E8%A8%8A/index.xml" rel="self" type="application/rss+xml"/><item><title>從 Hexo 到 Hugo</title><link>https://blog.jayinnn.dev/posts/from-hexo-to-hugo/</link><pubDate>Wed, 12 May 2021 22:28:44 +0800</pubDate><guid>https://blog.jayinnn.dev/posts/from-hexo-to-hugo/</guid><description>為何選擇從 Hexo 搬遷到 Hugo 從這個部落格建站以來，我一直都是使用 Hexo 作為部落格的框架。但在使用過程中我主要遇到了幾個問題：
+Hexo 使用 Node.js 來生成靜態網頁：這使不同設備上的套件相依變得十分難解 (主要是因為package.json，但難解的原因可能是因為我對Node.js不熟)，也讓在不同設備上寫作變得十分困難，使部落格的更新頻率變得十分糟糕。 主題易與他人重複：我先前是使用 Hexo 的 NexT theme 作為部落格的主題。依照我的觀察，使用hexo的人中，大約有60%~70%是採用這個主題的，這就讓自己的部落格沒有個人的風格，也讓訪客覺得很單調。 Github 常常會提醒我 repo 的 package 有 security vulnerability 或者是更新的PR：雖然這是一件好事，代表package有人在維護，但每次看到Github跳訊息就覺得很煩。 各種security vulnerability和更新的PR 4. Hexo 生成網頁的速度較為緩慢：雖然部落格文章不多我感受不出來，但看網路上大家都說但部落格文章達到100篇左右的時候，網頁的生成速度可能會飆升到20秒左右。
+以上的問題若改用Hugo就可以解決了。Hugo是使用Go語言編寫，整體框架沒有複雜的套件相依問題要解，且Go語言的執行效率很高，聽說可以逼近C。於是在個人申請結束後，我決定把文章備份，並把部落格框架從Hexo換成Hugo。
+備份文章 與Hexo一樣，Hugo是使用 Markdown 作為寫作的語法，所以備份文章是整個搬遷過程中最簡單的部分了，就只要把圖片跟 Markdown 複製到其他地方就結束了。
+安裝 Hugo Hugo 的安裝方法主要有幾種：
+Binary (for all platforms) Docker (for all platforms) Snap (for Linux) Homebrew (for macOS and Linux) MacPorts (for macOS) Chocolatey (for Windows) Scoop (for Windows) 以上安裝方式的說明都可以在 https://gohugo.</description></item><item><title>2021 TISF 台灣國際科展 Day 1</title><link>https://blog.jayinnn.dev/posts/2021-tisf-d1/</link><pubDate>Mon, 01 Feb 2021 00:00:00 +0000</pubDate><guid>https://blog.jayinnn.dev/posts/2021-tisf-d1/</guid><description>昨天因為吃完飯後睡太飽，加上房間一直有蚊子在耳邊，所以搞到凌晨三點才睡。甚至無聊到算森森數學講義的機率part，數學能力似乎還沒退化。
+早上六點半就被我媽挖起床，七點左右出門就去大湳公園搭228到武陵了。因為放著我們海報的圖書館八點才開，所以我先到路易莎買了鮮奶茶喝，今天貌似是武陵的補考，很多武陵學生跑來學校考試。
+圖書館的阿姨人還是不錯，會關心我今天要去哪裡w。
+大約八點我就坐上品奕媽媽的車。原本想說這樣到科教館會不會太早，殊不知今天國一大塞車（也許是常態啦，畢竟我很少那麼早去台北），我們大約九點四十分才到會場。
+報到就填填資料，把該交的東西交一交就結束了。之後就跑到九樓佈展了，我們的展板在整個會場的最角落，蠻邊緣的，旁邊甚至不是資訊組的。而且會場還滿悶的，我們又在玻璃窗旁邊，在貼海報的過程中我差點暈倒 QQ。
+貼完海報後就到處看看別人的展板，有些題目蠻有趣的，但有些人還沒有來佈展，沒看到他們的還滿可惜的。
+後來中午就跑到士林捷運站附近吃 sukiya + 以利泡泡冰，之後因為自己實在是有點累，所以就請品奕媽媽載我們回家了。
+p.s. 我還是覺得沒有報名到學生交流活動很白癡。</description></item><item><title>108學年度武陵資訊學科能力競賽上機考題目分享</title><link>https://blog.jayinnn.dev/posts/108-wuling-programming-competition/</link><pubDate>Fri, 13 Sep 2019 22:07:39 +0800</pubDate><guid>https://blog.jayinnn.dev/posts/108-wuling-programming-competition/</guid><description>pA：十八啦 輸入 四顆骰子的點數情形
+輸出 若四顆骰子中只有其中兩顆骰子點數相同，則輸出另外兩顆骰子之點數和 若四顆骰子中有兩組相同點數的話，則輸出點數和較大的那一組 若四顆骰子的點數皆相同，則輸出WIN 若只有三顆骰子的點數相同或四顆骰子點數都不同，則輸出R 範例輸入及輸出 範例輸入 範例輸出 1 1 1 1 WIN 1 1 1 3 R 1 2 3 4 R 1 1 2 2 4 1 2 3 3 3 pB：線段分割 輸入 一個正整數
+輸出 對於輸入正整數之不重複切割方案之最大分割數
+範例輸入及輸出 範例輸入 範例輸出 1 1 10 4 7 3 15 5 60 10 Hint：
+1 = 1 10 = 1 + 2 + 3 +4 7 = 1 + 2 + 4 16 = 1 + 2 + 3 + 4 + 6 60 = 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 15 pC：迴文判斷 我們說一個字串是一個迴文字串的意思是這個字串經過反轉後，會與原字串長一模一樣。</description></item><item><title>2019 SITCON Camp 回顧</title><link>https://blog.jayinnn.dev/posts/2019-sitcon-camp/</link><pubDate>Sun, 25 Aug 2019 00:00:00 +0000</pubDate><guid>https://blog.jayinnn.dev/posts/2019-sitcon-camp/</guid><description>前言 一開始不知道有SITCON 夏令營這個活動，是同學拉我去的（因為團報有優惠www），而且這個營隊沒有衝到我去美國的時間，所以就腦衝一波了。
+其實很早之前就知道SITCON這個年會，原本今年也要去參加的，但因為沒有注意報名的時間所以就錯過了QQ。
+報名的時候就把以前做過的專案打上去，再說說自己想要透過這次的機會更好的了解資訊圈，結果就很幸運的上了www。
+Day 0 因為不想Day 1早起趕去桃園火車站坐火車，所以Day 0就跟同學先過去海大了。
+因為報到時間最晚到9點，所以我就提議去逛個基隆廟口夜市，順便吃個晚餐。因為不知道火車站可以寄放行李，所以我跟同學就拖著行李逛了一個半小時的廟口夜市，吃了天婦羅、蚵仔煎、三鮮羹還有三兄弟豆花（這個吃最飽www）。
+搭公車去海大的時候，直接被站牌戳一波，同一個站竟然有兩個站牌???，直接看著兩班車開過去QQ。
+大概晚上八點到達海大，房間已經有兩個室友了，因為跟他們超級不熟，所以Day 0在房間都沒有在講話，有夠尷尬的QQ。
+不得不說海大宿舍的衛浴真的超級新，跟房間差有夠多，合理推測應該是有整修過。
+Day 1 Day 1早上就是報到和破冰，還有各種處罰QQ，我和另一個隊員因為打輸德國蟑螂，所以被處罰在全部人面前跟他互喊「喔，我的羅密歐」、「喔，我的茱麗葉」，有夠羞恥的，第一次參加營隊第一天就那麼刺激的。
+下午就是基礎的Python語法，之前因為已經有接觸過Python了，所以課程還蠻間單的。因為不想上課太無聊，所以就打打共筆，順便複習語法。不得不說這上課的速度真的有點嚇到我，要不是有點基礎，我大概會直接躺在地上陣亡ㄅ。
+晚上繼續上Python，速度還是一樣恐怖，怕爆。
+Day 2 早上吃完早餐後，直接讓我們比賽telegram上的遊戲，一開始以為會前三，結果最後直接被虐爆，最後好像才第六名吧QQ。
+遊戲玩完後，上的是網路、HTTP、RESTful 的基礎觀念，之前有看過有關網路的維基百科條目，但沒有系統性的了解過。這堂課用ncat跟Wireshark讓我們了解網路的運作原理，我覺得超棒！！！
+午餐吃完後，是splitline大大的課，大大講解了一些資訊安全的基本觀念，讓我這個對資安一點概念的人有了一些基本的觀念。
+接著繼續上Python的語法，好像是上函數，反正上的一樣還是很快。晚上原本是神秘活動的，但因為Day 3放颱風假，沒辦法到電腦教室上課，所以就把Day 3早上的package management、pip &amp;amp; requests、handle json data跟神秘活動互調，變得下午和整個晚上都在上Python，大家都快累死了QQ。
+至於黑客松的主題也在Day 2討論出來了，反正就是一個Ubike路徑規劃機器人，我自己覺得蠻實用的。
+Day 3 因為Day 3放颱風假，所以Day 3十點起來就好，這真的超爽，因為前幾天都要7點起來。多睡三個小時真的差很多，早上起來精神超好的。
+Day 3早上的神秘活動是把全部人關在小房間裡，然後解謎，解完四個謎題就可以玩類似知識王的小遊戲，不過裡面都是資訊題拉，但bug有點小多，甚至有一題有兩個選項是一模一樣的，但只有一個選項是對的，可悲的是我們每次都選錯 = =
+接著又被關在另外一個小房間吃午餐＋討論黑客松，討論的時間其實好像都在裝oh my zsh和稍微教一下Github要怎麼用（？）
+下午也是神秘活動，其實就是RPG拉，裡面有些關還蠻有趣的，特別是git的那個。我要來抱怨拼QR Code的那關，那個剪的也太碎，而且為什麼我們這小有3塊拉 = =
+晚上因為風雨其實蠻小的，所以就跑回電腦教室上telegram bot的課程了，我們這次是使用python-telegram-bot這個Python Library。課程就介紹一下python-telegram-bot的語法，跟怎麼跟BotFather申請機器人。因為發覺我們機器人要做出來好像會有點小趕，所以我大概花了一個小時就把後面的投影片看了一下，把講師的練習做一做，就直接開始試做了。但因為那時候連後端都還沒開始寫，所以只是先熟悉一下library的語法和研究一下webhook(到最後還是沒用)。
+Day 4 早上是社群闖關，我去PyCon的攤位靠回答一題水題（？）拿了一件PyCOn 2017的衣服（那件衣服真的好看），又去GDP的攤位靠Kahoot又拿了一件TensorFlow的衣服，可是那件是XL的，有點太大了QQ。
+裡面也有很多很有趣的社群，像Mozilla是推廣一個叫Common Voice的計劃，就是收集志願者的聲音，讓機器可以學會真人說話的專案，讓你可以很方便的就對社會做出貢獻（？），我自己是覺得還蠻有意義的。
+下午是資訊大神的見面會，我選擇了PCMan和Birdman（其實是因為聽過PCMan，而且覺得他很神奇才選這場的）。
+PCMan以前是榮總的風濕免疫科的主治醫生，因為聯考前發現自己對資訊有興趣，但因為覺得可以先走醫學看看，所以就跑去陽明醫了，後來就一直在醫學界了。後來當了主治醫生好幾年後，發現自己還是沒有對醫學那麼的感興趣，所以就跑去台大念資工研究所了，現在在Appier任職資深工程師。
+Birdman則是一位已經創立三家公司的創業家，前兩家的公司都被外商公司收購了，現在第三家公司：奧義智慧，則專注在資安方面。他主要分享一些他作為老闆的一些看法及想法。
+晚上就是黑客松時間 aka 瘋狂寫code時間，我和另外一位同學負責後端，我做PTX的部份，他做Google Maps，我的工作就是將Ubike站點的資料包裝成一個容易使用的函數，和把整個後端整合起來。這邊可以提一下，我們機器人有一個部份是搜尋最近的站點ㄇ，那個部份我是用爆搜的，因為分析了一下全台站點數並沒有很多(1747)，用經緯度算距離也不是一件很難的事情。最後證明我是對的，整個爆搜的時間小到可以忽略。後端整個做完大概花了我和另一個隊員一個半小時ㄅ，正當我們以為今天晚上不用熬夜的時候，我們發現前端的分工似乎有點問題，進度有點緩慢，所以我就莫名其妙跳到前端了，後來直接熬夜把整個程式在8個小時硬幹出來(python-telegram-bot那個Handler真的很煩，沒把它remove掉竟然會衝突= =)</description></item><item><title>P vs NP</title><link>https://blog.jayinnn.dev/posts/p-vs-np/</link><pubDate>Tue, 20 Aug 2019 00:00:00 +0000</pubDate><guid>https://blog.jayinnn.dev/posts/p-vs-np/</guid><description>前言 這篇其實是為了資訊讀書會打的，打完之後發現可以充文章數，所以就把它打進來了。
+這篇主要介紹P, NP, NP Complete 和 NP Hard。還有一些已經被證明是NP Complete 的問題。
+時間複雜度 就是一個函數，描述一個演算法的執行時間。
+簡單來說，假設有一個演算法，你給這個演算法一個大小為n的輸入，它最多要 $6n^3+5n^2+2n+1$ 的時間才能執行完畢，我們就說這個演算法的時間複雜度是$O(n^3)$，這個$O()$我們稱作大O符號 (Big O notation)，又叫做漸進符號，它是用另一個（通常更簡單的）函式來描述一個函式數量級的漸近上界。
+還有一個東西叫做最壞時間複雜度(Worst-case complexity)記作 $T(n)$
+排序演算法的其中一種：插入排序(insertion sort)的時間複雜度是$O(n^2)$，下面是插入排序的Python 程式，為什麼這個演算法的是$O(n^2)$嗎？
+def insertionSort(arr): # Traverse through 1 to len(arr) for i in range(1, len(arr)): key = arr[i] # Move elements of arr[0...i-1], while j &amp;gt;= 0 and key &amp;lt; arr[j] : arr[j+1] = arr[j] j -= 1 arr[j+1] = key 我們今天不會提到太多的排序演算法，因為我們的主題是P vs NP。
+P P 代表的是 Polynomial (多項式)，若有一個問題可以在多項式時間(polynomial time)複雜度 ($O(1), O(\log n), O(n^2), O(n \log n), O(n^3), O(n^4)$&amp;hellip;皆為多項式時間複雜度)解決，則我們說此問題為P類問題。</description></item></channel></rss>

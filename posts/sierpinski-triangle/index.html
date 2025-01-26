@@ -1,0 +1,56 @@
+<!doctype html><html><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><title>有關謝爾賓斯基三角形 aka Sierpinski triangle - Jayinnn's Blog</title><meta name=description content="在上一篇文章中，我們知道Barnsley Fern與這次介紹的謝爾賓斯基三角形都是碎形。本篇文章就來介紹謝爾賓斯基三角形吧。"><meta name=KEYWORDS content="[數學,資訊,謝爾賓斯基三角形,碎形,Python]"><link rel=apple-touch-icon sizes=180x180 href=/apple-touch-icon.png><link rel=icon type=image/png sizes=32x32 href=/favicon-32x32.png><link rel=icon type=image/png sizes=16x16 href=/favicon-16x16.png><link rel=manifest href=/site.webmanifest><link rel=mask-icon href=/safari-pinned-tab.svg color=#5bbad5><link rel=canonical href=https://blog.jayinnn.dev/posts/sierpinski-triangle/><meta name=msapplication-TileColor content="#da532c"><meta name=theme-color content="#ffffff"><meta name=viewport content="width=device-width,initial-scale=1"><meta property="og:image" content><meta property="og:title" content="有關謝爾賓斯基三角形 aka Sierpinski triangle"><meta property="og:description" content="在上一篇文章中，我們知道Barnsley Fern與這次介紹的謝爾賓斯基三角形都是碎形。本篇文章就來介紹謝爾賓斯基三角形吧。"><meta property="og:type" content="article"><meta property="og:url" content="https://blog.jayinnn.dev/posts/sierpinski-triangle/"><meta property="article:section" content="posts"><meta property="article:published_time" content="2018-05-10T00:00:00+00:00"><meta property="article:modified_time" content="2018-05-10T00:00:00+00:00"><meta name=twitter:card content="summary"><meta name=twitter:title content="有關謝爾賓斯基三角形 aka Sierpinski triangle"><meta name=twitter:description content="在上一篇文章中，我們知道Barnsley Fern與這次介紹的謝爾賓斯基三角形都是碎形。本篇文章就來介紹謝爾賓斯基三角形吧。"><script src=https://blog.jayinnn.dev/js/feather.min.js></script>
+<link href=https://blog.jayinnn.dev/css/fonts.css rel=stylesheet><link rel=stylesheet type=text/css media=screen href=https://blog.jayinnn.dev/css/main.css><link rel=stylesheet type=text/css href=https://blog.jayinnn.dev/css/dark.css media="(prefers-color-scheme: dark)"><script type=text/javascript>(function(e,t,n,s,o,i,a){e[n]=e[n]||function(){(e[n].q=e[n].q||[]).push(arguments)},i=t.createElement(s),i.async=1,i.src="https://www.clarity.ms/tag/"+o,a=t.getElementsByTagName(s)[0],a.parentNode.insertBefore(i,a)})(window,document,"clarity","script","eui3tfasm9")</script></head><script async src="https://www.googletagmanager.com/gtag/js?id=G-G3EZPSN86H"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date),gtag("config","G-G3EZPSN86H")</script><body><div class=content><header><div class=main><a href=https://blog.jayinnn.dev/>Jayinnn's Blog</a></div><nav><a href=/>Home</a>
+<a href=/posts>Posts</a>
+<a href=/diaries>Diaries</a>
+<a href=/about>About</a>
+<a href=/tags>Tags</a></nav></header><main><article><div class=title><h1 class=title>有關謝爾賓斯基三角形 aka Sierpinski triangle</h1><div class=meta>Posted on May 10, 2018</div></div><section class=body><h2 id=介紹>介紹</h2><p>在上一篇文章中，我們知道Barnsley Fern與這次介紹的謝爾賓斯基三角形都是碎形。</p><p>照慣例(XD)我們再次引用Wikipedia的內容</p><blockquote><p>謝爾賓斯基三角形（英語：Sierpinski triangle）是一種碎形，由波蘭數學家謝爾賓斯基在1915年提出。它是自相似集的例子。<em>From Wikipedia</em></p></blockquote><p>我們這次所介紹的繪圖方法，維基百科把它稱作Chaos Game。也就是隨機的方法。</p><p>主要的方法如下:</p><ol><li>隨便畫個三角形(原始的謝爾賓斯基三角形為正三角形)</li><li>在三角形內部隨便找一個點P</li><li>從三角形三個頂點隨機找一個頂點</li><li>點出點P跟選定的頂點的中點</li><li>把那個中點當作新的點P</li><li>重複3.</li></ol><p>以下是執行的結果</p><figure><img src=/image/Sierpinskitriangle.png></figure><p>可以很清楚的看到這個圖形是用點點出來的</p><h2 id=程式碼介紹>程式碼介紹</h2><p>這次的程式簡單到可以直接全部貼上來</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e># import package</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> turtle
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> random
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> math
+</span></span><span style=display:flex><span>random<span style=color:#f92672>.</span>seed()
+</span></span><span style=display:flex><span><span style=color:#75715e># 定義三角形三頂點</span>
+</span></span><span style=display:flex><span>pointa <span style=color:#f92672>=</span> (<span style=color:#ae81ff>0</span>,<span style=color:#ae81ff>400</span>)
+</span></span><span style=display:flex><span>pointb <span style=color:#f92672>=</span> (<span style=color:#f92672>-</span><span style=color:#ae81ff>650</span>,<span style=color:#f92672>-</span><span style=color:#ae81ff>300</span>)
+</span></span><span style=display:flex><span>pointc <span style=color:#f92672>=</span> (<span style=color:#ae81ff>650</span>,<span style=color:#f92672>-</span><span style=color:#ae81ff>300</span>)
+</span></span><span style=display:flex><span>point <span style=color:#f92672>=</span> [pointa, pointb, pointc]
+</span></span><span style=display:flex><span><span style=color:#75715e># 定義第一個點(若這個點為隨機產出一樣對產出三角形完全沒有影響)</span>
+</span></span><span style=display:flex><span>firstpoint <span style=color:#f92672>=</span> (<span style=color:#f92672>-</span><span style=color:#ae81ff>200</span>,<span style=color:#ae81ff>250</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 定義繪點函數(傳入tuple)</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>drawdot</span>(point, color<span style=color:#f92672>=</span><span style=color:#e6db74>&#39;black&#39;</span>):
+</span></span><span style=display:flex><span>	turtle<span style=color:#f92672>.</span>penup()
+</span></span><span style=display:flex><span>	turtle<span style=color:#f92672>.</span>goto(point[<span style=color:#ae81ff>0</span>],point[<span style=color:#ae81ff>1</span>])
+</span></span><span style=display:flex><span>	turtle<span style=color:#f92672>.</span>pendown()
+</span></span><span style=display:flex><span>	turtle<span style=color:#f92672>.</span>dot(<span style=color:#ae81ff>2</span>, color)
+</span></span><span style=display:flex><span><span style=color:#75715e># 傳入兩個點(tuple)回傳兩點中點座標(tuple)</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>gohalf</span>(point1,point2):
+</span></span><span style=display:flex><span>	point <span style=color:#f92672>=</span> ((point1[<span style=color:#ae81ff>0</span>] <span style=color:#f92672>+</span> point2[<span style=color:#ae81ff>0</span>]) <span style=color:#f92672>/</span> <span style=color:#ae81ff>2</span>, ((point1[<span style=color:#ae81ff>1</span>] <span style=color:#f92672>+</span> point2[<span style=color:#ae81ff>1</span>]) <span style=color:#f92672>/</span> <span style=color:#ae81ff>2</span>))
+</span></span><span style=display:flex><span>	<span style=color:#66d9ef>return</span> point
+</span></span><span style=display:flex><span><span style=color:#75715e># turtle package init</span>
+</span></span><span style=display:flex><span>turtle<span style=color:#f92672>.</span>speed(<span style=color:#ae81ff>0</span>)
+</span></span><span style=display:flex><span>turtle<span style=color:#f92672>.</span>delay(<span style=color:#ae81ff>0</span>)
+</span></span><span style=display:flex><span>turtle<span style=color:#f92672>.</span>hideturtle()
+</span></span><span style=display:flex><span><span style=color:#75715e># 開始繪圖</span>
+</span></span><span style=display:flex><span>drawdot(pointa)
+</span></span><span style=display:flex><span>drawdot(pointb)
+</span></span><span style=display:flex><span>drawdot(pointc)
+</span></span><span style=display:flex><span>drawdot(firstpoint, <span style=color:#e6db74>&#39;green&#39;</span>)
+</span></span><span style=display:flex><span><span style=color:#75715e># 將追蹤點定義為起始點</span>
+</span></span><span style=display:flex><span>tracepoint <span style=color:#f92672>=</span> firstpoint
+</span></span><span style=display:flex><span>i <span style=color:#f92672>=</span> <span style=color:#ae81ff>1</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#進入無限迴圈</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>while</span> <span style=color:#66d9ef>True</span>:
+</span></span><span style=display:flex><span>	print(i)
+</span></span><span style=display:flex><span>	<span style=color:#75715e># 從point(list)隨機拿出任一個三角形頂點</span>
+</span></span><span style=display:flex><span>	random_point <span style=color:#f92672>=</span> random<span style=color:#f92672>.</span>choice(point)
+</span></span><span style=display:flex><span>	<span style=color:#75715e># 產出中點座標</span>
+</span></span><span style=display:flex><span>	gopoint <span style=color:#f92672>=</span> gohalf(tracepoint, random_point)
+</span></span><span style=display:flex><span>	<span style=color:#75715e># 描點</span>
+</span></span><span style=display:flex><span>	drawdot(gopoint)
+</span></span><span style=display:flex><span>	<span style=color:#75715e># 將追蹤點定義為新產出的中點</span>
+</span></span><span style=display:flex><span>	tracepoint <span style=color:#f92672>=</span> gopoint
+</span></span><span style=display:flex><span>	i <span style=color:#f92672>+=</span> <span style=color:#ae81ff>1</span>
+</span></span><span style=display:flex><span>turtle<span style=color:#f92672>.</span>exitonclick()
+</span></span></code></pre></div><h2 id=參考資料>參考資料</h2><p><a href=https://zh.wikipedia.org/wiki/>https://zh.wikipedia.org/wiki/</a>謝爾賓斯基三角形</p><p><a href="https://www.youtube.com/watch?v=kfXl5fsVBVY">https://www.youtube.com/watch?v=kfXl5fsVBVY</a> (中文翻譯)</p><p><a href="https://www.youtube.com/watch?v=kbKtFN71Lfs">https://www.youtube.com/watch?v=kbKtFN71Lfs</a> (原片)</p><h2 id=原始碼>原始碼</h2><p><a href=https://github.com/jayin92/Sierpinski-triangle>https://github.com/jayin92/Sierpinski-triangle</a></p></section><div class=post-tags><nav class="nav tags"><ul class=tags><li><a href=/tags/%E6%95%B8%E5%AD%B8>數學</a></li><li><a href=/tags/python>Python</a></li><li><a href=/tags/%E7%A2%8E%E5%BD%A2>碎形</a></li></ul></nav></div></article></main><footer><hr><a class=soc href=https://github.com/jayin92/ title=GitHub><i data-feather=github></i></a>|<a class=soc href=https://www.linkedin.com/in/jayinnn/ title=Linkedin><i data-feather=linkedin></i></a>|<a class=soc href=https://www.facebook.com/jayinnn title=Facebook><i data-feather=facebook></i></a>|<a class=soc href=mailto:me@jayinnn.dev title=Email><i data-feather=mail></i></a>|⚡️
+2025 Jayinnn © CC BY-NC-SA 4.0 | <a href=https://github.com/athul/archie>Archie Theme</a> | Built with <a href=https://gohugo.io>Hugo</a></footer><script>feather.replace()</script></div></body></html>
