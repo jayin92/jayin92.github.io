@@ -3,7 +3,7 @@ title: "交大資工修課心得：人工智慧概論 - 彭文志"
 date: 2024-02-11T18:58:29+08:00
 description: ""
 tags: ["NYCU", "修課心得"]
-draft: false
+draft: true
 ---
 
 ## 課程內容

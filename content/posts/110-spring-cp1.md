@@ -3,7 +3,7 @@ title: "交大資工修課心得：競技程式設計（一）- 謝旻錚"
 date: 2024-02-11T18:58:48+08:00
 description: ""
 tags: ["NYCU", "修課心得"]
-draft: false
+draft: true
 ---
 
 

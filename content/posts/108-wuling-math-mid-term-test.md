@@ -5,7 +5,6 @@ date: 2019-12-05T22:17:10+08:00
 keywords: "武陵高中, 科學班, 數學段考"
 tags: [武陵, 數學, 科學班]
 katex: true
-markup: "mmark"
 draft: false
 ---
 

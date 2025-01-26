@@ -5,7 +5,6 @@ date: 2021-05-18T05:56:33+08:00
 keywords: "微積分, second derivative test, second paritial derivative test, 數學證明"
 tags: [數學, 微積分]
 katex: true
-markup: "mmark"
 draft: false
 ---
 

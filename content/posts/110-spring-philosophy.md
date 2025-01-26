@@ -3,7 +3,7 @@ title: "交大資工修課心得：哲學概論 - 王冠生"
 date: 2024-02-11T18:59:14+08:00
 description: ""
 tags: ["NYCU", "修課心得"]
-draft: false
+draft: true
 ---
 
 
