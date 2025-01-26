@@ -91,7 +91,7 @@ outline: true
 
 ### 自傳
 
-[自傳 PDF](https://drive.google.com/file/d/1K5b7B95HYFjTZwNod8uRrpR8TJalUmaH/view?usp=sharing)
+[自傳 PDF](https://drive.google.com/file/d/18iNXgrd7YOsNvyKgkB7YrziJeBHqQu1W/view?usp=sharing)
 
 我主要是參考邱奕庭學長的格式，主要包含個人簡歷和自傳。其實寫起來跟學測個人申請有點像，就是交代一下自己的個人資訊。
 
@@ -114,7 +114,7 @@ outline: true
 
 ### 研修計畫
 
-[研修計畫 PDF](https://drive.google.com/file/d/1JxSJmUbyqt-ncc9k9DoGOT4SrSUjF3IM/view?usp=sharing)
+[研修計畫 PDF](https://drive.google.com/file/d/1HZ4dxY8cPD4dyEn05RLJ_QRY76OslJud/view?usp=sharing)
 
 學校規定，研修計畫必須包含申請動機和研修計畫，都直接針對你的第一志願做規劃就好。
 
