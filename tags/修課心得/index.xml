@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>修課心得 on Jayinnn's Blog</title><link>https://blog.jayinnn.dev/tags/%E4%BF%AE%E8%AA%B2%E5%BF%83%E5%BE%97/</link><description>Recent content in 修課心得 on Jayinnn's Blog</description><generator>Hugo -- gohugo.io</generator><language>zh-tw</language><copyright>Jayinnn © CC BY-NC-SA 4.0</copyright><lastBuildDate>Sun, 11 Feb 2024 18:58:40 +0800</lastBuildDate><atom:link href="https://blog.jayinnn.dev/tags/%E4%BF%AE%E8%AA%B2%E5%BF%83%E5%BE%97/index.xml" rel="self" type="application/rss+xml"/><item><title>交大資工修課心得：無人機自動飛航與電腦視覺概論 - 陳冠文</title><link>https://blog.jayinnn.dev/posts/110-spring-uav/</link><pubDate>Sun, 11 Feb 2024 18:58:40 +0800</pubDate><guid>https://blog.jayinnn.dev/posts/110-spring-uav/</guid><description>課程內容 上課方式 考試作業 因為疫情關係後來只剩下 11 次 lab，原先期中期末的競賽剩下期中競賽
+心得</description></item><item><title>交大資工修課心得：物理 (一) - 李威儀</title><link>https://blog.jayinnn.dev/posts/110-fall-physics-1/</link><pubDate>Thu, 10 Feb 2022 23:09:57 +0800</pubDate><guid>https://blog.jayinnn.dev/posts/110-fall-physics-1/</guid><description>課程內容 基本上就是高中物理，我甚至覺得比高中物理還簡單。大致內容條列如下：
+物理發展與物理量簡介 向量 等加速度運動 牛頓定律 功，能量及功率 動量與碰撞 轉動與圓周運動 轉動動力學 熱力學與氣體動力學 振盪 波動 波的干涉 電磁學 上課方式 其實李威儀的物理課網路上應該滿多心得文的，不過我還是稍微講一下。 上課方式其實就是看 ewant 平台上教授大概 200x 年錄的影片，雖然說有點年代了，但其實影片品質不差，可以很清楚的知道教授的上課內容。 但教授可能是為了講話的清晰度，語速其實滿慢的，建議可以用 2 倍速看，我自己覺得這樣的速度差不多。
+考試作業 沒有作業，但助教會每兩個禮拜放建議的課本習題到 e3 上。
+至於小考，主要是兩個禮拜考一次，考試的內容就是那兩周上課的內容。基本上有認真看完影片和做完習題基本上每次都可以拿滿。 這學期考了五次，但只取最高的四次，共佔總成績 20 %。 由於我前面四次都拿滿，所以我最後一次就沒有去考了。
+大考部分，就期中期末各一次。各佔 40 %，基本上，就是考古和課本習題。 準備方式非常簡單，就把這個資料夾裡面的東西看完就好。有背熟我覺得基本上 80 分起跳。
+心得 如果你是資工系的，請優先選李威儀，你不會後悔的。我總成績是 95.6 供大家參考。 但物理(二)聽說就沒有那麼友善了，不過我也還沒修過。</description></item><item><title>交大資工修課心得：生涯規劃與導師時間 - 孫春在</title><link>https://blog.jayinnn.dev/posts/110-fall-career-planning/</link><pubDate>Thu, 10 Feb 2022 23:09:57 +0800</pubDate><guid>https://blog.jayinnn.dev/posts/110-fall-career-planning/</guid><description>課程內容 基本上就兩個：
+演講 導師晤談 演講的部分前幾次是會邀請四個資工所的所長和系主任演講，後面幾次則是助教本人(?) 和外面的教授的演講。
+導師晤談則是期中期末去找導師聊天，這個部分最困難的是和教授聯絡上，像我就連絡了兩個禮拜才成功。
+上課方式 如果那週有演講會事先公布在 e3 上，準時進去 Microsoft Teams 就好了。助教那邊會自動點名，所以其實直接掛著也沒差。
+考試作業 有兩次小作業，主要就是調查職業徵才和學程主題，大概兩小時可以做完的份量。
+心得 就很一般的生涯規畫課，演講內容還行啦。成績部分，基本上有交作業就不會被當了，反正這是一堂 0 學分的課。</description></item><item><title>交大資工修課心得：線性代數 - 陳冠文</title><link>https://blog.jayinnn.dev/posts/110-fall-linear-algebra/</link><pubDate>Thu, 10 Feb 2022 23:09:57 +0800</pubDate><guid>https://blog.jayinnn.dev/posts/110-fall-linear-algebra/</guid><description>課程內容 課程使用的教科書是由 Gilbert Strang 撰寫的 Introduction to Linear Algebra，版本應該不太重要。這本教科書可以不用買，一方面是系辦那邊會借書給學生，另一方面是這本書的 PDF 還滿好在網路上找到的。 但我自己私心認為這本書其實可以買，真的是寫得滿好的，可以買一本收藏。
+課程內容基本上圍繞教科書的內容，但其實因為這堂課只有一學期的關係，所以滿多地方沒有上到的，像後面兩到三章其實都沒有上到，微分方程也因為我們還沒有完全學完微積分所以沒有上到，連 SVD 分解都是最後才補充的。 上課的主要內容如下：
+Introduction to Vectors Solving Linear Equations Vector Spaces and Subspaces Orthogonality Determinants Eigenvalues and Eigenvectors Linear Transformations Complex Vectors and Matrices 上課方式 老師每堂課都使用板書，因為這學期大部分時間疫情都還是滿嚴重的，所以都是用 Microsoft Teams 進行同步上課，也會有課程錄影，但學期後半段因為疫情比較緩解的關係也可以實體到場上課。 老師上的滿清楚的，有時候會先帶題目，再講解觀念。我自己是比較喜歡這樣的授課方式，但其實老師的課不聽也沒有關係，因為老師的上課內容和清大 OCW 趙啟超教授講述的線性代數內容幾乎相同， 大部分同學都是看趙啟超老師的影片，但我自己是比較喜歡跟上老師的進度，這樣就不用再花時間去補線上影片，但也會比較花時間。
+考試作業 作業總共有七次，每次的題目都滿多的，我平均要花 8 小時寫完，但因為作業都是課本上的習題，所以都找到的答案，成績基本上不會太差。
+考試就期中、期末兩次。考試內容就 60~70% 計算題，剩下是證明題。證明題沒有很難，如果有把定理跟定義搞懂應該就大概寫得出來。但計算題超級搞，期中的時候出了一題數字超級醜的 inverse matrix， 算得要死還是算錯，超級哭。還好期末的數字就漂亮滿多的。
+心得 我覺得線性代數是一堂滿重要的課，滿多資工領域都會用到的，建議可以修硬一點的老師，像我覺得陳冠文就不錯 (但他好像沒有要開線性代數了 :( )，像另外一個老師就因為太水，所以另外一個班的學生好像大多數都沒有學到甚東西。我是覺得這樣有點可惜啦。
+至於分數的甜度，最後期末好像調了四分吧，但其實沒有到非常甜，A+ 好像 10 個出頭嗎？</description></item><item><title>交大資工修課心得：計算機概論與程式設計 - 黃敬群</title><link>https://blog.jayinnn.dev/posts/110-fall-intro-to-computer/</link><pubDate>Thu, 10 Feb 2022 23:09:57 +0800</pubDate><guid>https://blog.jayinnn.dev/posts/110-fall-intro-to-computer/</guid><description>課程內容 雖然這門課叫做計算機概論與程式設計，但除了第一周在上計概以外，剩下 17 周都在上程式設計。 程式設計的部分主要是在上 C ，有教到的東西我大致條列如下：
+C Fundamentals Formatted Input/Output Logic Operators and Selections Array String Function Debug (教如何用 Visaul Studio Debug) Recursive Functions Pointer and Function Pointer Structure Usage of header files Sorting Algorithms 上課方式 上課方式主要是採教授錄完當周的影片後，會上傳到 e3 ，學生再自己下載下來看。 一周約有三小時的影片。 但根據我的調查，幾乎沒有人再看教授的錄影。 因為其實只要看 TA 給的簡報 + 問別人就可以寫出上機的練習和回家作業了。
+上機的部分，主要是 TA 會先講解這周練習和作業會用到的知識，大概只會講解 15 分鐘左右，所以其實會認真聽的人其實不多。 講解後就可以開始 Demo 這周的練習題給助教看了，Demo 方式是助教會給 input，如果你的程式的 output 跟助教那邊一樣那你就可以離開了。 而且這周的練習會事先公布，所以其實大部分人在上機課前就會先把練習寫完，這樣就不用花很多時間在等 Demo。
+考試作業 作業幾乎每周都有，每次最多最多就四題左右。難度大概和當周的練習題差不多，對於有程式基礎的人來說不難。但 Function Pointer 的部分可能會稍難一點。
+考試的部分就是期中期末各一次，期中滿分 110 分，期末滿分 120 分。特別的是，期中考前一周有一次 practice exam ，那次考試的成績算一次練習的成績。 主要的用意是要讓我們熟悉一下系計中電腦的環境。</description></item><item><title>交大資工修課心得：計算機網路概論 - 蕭旭峰</title><link>https://blog.jayinnn.dev/posts/110-fall-intro-to-computer-networking/</link><pubDate>Thu, 10 Feb 2022 23:09:57 +0800</pubDate><guid>https://blog.jayinnn.dev/posts/110-fall-intro-to-computer-networking/</guid><description>課程內容 把五層網路架構的前四層 (Application, Transport, Network, Link) 講完，但一些東西有跳過，像 BGP 好像就跳過了。
+上課方式 上課教科書主要是 Computer Networking - A Top Down Approach, 7th
+這學期幾乎都是線上上課，學期中有一堂課改採實體但教授說有同學反應線上比較好，於是又恢復成線上了。
+教授主要是用稍微修改過的作者投影片上課，但傳到 e3 上的 pdf 會因為 &amp;ldquo;版權問題&amp;rdquo; 而把圖片全部刪掉。 但投影片上的圖片其實滿重要的，沒有圖片根本不知道那部分在講甚麼。 所以後來我就自己去網路上找作者原版的投影片，發現其實沒有差多少，所以後來基本上都是自己看投影片自學。
+考試作業 作業總共有四次，個人覺得都不難，兩個小時內應該都可以做完，不過建議跟同學對一下答案，因為作業分數佔滿重的，總共佔 50%。
+沒有小考，只有各一次期中期末，各佔 25%。 但後來可能因為期中考分數太慘，老師決定改考三次，並取兩次最高的成績。考試部分我覺得不難，如果有認真上課和複習應該都可以拿到 80 分以上，但班平均似乎不太好看，我也不太確定原因。
+心得 蕭旭峰教授應該是三個班中分數最好看的，而且我覺得他除了講話的方式很容易讓人睡著以外，其實教得並不差，概念都講解的很清楚，也不會學不到東西。 但考試比較簡單這點可能會讓大家強迫學到的東西變少，我覺得就斟酌看看啦， 不過我自己是學得很開心啦。最後總分拿 94.63，但全人系統上面的成績是 100 所以我也不確定有沒有調分。</description></item><item><title>交大資工修課心得：進階英文聽力與討論 - 李麥德</title><link>https://blog.jayinnn.dev/posts/110-fall-advanced-english/</link><pubDate>Thu, 10 Feb 2022 23:09:57 +0800</pubDate><guid>https://blog.jayinnn.dev/posts/110-fall-advanced-english/</guid><description>課程內容 Crimes Movies Sport TV Bussiness Music American Slang British Slang Astralian Slang Slanging matches MTV 上課方式 每周都會有一個特定的主題，當周的上課內容都會圍繞在那個主題上。
+大致的上課方式是老師會在黑板上寫幾個可以討論/分享的題目，然後就進行小組討論。 除了小組討論外，也會進行全班的討論，進行的方式大概是讓班上每個人都要從透過跟其他人聊天來收集一些需要填上的資訊。
+考試作業 這堂課沒有考試。
+作業的部分與其說是作業不如說是表演，像我們這學期總共就進行了三次，分別為：
+電影心得分享 推銷 TV Show 給電視公司 三個人分別扮演美國人、澳洲人、英國人，並使用該地區的 slang 來進行對話 最後也有期末作業，主要是要拍 10 段兩分鐘以上的英文影片，影片內容可以為任意主題。還有一個作業是自己改編某首歌曲的歌詞，並自己演唱，剪輯成 MV。
+心得 這門課其實還滿涼的，主要是上課的時候其實不怎麼需要動腦，只要願意跟別人用英文聊天應該都可以修的滿開心的。 演戲的部分其實只要組員溝通沒有問題，基本上準備時間也不用太久。像我的組員都還滿不錯的，也不會划水，所以整體還做得滿愉快的。
+我最後分數拿 A，其實還行，因為我其實每次表演的分數幾乎都只有 90 分上下，所以這個分數其實滿合理的。</description></item></channel></rss>

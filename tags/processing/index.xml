@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Processing on Jayinnn's Blog</title><link>https://blog.jayinnn.dev/tags/processing/</link><description>Recent content in Processing on Jayinnn's Blog</description><generator>Hugo -- gohugo.io</generator><language>zh-tw</language><copyright>Jayinnn © CC BY-NC-SA 4.0</copyright><lastBuildDate>Sun, 29 Jan 2023 13:03:32 +0800</lastBuildDate><atom:link href="https://blog.jayinnn.dev/tags/processing/index.xml" rel="self" type="application/rss+xml"/><item><title>搞什麼飛雞補充教材 | 陽明交大探索體驗營</title><link>https://blog.jayinnn.dev/posts/weec-flappy-bird/</link><pubDate>Sun, 29 Jan 2023 13:03:32 +0800</pubDate><guid>https://blog.jayinnn.dev/posts/weec-flappy-bird/</guid><description>前言 因為這次上課的時間比較短，沒有辦法把 Flappy Bird 裡面用到的語法全部教給大家，所以我把比較進階的概念放在補充教材中，有興趣的人可以看看，主要是陣列、for 迴圈和類別。
+另外我也在最前面放了 Processing 中一些比較常用的函數和它們的用法，裡面也有一些小範例。如果寫到一半忘記語法也可以在這邊找一下，但鼓勵大家直接看 Processing 官方的參考文件，我覺得英文不會太難，可以嘗試一下。裡面寫的也比較完整一點。
+上課教材 Github 程式碼 簡報 Processing 官方參考文件 補充教材 常用函數 background() 用來設定畫面背景，參數可以為 r, g, b 也可以為圖片 (PImage)。
+rect() 用來繪製長方形。
+rect(a, b, c, d)。其中 (a, b) 為長方形的位置座標，具體為左上角座標或是中央座標則由 rectMode 設定的值為準。
+(c, d) 則為長方形的長和寬。
+rectMode() 設定 rect() 函數中，a, b 代表的位置。
+可以為 rectMode(CORNER) 或 rectMode(CENTER)。
+CORNER: 代表左上角位置 CENTER: 代表中央位置 具體程式範例如下：
+size(400, 400); rectMode(CORNER); // Default rectMode is CORNER fill(255); // Set fill to white rect(100, 100, 200, 200); // Draw white rect using CORNER mode rectMode(CENTER); // Set rectMode to CENTER fill(100); // Set fill to gray rect(200, 200, 120, 120); // Draw gray rect using CENTER mode line() 用來繪製直線。</description></item></channel></rss>
