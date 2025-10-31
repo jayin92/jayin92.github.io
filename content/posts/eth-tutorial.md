@@ -1,7 +1,7 @@
 ---
 title: "ETH Zurich 教戰手冊"
 date: 2025-08-05T01:20:13+07:00
-description: ""
+description: "一些在 ETH Zurich 和蘇黎世生活的小 tips"
 tags: ["ETH"]
 draft: false
 ---
