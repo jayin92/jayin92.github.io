@@ -4,12 +4,10 @@ title = "Jayinnn's Blog"
 theme = "archie"
 copyright = "Jayinnn © CC BY-NC-SA 4.0"
 
-# Code Highlight
-pygmentsstyle = "monokai"
-pygmentscodefences = true
-pygmentscodefencesguesssyntax = true
+# Code Highlight — configured under [markup.highlight] below
 
-paginate=10 # articles per page
+[pagination]
+  pagerSize = 10 # articles per page
 
 
 [params]
@@ -69,6 +67,10 @@ weight = 5
 
 
 [markup]
+  [markup.highlight]
+    style = "monokai"
+    codeFences = true
+    guessSyntax = true
   [markup.tableOfContents]
     endLevel = 2
     ordered = false

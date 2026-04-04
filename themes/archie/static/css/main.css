@@ -9,7 +9,6 @@
 html {
   color: #232333;
   font-family: 'Roboto Mono', 'Noto Sans TC', monospace;
-  text-align: justify;
   font-size: 16px;
   line-height: 1.5em;
 }
@@ -101,7 +100,7 @@ figure h4::before {
 /* Code blocks */
 code {
   background-color: #f1f1f1;
-  text-decoration: bold;
+  font-weight: bold;
   padding: 0.2em 0.4em;
   margin: 0;
   font-size: 85%;
@@ -134,7 +133,7 @@ pre code {
   margin-left: auto;
   margin-right: auto;
   max-width: 800px;
-  padding: 0 1ch;
+  padding: 0 1.5rem;
   word-wrap: break-word;
 }
 
@@ -165,6 +164,9 @@ h3, h4, h5, h6 {
   margin-top: 1.5em;
 }
 
+h1::before, h2::before, h3::before, h4::before, h5::before, h6::before {
+  speak: never;
+}
 h1::before { color: var(--maincolor); content: '# '; }
 h2::before { color: var(--maincolor); content: '## '; }
 h3::before { color: var(--maincolor); content: '### '; }
@@ -215,7 +217,6 @@ article .title {
 
 .site-description {
   display: block;
-  justify-content: space-between;
 }
 .tags li::before{
   content: "🏷 ";
@@ -227,7 +228,7 @@ article .title {
   color:white;
   background-color: var(--hovercolor); 
 }
-svg{
+footer svg{
   max-height: 15px;
 }
 .soc:hover{
@@ -279,12 +280,12 @@ color: white;
 .highlight pre code[class*='language-sh']::before {
 content: 'shell';
 background: green;
-color:white
+color: white;
 }
 .highlight pre code[class*='language-json']::before{
 content: 'json';
 background: dodgerblue;
- color: #000000 
+color: #000000;
 }
 .highlight pre code[class*='language-python']::before,
 .highlight pre code[class*='language-py']::before {
@@ -314,4 +315,75 @@ color: whitesmoke ;
 content: 'C++';
 background: royalblue;
 color: whitesmoke ;
+}
+
+/* Responsive */
+@media screen and (max-width: 768px) {
+  html {
+    font-size: 15px;
+  }
+
+  .content {
+    padding: 0 1rem;
+  }
+
+  header {
+    flex-direction: column;
+  }
+
+  header .main {
+    margin-bottom: 0.25em;
+  }
+
+  header nav a {
+    margin-right: 0.5em;
+  }
+
+  h1 { font-size: 1.3rem; }
+  h2 { font-size: 1.2rem; }
+  h3, h4, h5, h6 { font-size: 1.1rem; }
+
+  pre {
+    padding: 0.75em;
+    font-size: 14px;
+  }
+
+  figure {
+    padding: 0;
+  }
+
+  figure img {
+    max-height: none;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  html {
+    font-size: 14px;
+  }
+
+  .content {
+    padding: 0 0.75rem;
+  }
+
+  header .main {
+    font-size: 1.3rem;
+  }
+
+  pre {
+    font-size: 13px;
+    border-radius: 0;
+    margin-left: -0.75rem;
+    margin-right: -0.75rem;
+    padding: 0.75em;
+  }
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  list-style: none;
+  padding: 0;
+  margin: 2em 0;
 }
