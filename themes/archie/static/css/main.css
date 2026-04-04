@@ -60,7 +60,7 @@ ul {
 ul li {
   text-indent: -2ch;
 }
-ul > li::before {
+ul:not(.pagination) > li::before {
   content: '* ';
   font-weight: bold;
 }
@@ -380,8 +380,30 @@ color: whitesmoke ;
 /* Pagination */
 .pagination {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
+  align-items: center;
+  gap: 0.25em;
   list-style: none;
   padding: 0;
+  padding-left: 0;
   margin: 2em 0;
+  font-family: 'Roboto Mono', monospace;
+}
+.pagination li {
+  text-indent: 0;
+}
+.pagination .page-link {
+  display: inline-block;
+  padding: 0.2em 0.5em;
+  text-decoration: none;
+  color: inherit;
+  border-bottom: 3px solid transparent;
+}
+.pagination a.page-link:hover {
+  background-color: var(--hovercolor);
+  color: #fff;
+}
+.pagination .active .page-link {
+  border-bottom: 3px solid var(--maincolor);
+  font-weight: bold;
 }

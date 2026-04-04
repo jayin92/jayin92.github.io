@@ -2,16 +2,25 @@
 {{ if gt $pag.TotalPages 1 }}
 <nav aria-label="Pagination">
 <ul class="pagination">
-	<li class="page-item page-prev">
 	{{ if $pag.HasPrev }}
-	<a href="{{ $pag.Prev.URL }}" class="page-link" aria-label="Previous"><span aria-hidden="true">← Prev</span></a>
-	{{ end }}
+	<li class="page-item">
+		<a href="{{ $pag.Prev.URL }}" class="page-link" aria-label="Previous">← Prev</a>
 	</li>
-	<li class="page-item page-next">
+	{{ end }}
+	{{ range $pag.Pagers }}
+	<li class="page-item{{ if eq . $pag }} active{{ end }}">
+		{{ if eq . $pag }}
+		<span class="page-link" aria-current="page">{{ .PageNumber }}</span>
+		{{ else }}
+		<a href="{{ .URL }}" class="page-link">{{ .PageNumber }}</a>
+		{{ end }}
+	</li>
+	{{ end }}
 	{{ if $pag.HasNext }}
-	<a href="{{ $pag.Next.URL }}" class="page-link" aria-label="Next"><span aria-hidden="true">Next →</span></a>
-	{{ end }}
+	<li class="page-item">
+		<a href="{{ $pag.Next.URL }}" class="page-link" aria-label="Next">Next →</a>
 	</li>
+	{{ end }}
 </ul>
 </nav>
 {{ end }}

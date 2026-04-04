@@ -6,5 +6,12 @@
     {{ range .Site.Menus.main }}
     <a href="{{ .URL }}">{{ .Name }}</a>
     {{ end }}
+    <label class="theme-switch" title="Toggle dark mode">
+      <input type="checkbox" id="theme-toggle" aria-label="Toggle dark mode" />
+      <span class="slider">
+        <span class="icon icon-sun">☀️</span>
+        <span class="icon icon-moon">🌙</span>
+      </span>
+    </label>
   </nav>
 </header>

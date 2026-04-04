@@ -72,9 +72,76 @@
 	{{ end }}
 	<link rel="stylesheet" type="text/css" media="screen" href="{{ .Site.BaseURL }}css/main.css" />
 	{{- if or (eq .Site.Params.mode "auto") (eq .Site.Params.mode "dark") -}}
-		<link rel="stylesheet" type="text/css" href="{{ .Site.BaseURL }}css/dark.css" {{ if eq .Site.Params.mode "auto" }}media="(prefers-color-scheme: dark)"{{ end }} />
+		<link id="dark-css" rel="stylesheet" type="text/css" href="{{ .Site.BaseURL }}css/dark.css" {{ if eq .Site.Params.mode "auto" }}media="(prefers-color-scheme: dark)"{{ end }} />
 	{{ end }}
-	<!-- Custom CSS style get applied last -->
+	<script>
+	(function() {
+		document.documentElement.classList.add('no-transition');
+		var link = document.getElementById('dark-css');
+		if (!link) return;
+		var saved = localStorage.getItem('theme');
+		if (saved === 'dark') link.media = 'all';
+		else if (saved === 'light') link.media = 'not all';
+		window.addEventListener('DOMContentLoaded', function() {
+			requestAnimationFrame(function() {
+				document.documentElement.classList.remove('no-transition');
+			});
+		});
+	})();
+	</script>
+	<style>
+	body, body * {
+		transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+	}
+	.no-transition, .no-transition * {
+		transition: none !important;
+	}
+	.theme-switch {
+		position: relative;
+		display: inline-block;
+		width: 44px;
+		height: 22px;
+		vertical-align: middle;
+		margin-left: 0.5em;
+	}
+	.theme-switch input { display: none; }
+	.theme-switch .slider {
+		position: absolute;
+		inset: 0;
+		background-color: #ccc;
+		border-radius: 22px;
+		cursor: pointer;
+		transition: background-color 0.3s ease;
+	}
+	.theme-switch .slider::before {
+		content: '';
+		position: absolute;
+		width: 16px;
+		height: 16px;
+		left: 3px;
+		bottom: 3px;
+		background-color: white;
+		border-radius: 50%;
+		transition: transform 0.3s ease;
+	}
+	.theme-switch input:checked + .slider {
+		background-color: var(--darkMaincolor, #80CBC4);
+	}
+	.theme-switch input:checked + .slider::before {
+		transform: translateX(22px);
+	}
+	.theme-switch .icon {
+		position: absolute;
+		top: 50%;
+		transform: translateY(-50%);
+		font-size: 12px;
+		line-height: 1;
+		pointer-events: none;
+		z-index: 1;
+	}
+	.theme-switch .icon-sun { left: 4px; }
+	.theme-switch .icon-moon { right: 4px; }
+	</style>
 	{{- if isset .Site.Params "customcss" }}
 		{{ range .Site.Params.customCSS }}
 		<link rel="stylesheet" type="text/css" href="{{ . | relURL }}">

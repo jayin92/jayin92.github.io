@@ -8,5 +8,38 @@
         {{- partial "footer.html" . -}}
         </div>
         {{- partial "analytics.html" . -}}
+        <script>
+        (function() {
+            var link = document.getElementById('dark-css');
+            var toggle = document.getElementById('theme-toggle');
+            if (!link || !toggle) return;
+
+            function isDark() {
+                if (link.media === 'all') return true;
+                if (link.media === 'not all') return false;
+                return window.matchMedia('(prefers-color-scheme: dark)').matches;
+            }
+
+            function sync() {
+                toggle.checked = isDark();
+            }
+
+            toggle.addEventListener('change', function() {
+                if (toggle.checked) {
+                    link.media = 'all';
+                    localStorage.setItem('theme', 'dark');
+                } else {
+                    link.media = 'not all';
+                    localStorage.setItem('theme', 'light');
+                }
+            });
+
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
+                if (!localStorage.getItem('theme')) sync();
+            });
+
+            sync();
+        })();
+        </script>
     </body>
 </html>
