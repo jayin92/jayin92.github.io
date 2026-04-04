@@ -303,14 +303,12 @@ content: 'Go';
 background: cyan;
 color: royalblue ;
 }
-.highlight pre code[class*='language-md']::before,
 .highlight pre code[class*='language-md']::before{
 content: 'Markdown';
 background: royalblue;
 color: whitesmoke ;
 }
 
-.highlight pre code[class*='language-cpp']::before,
 .highlight pre code[class*='language-cpp']::before{
 content: 'C++';
 background: royalblue;
