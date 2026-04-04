@@ -177,11 +177,45 @@ h6::before { color: var(--maincolor); content: '###### '; }
 /* Footer */
 footer {
   margin-top: 1em;
+  padding-bottom: 1em;
+}
+footer .footer-content {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25em 0;
+}
+footer .footer-icons {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.1em;
+  margin-right: 0.5em;
+}
+footer .footer-meta {
+  font-size: 0.9em;
+  color: inherit;
+}
+@media screen and (max-width: 480px) {
+  footer .footer-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4em;
+  }
+  footer .footer-meta {
+    font-size: 0.85em;
+  }
 }
 
 /* Common */
 .title h1 {
-  margin-bottom: 0;
+  margin-bottom: 0.15em;
+}
+
+/* List page title links: no underline (they're obviously links in context) */
+.list-item .title a {
+  border-bottom: none;
+  text-decoration: none;
 }
 
 time {

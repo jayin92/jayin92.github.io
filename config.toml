@@ -18,6 +18,11 @@ copyright = "Jayinnn © CC BY-NC-SA 4.0"
 # Social Tags
 
 [[params.social]]
+  name = "Personal Page"
+  icon = "home"
+  url = "https://jayinnn.dev"
+
+[[params.social]]
   name = "GitHub"
   icon = "github"
   url = "https://github.com/jayin92/"
@@ -26,11 +31,6 @@ copyright = "Jayinnn © CC BY-NC-SA 4.0"
   name = "Linkedin"
   icon = "linkedin"
   url = "https://www.linkedin.com/in/jayinnn/"
-
-[[params.social]]
-  name = "Facebook"
-  icon = "facebook"
-  url = "https://www.facebook.com/jayinnn"
 
 [[params.social]]
   name = "Email"

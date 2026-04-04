@@ -132,12 +132,19 @@
 	}
 	.theme-switch .icon {
 		position: absolute;
-		top: 50%;
-		transform: translateY(-50%);
-		font-size: 12px;
-		line-height: 1;
+		top: 0;
+		bottom: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 		pointer-events: none;
 		z-index: 1;
+	}
+	.theme-switch .icon svg {
+		width: 11px;
+		height: 11px;
+		display: block;
+		color: white;
 	}
 	.theme-switch .icon-sun { left: 4px; }
 	.theme-switch .icon-moon { right: 4px; }
