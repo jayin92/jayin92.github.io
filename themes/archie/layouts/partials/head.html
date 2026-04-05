@@ -1,6 +1,6 @@
 <header>
   <div class="main">
-    <a href="{{ .Site.BaseURL }}">{{ .Site.Title }}</a>
+    <a href="{{ "" | absLangURL }}">{{ .Site.Title }}</a>
   </div>
   <nav aria-label="Main navigation">
     {{ range .Site.Menus.main }}

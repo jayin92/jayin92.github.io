@@ -441,3 +441,115 @@ color: whitesmoke ;
   border-bottom: 3px solid var(--maincolor);
   font-weight: bold;
 }
+
+/* Search */
+.search-panel {
+  margin-top: 1.5em;
+}
+.search-label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 0.4em;
+}
+.search-input {
+  width: 100%;
+  padding: 0.5em 0.75em;
+  font-size: 1rem;
+  font-family: inherit;
+  border: 2px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+  background: inherit;
+  color: inherit;
+}
+.search-input:focus {
+  outline: none;
+  border-color: var(--maincolor);
+}
+.search-hint {
+  font-size: 0.85em;
+  color: grey;
+  margin: 0.4em 0 0;
+}
+.search-hint kbd {
+  font-family: inherit;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  padding: 0.1em 0.35em;
+  font-size: 0.9em;
+}
+.search-status {
+  margin: 0.75em 0;
+  font-size: 0.9em;
+  color: grey;
+}
+.search-status-error {
+  color: #c00;
+}
+.search-results {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.search-results li {
+  text-indent: 0;
+}
+.search-results li::before {
+  content: none;
+}
+.search-result-card {
+  border-top: 2px dotted var(--bordercl);
+  padding: 1em 0;
+}
+.search-result-title {
+  font-size: 1.1rem;
+  margin: 0 0 0.2em;
+}
+.search-result-title a {
+  border-bottom: none;
+  text-decoration: none;
+}
+.search-result-title a:hover {
+  background-color: var(--hovercolor);
+  color: #fff;
+}
+.search-result-meta {
+  font-size: 0.85em;
+  color: grey;
+  margin: 0 0 0.4em;
+}
+.search-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3em;
+  list-style: none;
+  padding: 0;
+  margin: 0.4em 0;
+}
+.search-tag-list li {
+  text-indent: 0;
+}
+.search-tag-list li::before {
+  content: none;
+}
+.search-tag {
+  font-size: 0.8em;
+  background: #f1f1f1;
+  border-radius: 3px;
+  padding: 0.1em 0.4em;
+}
+.search-result-snippet {
+  font-family: 'Fira Sans', 'Noto Sans TC', sans-serif;
+  font-size: 0.9em;
+  color: #555;
+  margin: 0.4em 0 0;
+  line-height: 1.5;
+}
+
+/* Callout types */
+.callout-alert  { background-color: #ffe0e0; color: #7a0000; }
+.callout-tip    { background-color: #e0f4ff; color: #004a70; }
+.callout-warning { background-color: #fff4d6; color: #6b4c00; }
+.callout-alert a, .callout-tip a, .callout-warning a {
+  border-bottom-color: currentColor;
+}

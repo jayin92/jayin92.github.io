@@ -105,3 +105,27 @@ a:hover {
   color: var(--darkMaincolor);
   background-color: #2a3a4a;
 }
+
+/* Search — dark mode */
+.search-input {
+  border-color: #555;
+  background-color: #2c2c2c;
+}
+.search-input:focus {
+  border-color: var(--darkMaincolor);
+}
+.search-hint kbd {
+  border-color: #555;
+}
+.search-tag {
+  background: #3a3a3a;
+  color: #ddd;
+}
+.search-result-snippet {
+  color: #aaa;
+}
+
+/* Callout types — dark mode */
+.callout-alert  { background-color: #3d1010; color: #ffb3b3; }
+.callout-tip    { background-color: #0d2a38; color: #7fd4f5; }
+.callout-warning { background-color: #2e2000; color: #ffd97a; }
