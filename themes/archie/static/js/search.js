@@ -160,8 +160,7 @@
         status.className = "search-status" + (modifier ? " " + modifier : "");
     }
 
-    function renderResults(entries, query) {
-        var tokens = tokenizeQuery(query);
+    function renderResults(entries, query, tokens) {
         var fragment = document.createDocumentFragment();
 
         results.replaceChildren();
@@ -224,9 +223,7 @@
         results.appendChild(fragment);
     }
 
-    function rankEntries(entries, query) {
-        var tokens = tokenizeQuery(query);
-
+    function rankEntries(entries, tokens) {
         if (!tokens.length) {
             return [];
         }
@@ -328,16 +325,22 @@
     function bootstrap(entries) {
         var searchEntries = entries.map(buildSearchEntry);
         var initialQuery = new URLSearchParams(window.location.search).get("q") || "";
+        var debounceTimer;
 
         attachKeyboardShortcut();
 
         input.value = initialQuery;
-        renderResults(rankEntries(searchEntries, initialQuery), initialQuery);
+        var initialTokens = tokenizeQuery(initialQuery);
+        renderResults(rankEntries(searchEntries, initialTokens), initialQuery, initialTokens);
 
         input.addEventListener("input", function (event) {
-            var query = event.target.value.trim();
-            updateQueryParam(query);
-            renderResults(rankEntries(searchEntries, query), query);
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(function () {
+                var query = event.target.value.trim();
+                var tokens = tokenizeQuery(query);
+                updateQueryParam(query);
+                renderResults(rankEntries(searchEntries, tokens), query, tokens);
+            }, 200);
         });
     }
 
