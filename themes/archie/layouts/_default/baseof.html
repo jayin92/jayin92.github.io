@@ -7,6 +7,7 @@
         {{- block "main" . }}{{- end }}
         {{- partial "footer.html" . -}}
         </div>
+        <script defer src="{{ absURL "js/navbar-search.js" }}"></script>
         {{- partial "analytics.html" . -}}
         <script>
         (function() {
