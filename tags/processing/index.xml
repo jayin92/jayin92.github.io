@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Processing on Jayinnn's Blog</title><link>https://blog.jayinnn.dev/tags/processing/</link><description>Recent content in Processing on Jayinnn's Blog</description><generator>Hugo</generator><language>zh-tw</language><copyright>Jayinnn © CC BY-NC-SA 4.0</copyright><lastBuildDate>Sun, 29 Jan 2023 13:03:32 +0800</lastBuildDate><atom:link href="https://blog.jayinnn.dev/tags/processing/index.xml" rel="self" type="application/rss+xml"/><item><title>搞什麼飛雞補充教材 | 陽明交大探索體驗營</title><link>https://blog.jayinnn.dev/posts/weec-flappy-bird/</link><pubDate>Sun, 29 Jan 2023 13:03:32 +0800</pubDate><guid>https://blog.jayinnn.dev/posts/weec-flappy-bird/</guid><description>&lt;h2 id="前言">前言&lt;/h2>
+&lt;p>因為這次上課的時間比較短，沒有辦法把 Flappy Bird 裡面用到的語法全部教給大家，所以我把比較進階的概念放在補充教材中，有興趣的人可以看看，主要是陣列、for 迴圈和類別。&lt;/p>
+&lt;p>另外我也在最前面放了 Processing 中一些比較常用的函數和它們的用法，裡面也有一些小範例。如果寫到一半忘記語法也可以在這邊找一下，但鼓勵大家直接看 Processing 官方的參考文件，我覺得英文不會太難，可以嘗試一下。裡面寫的也比較完整一點。&lt;/p>
+&lt;h2 id="上課教材">上課教材&lt;/h2>
+&lt;ul>
+&lt;li>&lt;a href="https://github.com/jayin92/twyc-winter-camp">Github 程式碼&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://slides.com/jayinnn_nycu/winter_camp">簡報&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://processing.org/reference">Processing 官方參考文件&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://jayin92.github.io/posts/weec-flappy-bird/">補充教材&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;h2 id="常用函數">常用函數&lt;/h2>
+&lt;h3 id="background">&lt;code>background()&lt;/code>&lt;/h3>
+&lt;p>用來設定畫面背景，參數可以為 r, g, b 也可以為圖片 (PImage)。&lt;/p>
+&lt;h3 id="rect">&lt;code>rect()&lt;/code>&lt;/h3>
+&lt;p>用來繪製長方形。&lt;/p>
+&lt;p>&lt;code>rect(a, b, c, d)&lt;/code>。其中 &lt;code>(a, b)&lt;/code> 為長方形的位置座標，具體為左上角座標或是中央座標則由 &lt;code>rectMode&lt;/code> 設定的值為準。&lt;/p>
+&lt;p>&lt;code>(c, d)&lt;/code> 則為長方形的長和寬。&lt;/p>
+&lt;h3 id="rectmode">&lt;code>rectMode()&lt;/code>&lt;/h3>
+&lt;p>設定 &lt;code>rect()&lt;/code> 函數中，&lt;code>a, b&lt;/code> 代表的位置。&lt;/p>
+&lt;p>可以為 &lt;code>rectMode(CORNER)&lt;/code> 或 &lt;code>rectMode(CENTER)&lt;/code>。&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>CORNER&lt;/code>: 代表左上角位置&lt;/li>
+&lt;li>&lt;code>CENTER&lt;/code>: 代表中央位置&lt;/li>
+&lt;/ul>
+&lt;p>具體程式範例如下：&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-java" data-lang="java">&lt;span style="display:flex;">&lt;span>size(400, 400);
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>rectMode(CORNER); &lt;span style="color:#75715e">// Default rectMode is CORNER&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>fill(255); &lt;span style="color:#75715e">// Set fill to white&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>rect(100, 100, 200, 200); &lt;span style="color:#75715e">// Draw white rect using CORNER mode&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>rectMode(CENTER); &lt;span style="color:#75715e">// Set rectMode to CENTER&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>fill(100); &lt;span style="color:#75715e">// Set fill to gray&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>rect(200, 200, 120, 120); &lt;span style="color:#75715e">// Draw gray rect using CENTER mode&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;img src="https://blog.jayinnn.dev/image/rectMode.png" alt="">&lt;/p></description></item></channel></rss>

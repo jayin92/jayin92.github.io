@@ -1,0 +1,43 @@
+/* noto-sans-tc-regular - chinese-traditional */
+@font-face {
+  font-family: 'Noto Sans TC';
+  font-style: normal;
+  font-weight: 400;
+  src: url('../fonts/noto-sans-tc-v11-chinese-traditional-regular.woff2') format('woff2'),
+       url('../fonts/noto-sans-tc-v11-chinese-traditional-regular.woff') format('woff'),
+       url('../fonts/noto-sans-tc-v11-chinese-traditional-regular.ttf') format('truetype');
+  font-display: swap;
+}
+
+/* fira-sans-regular - latin */
+@font-face {
+  font-family: 'Fira Sans';
+  font-style: normal;
+  font-weight: 400;
+  src: url('../fonts/fira-sans-v10-latin-regular.woff2') format('woff2'),
+       url('../fonts/fira-sans-v10-latin-regular.woff') format('woff'),
+       url('../fonts/fira-sans-v10-latin-regular.ttf') format('truetype');
+  font-display: swap;
+}
+
+/* roboto-mono-regular - latin */
+@font-face {
+  font-family: 'Roboto Mono';
+  font-style: normal;
+  font-weight: 400;
+  src: url('../fonts/roboto-mono-v12-latin-regular.woff2') format('woff2'),
+       url('../fonts/roboto-mono-v12-latin-regular.woff') format('woff'),
+       url('../fonts/roboto-mono-v12-latin-regular.ttf') format('truetype');
+  font-display: swap;
+}
+
+/* ibm-plex-mono-500italic - latin */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: italic;
+  font-weight: 500;
+  src: url('../fonts/ibm-plex-mono-v6-latin-500italic.woff2') format('woff2'),
+       url('../fonts/ibm-plex-mono-v6-latin-500italic.woff') format('woff'),
+       url('../fonts/ibm-plex-mono-v6-latin-500italic.ttf') format('truetype');
+  font-display: swap;
+}

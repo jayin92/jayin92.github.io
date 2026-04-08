@@ -1,0 +1,152 @@
+body {
+  color: white;
+  background-color: #202124;
+}
+
+::-moz-selection {
+  background: blue;
+  color: #fff;
+  text-shadow: none;
+}
+
+::selection {
+  background: #89000e;
+  color: #fff;
+  text-shadow: none;
+}
+
+hr {
+  border-top: 3px dotted #81d0ef;
+}
+code {
+  background-color: #6e768166;
+}
+pre {
+  background-color: #272822;
+}
+blockquote {
+  border-color: #5a9bcf;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: #ddd;
+}
+h1::before {
+  color: var(--darkMaincolor);
+  content: "# ";
+}
+h2::before {
+  color: var(--darkMaincolor);
+  content: "## ";
+}
+h3::before {
+  color: var(--darkMaincolor);
+  content: "### ";
+}
+h4::before {
+  color: var(--darkMaincolor);
+  content: "#### ";
+}
+h5::before {
+  color: var(--darkMaincolor);
+  content: "##### ";
+}
+h6::before {
+  color: var(--darkMaincolor);
+  content: "###### ";
+}
+
+a {
+  border-bottom: 3px solid var(--darkMaincolor);
+  color: inherit;
+}
+a:hover {
+  background-color: var(--darkMaincolor);
+  color: black;
+}
+
+.site-description a {
+  color: #ddd;
+}
+.site-description a:hover {
+  color: black;
+}
+
+.tags a {
+  border-bottom: 3px solid var(--darkMaincolor);
+}
+.tags a:hover {
+  background-color: var(--darkMaincolor);
+  color: black;
+}
+
+.site-title a {
+  color: white;
+  text-decoration: none !important;
+}
+
+.header nav,
+.footer {
+  border-color: #333;
+}
+
+.highlight {
+  background-color: #333;
+}
+.soc:hover {
+  color: black;
+}
+.draft-label {
+  color: var(--darkMaincolor);
+  background-color: #2a3a4a;
+}
+
+/* Navbar search — dark mode */
+.nav-search-dropdown {
+  background: #2a2a2a;
+  border-color: #444;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+.nav-search-input {
+  border-bottom-color: #444;
+}
+.nav-search-result:not(.nav-search-see-all) {
+  border-bottom-color: #3a3a3a;
+}
+.nav-search-see-all a {
+  border-top-color: #444;
+  color: var(--darkMaincolor);
+}
+.nav-search-result-link:hover {
+  background-color: var(--darkMaincolor);
+  color: #000;
+}
+
+/* Search — dark mode */
+.search-input {
+  border-color: #555;
+  background-color: #2c2c2c;
+}
+.search-input:focus {
+  border-color: var(--darkMaincolor);
+}
+.search-hint kbd {
+  border-color: #555;
+}
+.search-tag {
+  background: #3a3a3a;
+  color: #ddd;
+}
+.search-result-snippet {
+  color: #aaa;
+}
+
+/* Callout types — dark mode */
+.callout-alert  { background-color: #3d1010; color: #ffb3b3; }
+.callout-tip    { background-color: #0d2a38; color: #7fd4f5; }
+.callout-warning { background-color: #2e2000; color: #ffd97a; }

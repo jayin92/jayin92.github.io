@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>數學 on Jayinnn's Blog</title><link>https://blog.jayinnn.dev/tags/%E6%95%B8%E5%AD%B8/</link><description>Recent content in 數學 on Jayinnn's Blog</description><generator>Hugo</generator><language>zh-tw</language><copyright>Jayinnn © CC BY-NC-SA 4.0</copyright><lastBuildDate>Tue, 18 May 2021 05:56:33 +0800</lastBuildDate><atom:link href="https://blog.jayinnn.dev/tags/%E6%95%B8%E5%AD%B8/index.xml" rel="self" type="application/rss+xml"/><item><title>證明 Second (Partial) Derivative Test</title><link>https://blog.jayinnn.dev/posts/proof-of-second-derivative-test/</link><pubDate>Tue, 18 May 2021 05:56:33 +0800</pubDate><guid>https://blog.jayinnn.dev/posts/proof-of-second-derivative-test/</guid><description>&lt;h2 id="second-partial-derivative-test">Second (Partial) Derivative Test&lt;/h2>
+&lt;p>Let $f : D \rightarrow \mathbb{R}$ be a function in two variables $x$ and $y$. Suppose that $f, f_{x}, f_{y}, f_{xx}, f_{yy}, f_{xy}, f_{yx}$ are all continuous in an open disk centered at $(a, b)$ and $f_{x}(a, b) = f_{y}(a, b) = 0$. (Then $f_{xy}(a, b) = f_{yx}(a, b)$)&lt;/p>
+&lt;p>Let&lt;/p>
+&lt;p>$$D(x, y) = f_{xx}(x, y) f_{yy}(x, y) - \left(f_{xy}(x, y)\right)^{2}$$&lt;/p>
+&lt;p>Then&lt;/p>
+&lt;ol>
+&lt;li>if $D(a, b) &amp;gt; 0$ and $f_{xx}(a, b) &amp;gt; 0$, then $f(a, b)$ is a &lt;strong>local minimum&lt;/strong> of $f$,&lt;/li>
+&lt;li>if $D(a, b) &amp;gt; 0$ and $f_{xx}(a, b) &amp;lt; 0$, then $f(a, b)$ is a &lt;strong>local maximum&lt;/strong> of $f$,&lt;/li>
+&lt;li>if $D(a, b) &amp;lt; 0$, then $(a, b)$ is &lt;strong>saddle point&lt;/strong> of $f$,&lt;/li>
+&lt;li>if $D(a, b) = 0$, &lt;strong>no conclusion&lt;/strong>.&lt;/li>
+&lt;/ol>
+&lt;p>$D(x, y)$ is called the &lt;strong>Discriminant&lt;/strong> or &lt;strong>Hessian&lt;/strong> of $f$.&lt;/p></description></item><item><title>武陵高中108學年度第一學期二年級科學班數學科第二次段考</title><link>https://blog.jayinnn.dev/posts/108-wuling-math-mid-term-test/</link><pubDate>Thu, 05 Dec 2019 22:17:10 +0800</pubDate><guid>https://blog.jayinnn.dev/posts/108-wuling-math-mid-term-test/</guid><description>&lt;h1 id="武陵高中108學年度第一學期二年級科學班數學科第二次段考">武陵高中108學年度第一學期二年級科學班數學科第二次段考&lt;/h1>
+&lt;h2 id="多重選擇題">多重選擇題&lt;/h2>
+
+&lt;div
+ class="callout"
+ style=''
+>
+ &lt;div class="callout-inner">
+ 💡 每題11分，答錯1選項得6分，錯2選項得2分，錯3選項(含)以上得0分，共33分 
+ &lt;/div>
+&lt;/div>
+
+&lt;ol>
+&lt;li>
+&lt;p>$若\vec{a}、\vec{b}、\vec{c}為空間中三個向量，試問下列何者為真？$&lt;/p>
+&lt;p>&lt;strong>( A )&lt;/strong> $|\vec{a} \cdot \vec{b}| = |\vec{a}| \cdot |\vec{b}|$&lt;/p>
+&lt;p>&lt;strong>( B )&lt;/strong> $\vec{a} \cdot (\vec{b} \cdot \vec{c}) = (\vec{a} \cdot \vec{b})\cdot\vec{c}$&lt;/p>
+&lt;p>&lt;strong>( C )&lt;/strong> $\vec{a}\times(\vec{b}+\vec{c})=\vec{a}\times\vec{b}+\vec{a}\times\vec{c}$&lt;/p>
+&lt;p>&lt;strong>( D )&lt;/strong> $若 \vec{a}\cdot\vec{b} = \vec{a}\cdot\vec{c}，且|\vec{a}|\neq0，則\vec{b}=\vec{c}$&lt;/p>
+&lt;p>&lt;strong>( E )&lt;/strong> $若存在兩實數x, y使得x\vec{a}+y\vec{b}=\vec{0}，則x=y=0$&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>已知$f(x)= ax^3 + bx^2 + cx + d$為三次實係數多項式，試問下列敘述何者正確？&lt;/p>
+&lt;p>&lt;strong>( A )&lt;/strong> $方程式f(x)=0至少有一個有理根$&lt;/p>
+&lt;p>&lt;strong>( B )&lt;/strong> $若f(i)=0，則x\cdot f(x)+1=0必有實根$&lt;/p>
+&lt;p>&lt;strong>( C )&lt;/strong> $若f(x)除以(x-1)的餘式為2$，$則商式Q(x)是一個係數均為正數的多項式，則f(x)=0一定沒有大於1的實根$&lt;/p>
+&lt;p>&lt;strong>( D )&lt;/strong> $若f(1+\sqrt{5})=0$，則$f(x)=0$恰有3個實根&lt;/p>
+&lt;p>&lt;strong>( E )&lt;/strong> 若不等式$(x+1)(x+2)f(x)&amp;lt;0$的解為$x&amp;lt;-2$或$-1&amp;lt;x&amp;lt;0$，則對任意實數$x，ax^2+bx+c$恆成立&lt;/p></description></item><item><title>P vs NP</title><link>https://blog.jayinnn.dev/posts/p-vs-np/</link><pubDate>Tue, 20 Aug 2019 00:00:00 +0000</pubDate><guid>https://blog.jayinnn.dev/posts/p-vs-np/</guid><description>&lt;h2 id="前言">前言&lt;/h2>
+&lt;p>這篇其實是為了資訊讀書會打的，打完之後發現可以充文章數，所以就把它打進來了。&lt;/p>
+&lt;p>這篇主要介紹P, NP, NP Complete 和 NP Hard。還有一些已經被證明是NP Complete 的問題。&lt;/p>
+&lt;h2 id="時間複雜度">時間複雜度&lt;/h2>
+&lt;p>就是一個函數，描述一個演算法的執行時間。&lt;/p>
+&lt;p>簡單來說，假設有一個演算法，你給這個演算法一個大小為n的輸入，它最多要 $6n^3+5n^2+2n+1$ 的時間才能執行完畢，我們就說這個演算法的時間複雜度是$O(n^3)$，這個$O()$我們稱作大O符號 (Big O notation)，又叫做漸進符號，它是用另一個（通常更簡單的）函式來描述一個函式數量級的漸近上界。&lt;/p>
+&lt;p>還有一個東西叫做最壞時間複雜度(Worst-case complexity)記作 $T(n)$&lt;/p>
+&lt;p>排序演算法的其中一種：插入排序(insertion sort)的時間複雜度是$O(n^2)$，下面是插入排序的Python 程式，為什麼這個演算法的是$O(n^2)$嗎？&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-python" data-lang="python">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">def&lt;/span> &lt;span style="color:#a6e22e">insertionSort&lt;/span>(arr): 
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#75715e"># Traverse through 1 to len(arr)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">for&lt;/span> i &lt;span style="color:#f92672">in&lt;/span> range(&lt;span style="color:#ae81ff">1&lt;/span>, len(arr)): 
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> key &lt;span style="color:#f92672">=&lt;/span> arr[i] 
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#75715e"># Move elements of arr[0...i-1], &lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">while&lt;/span> j &lt;span style="color:#f92672">&amp;gt;=&lt;/span> &lt;span style="color:#ae81ff">0&lt;/span> &lt;span style="color:#f92672">and&lt;/span> key &lt;span style="color:#f92672">&amp;lt;&lt;/span> arr[j] : 
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> arr[j&lt;span style="color:#f92672">+&lt;/span>&lt;span style="color:#ae81ff">1&lt;/span>] &lt;span style="color:#f92672">=&lt;/span> arr[j] 
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> j &lt;span style="color:#f92672">-=&lt;/span> &lt;span style="color:#ae81ff">1&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> arr[j&lt;span style="color:#f92672">+&lt;/span>&lt;span style="color:#ae81ff">1&lt;/span>] &lt;span style="color:#f92672">=&lt;/span> key 
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>我們今天不會提到太多的排序演算法，因為我們的主題是P vs NP。&lt;/p>
+&lt;h2 id="p">P&lt;/h2>
+&lt;p>P 代表的是 Polynomial (多項式)，若有一個問題可以在多項式時間(polynomial time)複雜度 ($O(1), O(\log n), O(n^2), O(n \log n), O(n^3), O(n^4)$&amp;hellip;皆為多項式時間複雜度)解決，則我們說此問題為P類問題。&lt;/p></description></item><item><title>有關謝爾賓斯基三角形 aka Sierpinski triangle</title><link>https://blog.jayinnn.dev/posts/sierpinski-triangle/</link><pubDate>Thu, 10 May 2018 00:00:00 +0000</pubDate><guid>https://blog.jayinnn.dev/posts/sierpinski-triangle/</guid><description>&lt;h2 id="介紹">介紹&lt;/h2>
+&lt;p>在上一篇文章中，我們知道Barnsley Fern與這次介紹的謝爾賓斯基三角形都是碎形。&lt;/p>
+&lt;p>照慣例(XD)我們再次引用Wikipedia的內容&lt;/p>
+&lt;blockquote>
+&lt;p>謝爾賓斯基三角形（英語：Sierpinski triangle）是一種碎形，由波蘭數學家謝爾賓斯基在1915年提出。它是自相似集的例子。&lt;em>From Wikipedia&lt;/em>&lt;/p>
+&lt;/blockquote>
+&lt;p>我們這次所介紹的繪圖方法，維基百科把它稱作Chaos Game。也就是隨機的方法。&lt;/p>
+&lt;p>主要的方法如下:&lt;/p>
+&lt;ol>
+&lt;li>隨便畫個三角形(原始的謝爾賓斯基三角形為正三角形)&lt;/li>
+&lt;li>在三角形內部隨便找一個點P&lt;/li>
+&lt;li>從三角形三個頂點隨機找一個頂點&lt;/li>
+&lt;li>點出點P跟選定的頂點的中點&lt;/li>
+&lt;li>把那個中點當作新的點P&lt;/li>
+&lt;li>重複3.&lt;/li>
+&lt;/ol>
+&lt;p>以下是執行的結果&lt;/p>
+&lt;figure>&lt;img src="https://blog.jayinnn.dev/image/Sierpinskitriangle.png">
+&lt;/figure>
+
+&lt;p>可以很清楚的看到這個圖形是用點點出來的&lt;/p>
+&lt;h2 id="程式碼介紹">程式碼介紹&lt;/h2>
+&lt;p>這次的程式簡單到可以直接全部貼上來&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-python" data-lang="python">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># import package&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#f92672">import&lt;/span> turtle
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#f92672">import&lt;/span> random
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#f92672">import&lt;/span> math
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>random&lt;span style="color:#f92672">.&lt;/span>seed()
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># 定義三角形三頂點&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>pointa &lt;span style="color:#f92672">=&lt;/span> (&lt;span style="color:#ae81ff">0&lt;/span>,&lt;span style="color:#ae81ff">400&lt;/span>)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>pointb &lt;span style="color:#f92672">=&lt;/span> (&lt;span style="color:#f92672">-&lt;/span>&lt;span style="color:#ae81ff">650&lt;/span>,&lt;span style="color:#f92672">-&lt;/span>&lt;span style="color:#ae81ff">300&lt;/span>)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>pointc &lt;span style="color:#f92672">=&lt;/span> (&lt;span style="color:#ae81ff">650&lt;/span>,&lt;span style="color:#f92672">-&lt;/span>&lt;span style="color:#ae81ff">300&lt;/span>)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>point &lt;span style="color:#f92672">=&lt;/span> [pointa, pointb, pointc]
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># 定義第一個點(若這個點為隨機產出一樣對產出三角形完全沒有影響)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>firstpoint &lt;span style="color:#f92672">=&lt;/span> (&lt;span style="color:#f92672">-&lt;/span>&lt;span style="color:#ae81ff">200&lt;/span>,&lt;span style="color:#ae81ff">250&lt;/span>)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># 定義繪點函數(傳入tuple)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">def&lt;/span> &lt;span style="color:#a6e22e">drawdot&lt;/span>(point, color&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#39;black&amp;#39;&lt;/span>):
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	turtle&lt;span style="color:#f92672">.&lt;/span>penup()
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	turtle&lt;span style="color:#f92672">.&lt;/span>goto(point[&lt;span style="color:#ae81ff">0&lt;/span>],point[&lt;span style="color:#ae81ff">1&lt;/span>])
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	turtle&lt;span style="color:#f92672">.&lt;/span>pendown()
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	turtle&lt;span style="color:#f92672">.&lt;/span>dot(&lt;span style="color:#ae81ff">2&lt;/span>, color)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># 傳入兩個點(tuple)回傳兩點中點座標(tuple)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">def&lt;/span> &lt;span style="color:#a6e22e">gohalf&lt;/span>(point1,point2):
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	point &lt;span style="color:#f92672">=&lt;/span> ((point1[&lt;span style="color:#ae81ff">0&lt;/span>] &lt;span style="color:#f92672">+&lt;/span> point2[&lt;span style="color:#ae81ff">0&lt;/span>]) &lt;span style="color:#f92672">/&lt;/span> &lt;span style="color:#ae81ff">2&lt;/span>, ((point1[&lt;span style="color:#ae81ff">1&lt;/span>] &lt;span style="color:#f92672">+&lt;/span> point2[&lt;span style="color:#ae81ff">1&lt;/span>]) &lt;span style="color:#f92672">/&lt;/span> &lt;span style="color:#ae81ff">2&lt;/span>))
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	&lt;span style="color:#66d9ef">return&lt;/span> point
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># turtle package init&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>turtle&lt;span style="color:#f92672">.&lt;/span>speed(&lt;span style="color:#ae81ff">0&lt;/span>)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>turtle&lt;span style="color:#f92672">.&lt;/span>delay(&lt;span style="color:#ae81ff">0&lt;/span>)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>turtle&lt;span style="color:#f92672">.&lt;/span>hideturtle()
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># 開始繪圖&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>drawdot(pointa)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>drawdot(pointb)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>drawdot(pointc)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>drawdot(firstpoint, &lt;span style="color:#e6db74">&amp;#39;green&amp;#39;&lt;/span>)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># 將追蹤點定義為起始點&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>tracepoint &lt;span style="color:#f92672">=&lt;/span> firstpoint
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>i &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#ae81ff">1&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e">#進入無限迴圈&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">while&lt;/span> &lt;span style="color:#66d9ef">True&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	print(i)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	&lt;span style="color:#75715e"># 從point(list)隨機拿出任一個三角形頂點&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	random_point &lt;span style="color:#f92672">=&lt;/span> random&lt;span style="color:#f92672">.&lt;/span>choice(point)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	&lt;span style="color:#75715e"># 產出中點座標&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	gopoint &lt;span style="color:#f92672">=&lt;/span> gohalf(tracepoint, random_point)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	&lt;span style="color:#75715e"># 描點&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	drawdot(gopoint)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	&lt;span style="color:#75715e"># 將追蹤點定義為新產出的中點&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	tracepoint &lt;span style="color:#f92672">=&lt;/span> gopoint
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	i &lt;span style="color:#f92672">+=&lt;/span> &lt;span style="color:#ae81ff">1&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>turtle&lt;span style="color:#f92672">.&lt;/span>exitonclick()
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="參考資料">參考資料&lt;/h2>
+&lt;p>&lt;a href="https://zh.wikipedia.org/wiki/">https://zh.wikipedia.org/wiki/&lt;/a>謝爾賓斯基三角形&lt;/p></description></item><item><title>有關 Barnsley Fern</title><link>https://blog.jayinnn.dev/posts/barnsley-fern/</link><pubDate>Mon, 07 May 2018 00:00:00 +0000</pubDate><guid>https://blog.jayinnn.dev/posts/barnsley-fern/</guid><description>&lt;h2 id="前言">前言&lt;/h2>
+&lt;figure>&lt;img src="https://upload.wikimedia.org/wikipedia/commons/7/76/Barnsley_fern_plotted_with_VisSim.PNG">&lt;figcaption>
+ &lt;h4>Barnsley Fern&lt;/h4>
+ &lt;/figcaption>
+&lt;/figure>
+
+&lt;p>引用英文版Wikipedia對Barnsley Fern的介紹:&lt;/p>
+&lt;blockquote>
+&lt;p>The Barnsley fern is a fractal named after the British mathematician Michael Barnsley who first described it in his book Fractals Everywhere. &lt;em>From Wikipedia&lt;/em>&lt;/p>
+&lt;/blockquote>
+&lt;p>翻譯成中文大概就是:
+&amp;ldquo;&lt;strong>Barnsley Fern&lt;/strong> 是一個由一位英國數學家 Michael Barnsley 在他所寫的書 Fractals Everywhere 中所描述的一種碎形&amp;rdquo;&lt;/p>
+&lt;p>那甚麼是碎形呢?
+我們再次引用Wikipedia，不過這次是中文版(我懶得翻譯阿)&lt;/p>
+&lt;blockquote>
+&lt;p>碎形（英語：Fractal），又稱分形、殘形，通常被定義為「一個粗糙或零碎的幾何形狀，可以分成數個部分，且每一部分都（至少近似地）是整體縮小後的形狀」，即具有自相似的性質。&lt;em>From Wikipedia&lt;/em>&lt;/p>
+&lt;/blockquote>
+&lt;p>有名的碎形有&lt;strong>科赫雪花&lt;/strong>與&lt;strong>謝爾賓斯基三角形&lt;/strong>，有關謝爾賓斯基三角形可以參考部落格的另外一篇文章 &lt;a href="https://jayin92.github.io/posts/sierpinski-triangle/">https://jayin92.github.io/posts/sierpinski-triangle/&lt;/a>&lt;/p>
+&lt;figure>&lt;img src="https://upload.wikimedia.org/wikipedia/commons/f/fd/Von_Koch_curve.gif">&lt;figcaption>
+ &lt;h4>科赫雪花&lt;/h4>
+ &lt;/figcaption>
+&lt;/figure>
+
+&lt;figure>&lt;img src="https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/Animated_construction_of_Sierpinski_Triangle.gif/300px-Animated_construction_of_Sierpinski_Triangle.gif">&lt;figcaption>
+ &lt;h4>謝爾賓斯基三角形&lt;/h4>
+ &lt;/figcaption>
+&lt;/figure>
+
+&lt;p>我們可以很容易的看到說不管你把一個碎形放大多少倍，它所呈現的圖形會跟原本一模一樣，這就是碎形自相似的性質。&lt;/p>
+&lt;p>不過我們今天不會太深入去講碎形，因為其實我也不太會😭&lt;/p>
+&lt;h2 id="barnsley-fern-介紹">Barnsley Fern 介紹&lt;/h2>
+&lt;p>其實Barnsley Fern的描繪過程可以由下面方程組 (Transmotions functions &amp;ldquo;變換函數?&amp;rdquo;) 決定:&lt;/p>
+&lt;p>&lt;img src="https://blog.jayinnn.dev/image/eq2.png" alt="">&lt;/p>
+&lt;p>其中$P()$代表此方程式在此方程組的發生機率&lt;/p>
+&lt;p>而$f_1$主要生成Barnsley Fern中的梗的部分&lt;/p>
+&lt;p> $f_2$為小的散葉&lt;/p>
+&lt;p> $f_3$為左邊的葉子&lt;/p>
+&lt;p> $f_4$為右邊的葉子&lt;/p>
+&lt;h2 id="利用python內建的turtle庫畫出barnsley-fern">利用Python內建的Turtle庫畫出Barnsley Fern&lt;/h2>
+&lt;p>不過在電腦科學裡，我們可以利用迭代(遞迴)的方式來繪出Barnsley Fern&lt;/p></description></item><item><title>證明巴斯卡定理</title><link>https://blog.jayinnn.dev/posts/pascal-theorem/</link><pubDate>Sat, 05 May 2018 00:00:00 +0000</pubDate><guid>https://blog.jayinnn.dev/posts/pascal-theorem/</guid><description>&lt;h2 id="介紹">介紹&lt;/h2>
+&lt;p>大家都知道巴斯卡公式是排列組合中一個十分有用的公式，都叫做巴斯卡公式了，可想而知一定跟巴斯卡三角形有關係&lt;/p>
+&lt;p>其實巴斯卡三角形也可以被寫成以下形式：
+&lt;figure>&lt;img src="https://blog.jayinnn.dev/image/Pascaltrianglewithc.png">&lt;figcaption>
+ &lt;h4>巴斯卡三角形&amp;lt;組合形式&amp;gt;&lt;/h4>
+ &lt;/figcaption>
+&lt;/figure>
+&lt;/p>
+&lt;p>大家都知道巴斯卡三角形有以下性質:&lt;/p>
+&lt;figure>&lt;img src="https://blog.jayinnn.dev/image/Pascaltrianglepro.png">&lt;figcaption>
+ &lt;h4>巴斯卡三角形的性質&lt;/h4>
+ &lt;/figcaption>
+&lt;/figure>
+
+&lt;p>於是我們可以利用巴斯卡三角形推導出以下等式:&lt;/p>
+&lt;p>$$\begin{equation}C_{k}^{n+1} = C_{k-1}^{n}+C_{k}^{n}\end{equation}$$
+舉個例子來說的話就是:&lt;/p>
+&lt;p>$$C_{5}^{10} = C_{4}^{9}+C_{5}^{9}$$&lt;/p>
+&lt;p>這個例子可以上面的巴斯卡三角形的組合形式中找到&lt;/p>
+&lt;h2 id="從結果推導出的證明">從結果推導出的證明&lt;/h2>
+&lt;p>組合的定義:
+$$C_{k}^{n} = \frac{n!}{k!(n-k)!}$$&lt;/p>
+&lt;p>故(1)可改寫為:&lt;/p>
+&lt;p>$$\begin{equation}\frac{(n+1)!}{k!(n-k+1)!}=\frac{n!}{(k-1)!(n-k+1)!}+\frac{n!}{k!(n-k)!}\end{equation}$$&lt;/p>
+&lt;p>開始推導:&lt;/p>
+&lt;p>$$\frac{(n+1)!}{k!(n-k+1)!}=\frac{n!}{(k-1)!(n-k+1)!}+\frac{n!}{k!(n-k)!}$$
+$$(n+1)!=\frac{n!k!}{(k-1)!}+\frac{n!(n-k+1)!}{(n-k)!}$$
+$$\frac{(n+1)!}{n!}=\frac{k!}{(k-1)!}+\frac{(n-k+1)!}{(n-k)!}$$
+$$n+1=\frac{k!}{(k-1)!}+\frac{(n-k+1)!}{(n-k)!}$$
+$$n+1=k+\frac{(n-k)!(n-k+1)}{(n-k)!}$$
+$$n+1=k+(n-k+1)$$
+$$n+1=n+1$$&lt;/p>
+&lt;p>等號兩邊相等，故巴斯卡公式成立。&lt;/p>
+&lt;p>但是我認為這個證法不夠精確，我已經先假設巴斯卡公式成立再去證明它的確成立，正確的證法應該要從源頭來下手。&lt;/p>
+&lt;h2 id="從源頭推導出巴斯卡公式">從源頭推導出巴斯卡公式&lt;/h2>
+&lt;p>我認為這個證明有點曲折，希望有更好的證法&lt;/p>
+&lt;p>$$原式=C_{k-1}^{n}+C_{k}^{n}$$
+$$=\frac{n!}{(k-1)!(n-k+1)!}+\frac{n!}{k!(n-k)!}$$
+$$=\frac{n!}{\frac{k!}{k}(n-k)!(n-k+1)}+\frac{n!}{k!(n-k)!}$$
+$$=\frac{n!k}{k!(n-k)!(n-k+1)}+\frac{n!}{k!(n-k)!}$$
+$$=\frac{n!}{k!(n-k)!}(\frac{k}{n-k+1}+1)$$
+$$=\frac{n!}{k!(n-k)!}(\frac{k+(n-k+1)}{n-k+1})$$
+$$=\frac{n!}{k!(n-k)!}(\frac{n+1}{n-k+1})$$
+$$=\frac{n!(n+1)}{k!(n-k)!(n-k+1)}$$
+$$=\frac{(n+1)!}{k!((n+1)-k)!}$$
+$$=C_{k}^{n+1}$$&lt;/p></description></item></channel></rss>
