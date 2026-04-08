@@ -100,7 +100,6 @@ figure h4::before {
 /* Code blocks */
 code {
   background-color: #f1f1f1;
-  font-weight: bold;
   padding: 0.2em 0.4em;
   margin: 0;
   font-size: 85%;
@@ -143,6 +142,7 @@ pre code {
   display: inline-flex;
   align-items: center;
   vertical-align: middle;
+  margin-left: 0.5em;
 }
 .nav-search-toggle {
   background: none;
