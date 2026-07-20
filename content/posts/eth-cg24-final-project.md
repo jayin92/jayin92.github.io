@@ -8,7 +8,7 @@ draft: false
 outline: true
 ---
 
-這篇 blog post 主要是想要講一下當初[在 ETH Zürich 交換](/posts/nycu-cs-eth-exchange-learning/)的時候，修了 Computer Graphics 這門課的時候做的 Physically-Based Renderer。
+這篇 blog post 主要是想要講一下當初[在 ETH Zürich 交換](/posts/eth/)的時候，修了 Computer Graphics 這門課的時候做的 Physically-Based Renderer。
 
 Computer Graphics 這堂課規劃的很好，會讓學生在一學期內，以課程提供的教育用光線追蹤框架 [Nori 2](https://graphics.ethz.ch/teaching/cg24/nori.php) 為基礎，透過四次的個人作業和最後的 final project，一步一步用 C++ 實作出一個完整的 physically-based renderer。期末專題則是課程的重頭戲：除了要自行擴充渲染器的功能之外，還要用自己寫的渲染器，根據當年公布的主題渲染出一張參加 rendering competition 的作品！
 
@@ -57,4 +57,4 @@ Computer Graphics 這堂課規劃的很好，會讓學生在一學期內，以�
 
 **[Rendering Competition Presentation 簡報 (PDF)](/eth-cg24/rendering-competition-slides.pdf)**
 
-可惜因為 ETH 規定專題的原始碼不能公開，所以沒辦法分享給大家看，但報告本身是可以公開的。如果你對課程本身或申請交換有興趣，也可以參考我之前寫的[交換申請心得](/posts/nycu-cs-eth-exchange/)還有[交換期間的學習心得](/posts/nycu-cs-eth-exchange-learning/)。
+可惜因為 ETH 規定專題的原始碼不能公開，所以沒辦法分享給大家看，但報告本身是可以公開的。如果你對課程本身或申請交換有興趣，也可以參考我之前寫的[交換申請心得](/posts/nycu-cs-eth-exchange/)還有[交換期間的學習心得](/posts/eth/)。
