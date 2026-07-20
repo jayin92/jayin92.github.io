@@ -10,25 +10,15 @@
         var render = function() {
             var self = this;
 
-            var withPlaceholder = function(img, requestReload) {
-                if (img.src == options.placeholder) {
-                    return false;
-                }
-                if (options.placeholder && (!img.complete || img.naturalWidth == 0)) {
-                    if (requestReload) {
-                        img.onload = render.bind(self);
-                    }
-                    img.src = options.placeholder;
-                    return requestReload;
-                }
-                return false;
-            };
-
             var sliderPctX = options.default_offset_pct_x;
             var sliderPctY = options.default_offset_pct_y;
             var container = $(this);
             var clickNeeded = options.click_needed;
 
+            // Guard: onload callbacks below may fire once per pending image
+            if (container.data("twentytwenty-rendered")) {
+                return;
+            }
 
             var numImgs = container.children("img").length;
             var imgs = [container.children("img:eq(0)"),
@@ -38,21 +28,27 @@
 
             var temp = 0;
             var referenceIndex = 0;
-            var success = true;
+            var allLoaded = true;
             for (var i = 0; i < numImgs; i++)
             {
-                // Reload the with the first failed image
-                success = !withPlaceholder(imgs[i].get(0), success);
-                if (temp < imgs[i].get(0).naturalWidth)
+                var img = imgs[i].get(0);
+                // Keep the real src; retry once this image finishes loading
+                if (!img.complete || img.naturalWidth == 0)
                 {
-                    temp = imgs[i].get(0).naturalWidth;
+                    img.onload = render.bind(self);
+                    allLoaded = false;
+                }
+                if (temp < img.naturalWidth)
+                {
+                    temp = img.naturalWidth;
                     referenceIndex = i;
                 }
             }
 
-            if (!success) {
+            if (!allLoaded) {
                 return;
             }
+            container.data("twentytwenty-rendered", true);
 
             container.css("max-width", imgs[referenceIndex].get(0).naturalWidth);
             container.addClass("twentytwenty-compare-" + numImgs)
