@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Python on Jayinnn's Blog</title><link>https://blog.jayinnn.dev/tags/python/</link><description>Recent content in Python on Jayinnn's Blog</description><generator>Hugo</generator><language>zh-tw</language><copyright>Jayinnn © CC BY-NC-SA 4.0</copyright><lastBuildDate>Thu, 22 Aug 2019 00:00:00 +0000</lastBuildDate><atom:link href="https://blog.jayinnn.dev/tags/python/index.xml" rel="self" type="application/rss+xml"/><item><title>第一個Telegram Bot:@BikeAnywhereBot</title><link>https://blog.jayinnn.dev/posts/ubikeanywherebot/</link><pubDate>Thu, 22 Aug 2019 00:00:00 +0000</pubDate><guid>https://blog.jayinnn.dev/posts/ubikeanywherebot/</guid><description>&lt;blockquote>
+&lt;p>Github Repo: &lt;a href="https://github.com/jayin92/UBikeAnywhereBot">https://github.com/jayin92/UBikeAnywhereBot&lt;/a>&lt;/p>
+&lt;/blockquote>
+&lt;h2 id="動機">動機&lt;/h2>
+&lt;p>我自己有時候到外縣市遊玩或參加各種活動的時候，常常會使用Ubike當作交通工具，但因為不熟當地的地形和Ubike站點的位置，常常會需要用手機在瀏覽器和地圖之間瘋狂切換才能找到正確的站點及正確的路線，讓我十分困擾。而且在騎乘自行車時做出上述的動作更是十分危險。所以當時在SITCON夏令營時，就覺得這個需求其實蠻迫切的，所以就決定我們黑客松的主題。&lt;/p>
+&lt;h2 id="介紹">介紹&lt;/h2>
+&lt;p>這個Telegram Bot是我在SITCON夏令營做的一個Ubike站點路徑規劃機器人，這個機器人主要可以幫你找到離出發地和目的地最近且可用的兩個Ubike站點，並且回傳導航路線給用戶，也同時會傳送給用戶那兩個站點目前的車輛數和空位數。&lt;/p>
+&lt;h2 id="telegram-">Telegram ?&lt;/h2>
+&lt;blockquote>
+&lt;p>Telegram是一個跨平台的即時通訊軟體，它的用戶端是自由及開放原始碼軟體，但是它的伺服器是專有軟體。使用者可以相互交換加密與自毀訊息，傳送相片、影片等所有類型檔案。官方提供手機版（Android、iOS、Windows Phone）、電腦版（Windows、macOS、Linux）和網頁版等多種平台用戶端；同時官方開放應用程式介面，因此擁有許多第三方的用戶端可供選擇，其中多款內建中文。 &lt;em>From Wikipedia&lt;/em>&lt;/p>
+&lt;/blockquote>
+&lt;p>Telegram 就是一個通訊軟體，但功能十分強大，不管是高達1.5GB的最大檔案上傳大小、優秀的群組管理功能、端對端的加密、所有聊天資料雲端備份（就不會出現某通訊軟體，換手機聊天紀錄全部消失的問題）、多設備同時登入等等…&lt;/p>
+&lt;p>而且更重要的是，我們可以利用官方所提供的API來建立我們自己的機器人，更棒的是，網路上已經有可以直接使用的Python Library：&lt;a href="python-telegram-bot">https://github.com/python-telegram-bot/python-telegram-bot&lt;/a>，這讓開發的過程更加容易。&lt;/p>
+&lt;h2 id="使用">使用&lt;/h2>
+&lt;p>安裝Telegram後，可以利用以下網址使用我們的機器人
+&lt;a href="https://t.me/bikeanywherebot">https://t.me/bikeanywherebot&lt;/a>&lt;/p>
+&lt;p>Bot 首先會詢問使用者的出發地及目的地（支援模糊搜尋），並利用政府所提供的PTX API取的全台Ubike站點名稱、經緯度、已停車輛、空位，再利用經緯度及已停車輛或空位算出與出發地和目的地可用且最近的Ubike站點，在將這四個位置輸入Google Maps的導航，就完成了一次操作。&lt;/p>
+&lt;p>更詳細的說明也可以參考我們的簡報：&lt;a href="https://docs.google.com/presentation/d/1lNG2SYwuUna-86FPnBUql_JN1xgufkv2j6Hai_BKe2E/edit">https://docs.google.com/presentation/d/1lNG2SYwuUna-86FPnBUql_JN1xgufkv2j6Hai_BKe2E/edit&lt;/a>&lt;/p>
+&lt;h2 id="library">Library&lt;/h2>
+&lt;p>我們在這個專案主要用了下面幾個library:&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>telegram&lt;/code> (就是python-telegram-bot)&lt;/li>
+&lt;li>&lt;code>requests&lt;/code> 抓api的資料&lt;/li>
+&lt;li>&lt;code>json&lt;/code> 將json檔變成Python原生的字典&lt;/li>
+&lt;li>&lt;code>configparser&lt;/code> 讀取config.ini&lt;/li>
+&lt;/ul>
+&lt;h2 id="api">API&lt;/h2>
+&lt;p>我們在這個project主要用到了兩個API，一個是Google的Firebase，用來生成Dynamic Link。還有一個是政府的PTX(Public Transport Data eXchange)平台，用來查詢Ubike的站點位置，即時的車輛數等等…&lt;/p>
+&lt;p>我們一開始並沒有找到PTX這個整合性的平台，而是先找到了各縣市的Ubike開放資料，而且並不是每個縣市的資料開放平台都有Ubike的資料。這讓我們很困擾，因為我們要花很多時間處理各個縣市不統一的資料形式，而且還要申請不同縣市資料平台的API Key。但幸好後來有一位小隊員找到政府的PTX平台，上面有所有擁有公共自行車站點的縣市的資料，而且只需要一個API Key，這讓資料的取得相當的方便。&lt;/p>
+&lt;p>我們的導航網址是利用網址分析的方式產出的，格式大概長這樣：
+&lt;a href="https://www.google.com/maps/dir/?api=1&amp;amp;origin=%E6%B5%B7%E6%B4%8B%E5%A4%A7%E5%AD%B8&amp;amp;destination=%E8%87%BA%E7%81%A3%E5%A4%A7%E5%AD%B8&amp;amp;waypoints=%E8%87%BA%E5%8C%97%E5%8B%95%E7%89%A9%E5%9C%92%7C%E8%87%BA%E5%8C%97101&amp;amp;travelmode=driving">https://www.google.com/maps/dir/?api=1&amp;amp;origin=海洋大學&amp;amp;destination=臺灣大學&amp;amp;waypoints=臺北動物園|臺北101&amp;amp;travelmode=driving&lt;/a>&lt;/p>
+&lt;ul>
+&lt;li>origin: 起點 (可以是座標、地點名稱、Google的placeID)&lt;/li>
+&lt;li>destination: 終點 (可以是座標、地點名稱、Google的placeID)&lt;/li>
+&lt;li>waypoints: 中途點 (格式與上面相同，中途點間用&lt;code>|&lt;/code>分隔)&lt;/li>
+&lt;li>travelmode: 導航模式 (driving, walking, motorcycling, etc&amp;hellip;)
+所以上面那段網址點進去後，會出現Google Maps的導航畫面，路線是 &lt;strong>海洋大學 → 臺北動物園 → 臺北101 → 臺灣大學&lt;/strong> 而導航模式是開車。&lt;/li>
+&lt;/ul>
+&lt;p>可以發現，這串網址如果直接發給用戶會相當的難看，而且並不會直接導向到Google Maps的APP，當我試著用各家的縮網址服務時，隊友找到了一個叫Dynamic Link的東西。Dynamic Link是一個由Google Firebase提供的服務，它不僅可以縮網址，而且網址的域名還是自訂的(&lt;a href="https://bikeanywhere.page.link">https://bikeanywhere.page.link&lt;/a>)，更強的是，它可以自動導向到Google Maps的APP，用戶不用再做其他的動作，這東西簡直就是完美。&lt;/p></description></item><item><title>有關謝爾賓斯基三角形 aka Sierpinski triangle</title><link>https://blog.jayinnn.dev/posts/sierpinski-triangle/</link><pubDate>Thu, 10 May 2018 00:00:00 +0000</pubDate><guid>https://blog.jayinnn.dev/posts/sierpinski-triangle/</guid><description>&lt;h2 id="介紹">介紹&lt;/h2>
+&lt;p>在上一篇文章中，我們知道Barnsley Fern與這次介紹的謝爾賓斯基三角形都是碎形。&lt;/p>
+&lt;p>照慣例(XD)我們再次引用Wikipedia的內容&lt;/p>
+&lt;blockquote>
+&lt;p>謝爾賓斯基三角形（英語：Sierpinski triangle）是一種碎形，由波蘭數學家謝爾賓斯基在1915年提出。它是自相似集的例子。&lt;em>From Wikipedia&lt;/em>&lt;/p>
+&lt;/blockquote>
+&lt;p>我們這次所介紹的繪圖方法，維基百科把它稱作Chaos Game。也就是隨機的方法。&lt;/p>
+&lt;p>主要的方法如下:&lt;/p>
+&lt;ol>
+&lt;li>隨便畫個三角形(原始的謝爾賓斯基三角形為正三角形)&lt;/li>
+&lt;li>在三角形內部隨便找一個點P&lt;/li>
+&lt;li>從三角形三個頂點隨機找一個頂點&lt;/li>
+&lt;li>點出點P跟選定的頂點的中點&lt;/li>
+&lt;li>把那個中點當作新的點P&lt;/li>
+&lt;li>重複3.&lt;/li>
+&lt;/ol>
+&lt;p>以下是執行的結果&lt;/p>
+&lt;figure>&lt;img src="https://blog.jayinnn.dev/image/Sierpinskitriangle.png">
+&lt;/figure>
+
+&lt;p>可以很清楚的看到這個圖形是用點點出來的&lt;/p>
+&lt;h2 id="程式碼介紹">程式碼介紹&lt;/h2>
+&lt;p>這次的程式簡單到可以直接全部貼上來&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;">&lt;code class="language-python" data-lang="python">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># import package&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#f92672">import&lt;/span> turtle
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#f92672">import&lt;/span> random
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#f92672">import&lt;/span> math
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>random&lt;span style="color:#f92672">.&lt;/span>seed()
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># 定義三角形三頂點&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>pointa &lt;span style="color:#f92672">=&lt;/span> (&lt;span style="color:#ae81ff">0&lt;/span>,&lt;span style="color:#ae81ff">400&lt;/span>)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>pointb &lt;span style="color:#f92672">=&lt;/span> (&lt;span style="color:#f92672">-&lt;/span>&lt;span style="color:#ae81ff">650&lt;/span>,&lt;span style="color:#f92672">-&lt;/span>&lt;span style="color:#ae81ff">300&lt;/span>)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>pointc &lt;span style="color:#f92672">=&lt;/span> (&lt;span style="color:#ae81ff">650&lt;/span>,&lt;span style="color:#f92672">-&lt;/span>&lt;span style="color:#ae81ff">300&lt;/span>)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>point &lt;span style="color:#f92672">=&lt;/span> [pointa, pointb, pointc]
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># 定義第一個點(若這個點為隨機產出一樣對產出三角形完全沒有影響)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>firstpoint &lt;span style="color:#f92672">=&lt;/span> (&lt;span style="color:#f92672">-&lt;/span>&lt;span style="color:#ae81ff">200&lt;/span>,&lt;span style="color:#ae81ff">250&lt;/span>)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># 定義繪點函數(傳入tuple)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">def&lt;/span> &lt;span style="color:#a6e22e">drawdot&lt;/span>(point, color&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#39;black&amp;#39;&lt;/span>):
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	turtle&lt;span style="color:#f92672">.&lt;/span>penup()
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	turtle&lt;span style="color:#f92672">.&lt;/span>goto(point[&lt;span style="color:#ae81ff">0&lt;/span>],point[&lt;span style="color:#ae81ff">1&lt;/span>])
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	turtle&lt;span style="color:#f92672">.&lt;/span>pendown()
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	turtle&lt;span style="color:#f92672">.&lt;/span>dot(&lt;span style="color:#ae81ff">2&lt;/span>, color)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># 傳入兩個點(tuple)回傳兩點中點座標(tuple)&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">def&lt;/span> &lt;span style="color:#a6e22e">gohalf&lt;/span>(point1,point2):
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	point &lt;span style="color:#f92672">=&lt;/span> ((point1[&lt;span style="color:#ae81ff">0&lt;/span>] &lt;span style="color:#f92672">+&lt;/span> point2[&lt;span style="color:#ae81ff">0&lt;/span>]) &lt;span style="color:#f92672">/&lt;/span> &lt;span style="color:#ae81ff">2&lt;/span>, ((point1[&lt;span style="color:#ae81ff">1&lt;/span>] &lt;span style="color:#f92672">+&lt;/span> point2[&lt;span style="color:#ae81ff">1&lt;/span>]) &lt;span style="color:#f92672">/&lt;/span> &lt;span style="color:#ae81ff">2&lt;/span>))
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	&lt;span style="color:#66d9ef">return&lt;/span> point
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># turtle package init&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>turtle&lt;span style="color:#f92672">.&lt;/span>speed(&lt;span style="color:#ae81ff">0&lt;/span>)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>turtle&lt;span style="color:#f92672">.&lt;/span>delay(&lt;span style="color:#ae81ff">0&lt;/span>)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>turtle&lt;span style="color:#f92672">.&lt;/span>hideturtle()
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># 開始繪圖&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>drawdot(pointa)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>drawdot(pointb)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>drawdot(pointc)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>drawdot(firstpoint, &lt;span style="color:#e6db74">&amp;#39;green&amp;#39;&lt;/span>)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># 將追蹤點定義為起始點&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>tracepoint &lt;span style="color:#f92672">=&lt;/span> firstpoint
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>i &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#ae81ff">1&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e">#進入無限迴圈&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">while&lt;/span> &lt;span style="color:#66d9ef">True&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	print(i)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	&lt;span style="color:#75715e"># 從point(list)隨機拿出任一個三角形頂點&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	random_point &lt;span style="color:#f92672">=&lt;/span> random&lt;span style="color:#f92672">.&lt;/span>choice(point)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	&lt;span style="color:#75715e"># 產出中點座標&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	gopoint &lt;span style="color:#f92672">=&lt;/span> gohalf(tracepoint, random_point)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	&lt;span style="color:#75715e"># 描點&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	drawdot(gopoint)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	&lt;span style="color:#75715e"># 將追蹤點定義為新產出的中點&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	tracepoint &lt;span style="color:#f92672">=&lt;/span> gopoint
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>	i &lt;span style="color:#f92672">+=&lt;/span> &lt;span style="color:#ae81ff">1&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>turtle&lt;span style="color:#f92672">.&lt;/span>exitonclick()
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="參考資料">參考資料&lt;/h2>
+&lt;p>&lt;a href="https://zh.wikipedia.org/wiki/">https://zh.wikipedia.org/wiki/&lt;/a>謝爾賓斯基三角形&lt;/p></description></item><item><title>有關 Barnsley Fern</title><link>https://blog.jayinnn.dev/posts/barnsley-fern/</link><pubDate>Mon, 07 May 2018 00:00:00 +0000</pubDate><guid>https://blog.jayinnn.dev/posts/barnsley-fern/</guid><description>&lt;h2 id="前言">前言&lt;/h2>
+&lt;figure>&lt;img src="https://upload.wikimedia.org/wikipedia/commons/7/76/Barnsley_fern_plotted_with_VisSim.PNG">&lt;figcaption>
+ &lt;h4>Barnsley Fern&lt;/h4>
+ &lt;/figcaption>
+&lt;/figure>
+
+&lt;p>引用英文版Wikipedia對Barnsley Fern的介紹:&lt;/p>
+&lt;blockquote>
+&lt;p>The Barnsley fern is a fractal named after the British mathematician Michael Barnsley who first described it in his book Fractals Everywhere. &lt;em>From Wikipedia&lt;/em>&lt;/p>
+&lt;/blockquote>
+&lt;p>翻譯成中文大概就是:
+&amp;ldquo;&lt;strong>Barnsley Fern&lt;/strong> 是一個由一位英國數學家 Michael Barnsley 在他所寫的書 Fractals Everywhere 中所描述的一種碎形&amp;rdquo;&lt;/p>
+&lt;p>那甚麼是碎形呢?
+我們再次引用Wikipedia，不過這次是中文版(我懶得翻譯阿)&lt;/p>
+&lt;blockquote>
+&lt;p>碎形（英語：Fractal），又稱分形、殘形，通常被定義為「一個粗糙或零碎的幾何形狀，可以分成數個部分，且每一部分都（至少近似地）是整體縮小後的形狀」，即具有自相似的性質。&lt;em>From Wikipedia&lt;/em>&lt;/p>
+&lt;/blockquote>
+&lt;p>有名的碎形有&lt;strong>科赫雪花&lt;/strong>與&lt;strong>謝爾賓斯基三角形&lt;/strong>，有關謝爾賓斯基三角形可以參考部落格的另外一篇文章 &lt;a href="https://jayin92.github.io/posts/sierpinski-triangle/">https://jayin92.github.io/posts/sierpinski-triangle/&lt;/a>&lt;/p>
+&lt;figure>&lt;img src="https://upload.wikimedia.org/wikipedia/commons/f/fd/Von_Koch_curve.gif">&lt;figcaption>
+ &lt;h4>科赫雪花&lt;/h4>
+ &lt;/figcaption>
+&lt;/figure>
+
+&lt;figure>&lt;img src="https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/Animated_construction_of_Sierpinski_Triangle.gif/300px-Animated_construction_of_Sierpinski_Triangle.gif">&lt;figcaption>
+ &lt;h4>謝爾賓斯基三角形&lt;/h4>
+ &lt;/figcaption>
+&lt;/figure>
+
+&lt;p>我們可以很容易的看到說不管你把一個碎形放大多少倍，它所呈現的圖形會跟原本一模一樣，這就是碎形自相似的性質。&lt;/p>
+&lt;p>不過我們今天不會太深入去講碎形，因為其實我也不太會😭&lt;/p>
+&lt;h2 id="barnsley-fern-介紹">Barnsley Fern 介紹&lt;/h2>
+&lt;p>其實Barnsley Fern的描繪過程可以由下面方程組 (Transmotions functions &amp;ldquo;變換函數?&amp;rdquo;) 決定:&lt;/p>
+&lt;p>&lt;img src="https://blog.jayinnn.dev/image/eq2.png" alt="">&lt;/p>
+&lt;p>其中$P()$代表此方程式在此方程組的發生機率&lt;/p>
+&lt;p>而$f_1$主要生成Barnsley Fern中的梗的部分&lt;/p>
+&lt;p> $f_2$為小的散葉&lt;/p>
+&lt;p> $f_3$為左邊的葉子&lt;/p>
+&lt;p> $f_4$為右邊的葉子&lt;/p>
+&lt;h2 id="利用python內建的turtle庫畫出barnsley-fern">利用Python內建的Turtle庫畫出Barnsley Fern&lt;/h2>
+&lt;p>不過在電腦科學裡，我們可以利用迭代(遞迴)的方式來繪出Barnsley Fern&lt;/p></description></item></channel></rss>
