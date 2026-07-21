@@ -4,6 +4,13 @@
 		<div class="title">
 			<h1 class="title">{{ .Title }}</h1>
 			<div class="meta">Posted on {{ dateFormat "Jan 2, 2006" .Date }}{{ if .Draft }} <span class="draft-label">DRAFT</span> {{ end }}</div>
+			{{ if .IsTranslated }}
+			<div class="meta translations">
+				{{ range .Translations }}
+				<a href="{{ .RelPermalink }}">{{ if eq .Language.Lang "en" }}Read in English &rarr;{{ else }}閱讀中文版 &rarr;{{ end }}</a>
+				{{ end }}
+			</div>
+			{{ end }}
 		</div>
 		{{ if isset .Params "tldr" }}
 		<div class="tldr">
