@@ -6,6 +6,14 @@
     {{ range .Site.Menus.main }}
     <a href="{{ .URL | relLangURL }}">{{ .Name }}</a>
     {{ end }}
+    {{- /* Language switcher: jump to this page's translation, or the other language's home */ -}}
+    {{ $page := . }}
+    {{ range .Site.Home.Translations }}
+    {{ $target := .RelPermalink }}
+    {{ $lang := .Language.Lang }}
+    {{ range $page.Translations }}{{ if eq .Language.Lang $lang }}{{ $target = .RelPermalink }}{{ end }}{{ end }}
+    <a href="{{ $target }}" class="lang-switch" title="{{ if eq $lang "en" }}Switch to English{{ else }}切換至中文{{ end }}">{{ if eq $lang "en" }}EN{{ else }}中文{{ end }}</a>
+    {{ end }}
     <div class="nav-search" id="nav-search" data-search-index="{{ "search/index.json" | absLangURL }}">
       <button class="nav-search-toggle" id="nav-search-toggle" aria-label="Search" aria-expanded="false" title="Search">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
