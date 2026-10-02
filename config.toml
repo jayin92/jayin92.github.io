@@ -33,7 +33,7 @@ weight = 2
 # Get the IDs from https://giscus.app after enabling Discussions + installing the giscus app.
 [params.giscus]
   repo = "jayin92/jayin92.github.io"
-  repoId = "R_kgDOFb_O0g"
+  repoId = "MDEwOlJlcG9zaXRvcnkzNjQ4OTE4NTg="
   category = "Announcements"
   categoryId = "DIC_kwDOFb_O0s4DG4Du"
 
