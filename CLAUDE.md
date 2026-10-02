@@ -19,6 +19,7 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.134.3 (extended)**, using 
 - `content/posts/` — Blog posts (YAML frontmatter: title, date, description, tags, draft)
 - `content/diaries/` — Date-named diary entries (YYYY-MM-DD.md)
 - `content/image/` — Images organized in subdirectories, referenced via `{{<figure>}}` shortcode
+- `layouts/` — Site-level overrides (e.g. `_default/search.json`); these take precedence over `themes/archie/layouts/`
 - `themes/archie/` — Modified Archie theme with custom layouts and local fonts
   - `layouts/partials/head.html` — KaTeX math, Google Analytics, Microsoft Clarity
   - `layouts/partials/header.html` — Navigation, favicon, font loading
@@ -32,3 +33,16 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.134.3 (extended)**, using 
 - About page (`content/about.md`) uses TOML frontmatter (`+++` delimiters)
 - Images go in `content/image/<post-name>/` and are referenced as `{{<figure src="/image/..." title="...">}}`
 - Math is rendered with KaTeX (use standard LaTeX syntax in markdown)
+
+## Multilingual (zh-tw default, en under `/en/`)
+
+- Default language is zh-tw served at the root (`defaultContentLanguageInSubdir = false`); English lives under `/en/`.
+- Translations are sibling files with an `.en.md` suffix: `eth.md` ↔ `eth.en.md`, `about.md` ↔ `about.en.md`, `search.md` ↔ `search.en.md`.
+- English translations are currently `draft: true`, so preview them with `hugo server -D`. Remove the draft flag to publish.
+- Nav has a global language switcher (`themes/archie/layouts/partials/header.html`).
+- `config.toml` sets `[markup.goldmark.renderHooks.*] enableDefault = false` because Hugo auto-enables embedded link/image render hooks on multilingual sites. Don't remove it, or zh output changes.
+
+## Deployment
+
+- Push to `main` triggers `.github/workflows/hugo.yml`, which builds with Hugo 0.134.3 extended and force-pushes to the `gh-pages` branch.
+- `public/` and `resources/` are gitignored and never committed.
