@@ -33,6 +33,7 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 - About page (`content/about.md`) uses TOML frontmatter (`+++` delimiters)
 - Images go in `content/image/<post-name>/` and are referenced as `{{<figure src="/image/..." title="...">}}`
 - Math is rendered with KaTeX (use standard LaTeX syntax in markdown)
+- Home page "Start here" list comes from `params.featured` (content paths) in `config.toml`; drafts/missing pages are skipped.
 - Local images under `/image/...` are processed by Hugo (see Images below); keep using the same `/image/...` paths.
 
 ## Multilingual (zh-tw default, en under `/en/`)
@@ -40,7 +41,9 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 - Default language is zh-tw served at the root (`defaultContentLanguageInSubdir = false`); English lives under `/en/`.
 - Translations are sibling files with an `.en.md` suffix: `eth.md` ↔ `eth.en.md`, `about.md` ↔ `about.en.md`, `search.md` ↔ `search.en.md`.
 - English translations are currently `draft: true`, so preview them with `hugo server -D`. Remove the draft flag to publish.
-- Nav has a global language switcher (`themes/archie/layouts/partials/header.html`).
+- The English translations of the ETH posts were LLM-generated: keep them `draft: true` until a human-written/reviewed version exists.
+- Nav language switcher (`partials/head.html`) is shown only if the other language has a published post or the current content page has a translation. `partials/site-published.html` / `partials/is-shell.html` implement this; empty English index/list/search pages get `noindex` (`partials/header.html`) and are left out of the sitemap (`layouts/sitemap.xml`). So it turns on by itself once a real English post is published; `hugo server -D` (drafts) always shows it.
+- UI strings live in `i18n/zh-tw.toml` / `i18n/en.toml` (use `{{ i18n "key" }}`); the Chinese subtitle, intro and menu labels are under `[languages.zh-tw.*]` in `config.toml`.
 - `config.toml` sets `[markup.goldmark.renderHooks.*] useEmbedded = "never"` because Hugo auto-enables embedded link/image render hooks on multilingual sites. Don't remove it, or zh output changes.
 
 ## Images
