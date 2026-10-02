@@ -665,3 +665,99 @@ color: whitesmoke ;
 .comments {
   margin-top: 3rem;
 }
+
+/* Tag pills, home intro/featured, year groups */
+.pills {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: inline;
+}
+.pills li {
+  display: inline-block;
+  margin: 0 0.35em 0.35em 0;
+  text-indent: 0;
+}
+ul.pills > li::before {
+  content: none;
+}
+.pills a {
+  display: inline-block;
+  border: 1px solid var(--maincolor);
+  border-radius: 999px;
+  padding: 1px 0.7em;
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+.pills a:hover {
+  background-color: var(--hovercolor);
+  color: #fff;
+}
+.pills .count {
+  opacity: 0.6;
+  margin-left: 0.45em;
+}
+.tag-pills li {
+  margin-bottom: 0.5em;
+}
+.tag-pills a {
+  font-size: 0.9rem;
+}
+.rare-tags summary {
+  cursor: pointer;
+  margin: 1.4em 0 0.8em;
+}
+.item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3em 0.8em;
+  margin: 0.25em 0 0.5em;
+}
+.item-meta .pills li {
+  margin-bottom: 0;
+}
+.item-meta .draft-label {
+  margin-left: 0;
+}
+.intro {
+  line-height: 1.8;
+}
+.featured {
+  margin: 1.5em 0 2.4em;
+  padding: 0.2em 0 0.2em 1.1em;
+  border-left: 3px solid var(--maincolor);
+}
+.featured-title {
+  font-size: 1rem;
+  margin: 0 0 0.5em;
+}
+.featured ul {
+  margin: 0;
+  padding-left: 1.1em;
+}
+.featured li {
+  margin-bottom: 0.4em;
+}
+.featured-desc {
+  color: grey;
+  font-size: 0.9em;
+}
+.year-group .year {
+  font-size: 1.1rem;
+  margin: 1.8em 0 0.5em;
+}
+.posts .meta {
+  margin-left: 0.5em;
+}
+.lang-switch svg {
+  vertical-align: -2px;
+  margin-right: 0.25em;
+}
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible,
+.theme-switch input:focus-visible + .slider {
+  outline: 2px solid var(--maincolor);
+  outline-offset: 2px;
+}

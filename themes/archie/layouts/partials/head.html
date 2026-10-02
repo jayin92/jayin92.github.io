@@ -15,7 +15,7 @@
     {{ range $page.Translations }}{{ if eq .Language.Lang $lang }}{{ $target = .RelPermalink }}{{ $pageHasTranslation = $page.IsPage }}{{ end }}{{ end }}
     {{- /* Offer the switch only if that language has a published post, or this content page itself has a translation */ -}}
     {{ if or $pageHasTranslation (partial "site-published.html" .) }}
-    <a href="{{ $target }}" class="lang-switch" title="{{ if eq $lang "en" }}Switch to English{{ else }}切換至中文{{ end }}">{{ if eq $lang "en" }}EN{{ else }}中文{{ end }}</a>
+    <a href="{{ $target }}" class="lang-switch" title="{{ if eq $lang "en" }}Switch to English{{ else }}切換至中文{{ end }}"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>{{ if eq $lang "en" }}EN{{ else }}中文{{ end }}</a>
     {{ end }}
     {{ end }}
     <div class="nav-search" id="nav-search" data-search-index="{{ "search/index.json" | absLangURL }}" data-search-page="{{ "search/" | relLangURL }}" data-see-all="{{ i18n "search_see_all" }}" data-no-quick="{{ i18n "search_no_quick" }}">

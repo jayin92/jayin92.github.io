@@ -9,6 +9,7 @@ search_see_all = "查看「{q}」的所有結果 →"
 search_no_quick = "沒有快速結果，搜尋完整索引 →"
 toggle_dark = "切換深色模式"
 date_format = "2006-01-02"
+date_short = "01-02"
 
 [entries_tagged]
 other = "標籤：{{ .Tag }}"

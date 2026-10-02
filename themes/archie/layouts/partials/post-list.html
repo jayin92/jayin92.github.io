@@ -1,0 +1,15 @@
+{{- /* Posts grouped by year. Context: a list/term page. */ -}}
+{{- $excluded := .Site.Params.excludedTypes | default (slice "page") -}}
+{{- $pages := where .Data.Pages "Type" "not in" $excluded -}}
+{{- range $pages.GroupByDate "2006" }}
+<section class="year-group">
+	<h2 class="year">{{ .Key }}</h2>
+	<ul class="posts">
+		{{- range .Pages }}
+		<li class="post">
+			<a href="{{ .RelPermalink }}">{{ .Title }}</a> <span class="meta">{{ dateFormat (i18n "date_short") .Date }}{{ if .Draft }} <span class="draft-label">DRAFT</span>{{ end }}</span>
+		</li>
+		{{- end }}
+	</ul>
+</section>
+{{- end }}

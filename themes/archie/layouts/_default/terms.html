@@ -1,31 +1,28 @@
 {{ define "main" }}
 <h1 class="page-title">{{ i18n "all_tags" }}</h1>
 
-{{ $max := 1.6 }}
-{{ $min := 1.0 }}
-{{ $biggest := 1 }}
-{{ $smallest := 9999 }}
-{{ range .Data.Terms }}
-  {{ if gt .Count $biggest }}{{ $biggest = .Count }}{{ end }}
-  {{ if lt .Count $smallest }}{{ $smallest = .Count }}{{ end }}
+{{ $data := .Data }}
+{{ $site := .Site }}
+{{ $common := slice }}
+{{ $rare := slice }}
+{{ range .Data.Terms.ByCount }}
+  {{ if ge .Count 2 }}{{ $common = $common | append . }}{{ else }}{{ $rare = $rare | append . }}{{ end }}
 {{ end }}
 
-{{ $data := .Data }}
-<div class="tag-cloud">
-  <ul class="tags">
-    {{ range .Data.Terms.ByCount }}
-    {{ $size := $min }}
-    {{ if ne $biggest $smallest }}
-      {{ $size = add $min (mul (math.Div (sub .Count $smallest) (sub $biggest $smallest)) (sub $max $min)) }}
-    {{ end }}
-    <li>
-      <a
-        style="font-size: {{ printf "%.2f" $size }}rem;"
-        href="{{ $.Site.LanguagePrefix | absURL }}{{ $data.Plural }}/{{ .Name | urlize }}/"
-        >{{ .Name }} ({{ .Count }})</a
-      >
-    </li>
+<ul class="pills tag-pills">
+  {{ range $common }}
+  <li><a href="{{ $site.LanguagePrefix | absURL }}{{ $data.Plural }}/{{ .Name | urlize }}/">{{ .Name }}<span class="count">{{ .Count }}</span></a></li>
+  {{ end }}
+</ul>
+
+{{ with $rare }}
+<details class="rare-tags">
+  <summary>{{ i18n "other_tags" }} ({{ len . }})</summary>
+  <ul class="pills tag-pills">
+    {{ range . }}
+    <li><a href="{{ $site.LanguagePrefix | absURL }}{{ $data.Plural }}/{{ .Name | urlize }}/">{{ .Name }}</a></li>
     {{ end }}
   </ul>
-</div>
+</details>
+{{ end }}
 {{ end }}

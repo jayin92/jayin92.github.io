@@ -9,6 +9,7 @@ search_see_all = "See all results for \"{q}\" →"
 search_no_quick = "No quick results — search full index →"
 toggle_dark = "Toggle dark mode"
 date_format = "Jan 2, 2006"
+date_short = "Jan 2"
 
 [entries_tagged]
 other = "Entries tagged - \"{{ .Tag }}\""

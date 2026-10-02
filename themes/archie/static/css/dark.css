@@ -150,3 +150,20 @@ a:hover {
 .callout-alert  { background-color: #3d1010; color: #ffb3b3; }
 .callout-tip    { background-color: #0d2a38; color: #7fd4f5; }
 .callout-warning { background-color: #2e2000; color: #ffd97a; }
+
+.pills a {
+  border-color: var(--darkMaincolor);
+}
+.pills a:hover {
+  background-color: var(--darkMaincolor);
+  color: black;
+}
+.featured {
+  border-left-color: var(--darkMaincolor);
+}
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible,
+.theme-switch input:focus-visible + .slider {
+  outline-color: var(--darkMaincolor);
+}
