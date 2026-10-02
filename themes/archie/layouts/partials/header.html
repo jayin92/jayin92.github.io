@@ -53,7 +53,7 @@
 	<link rel="canonical" href="{{ .Permalink }}">
 	{{ if .IsTranslated }}
 	{{- range .AllTranslations }}
-	<link rel="alternate" hreflang="{{ .Language.LanguageCode }}" href="{{ .Permalink }}">
+	<link rel="alternate" hreflang="{{ .Language.Locale }}" href="{{ .Permalink }}">
 	{{- end }}
 	<link rel="alternate" hreflang="x-default" href="{{ (index .AllTranslations 0).Permalink }}">
 	{{ end }}

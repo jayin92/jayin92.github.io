@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Personal blog (blog.jayinnn.dev) built with **Hugo v0.134.3 (extended)**, using a modified **Archie** theme. Content is primarily in Traditional Chinese (zh-tw). Deployed to GitHub Pages via GitHub Actions on push to `main`.
+Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using a modified **Archie** theme. Content is primarily in Traditional Chinese (zh-tw). Deployed to GitHub Pages via GitHub Actions on push to `main`.
 
 ## Commands
 
@@ -40,9 +40,9 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.134.3 (extended)**, using 
 - Translations are sibling files with an `.en.md` suffix: `eth.md` ↔ `eth.en.md`, `about.md` ↔ `about.en.md`, `search.md` ↔ `search.en.md`.
 - English translations are currently `draft: true`, so preview them with `hugo server -D`. Remove the draft flag to publish.
 - Nav has a global language switcher (`themes/archie/layouts/partials/header.html`).
-- `config.toml` sets `[markup.goldmark.renderHooks.*] enableDefault = false` because Hugo auto-enables embedded link/image render hooks on multilingual sites. Don't remove it, or zh output changes.
+- `config.toml` sets `[markup.goldmark.renderHooks.*] useEmbedded = "never"` because Hugo auto-enables embedded link/image render hooks on multilingual sites. Don't remove it, or zh output changes.
 
 ## Deployment
 
-- Push to `main` triggers `.github/workflows/hugo.yml`, which builds with Hugo 0.134.3 extended and force-pushes to the `gh-pages` branch.
+- Push to `main` triggers `.github/workflows/hugo.yml`, which builds with Hugo 0.167.0 extended and force-pushes to the `gh-pages` branch.
 - `public/` and `resources/` are gitignored and never committed.
