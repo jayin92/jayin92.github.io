@@ -18,17 +18,17 @@
     <a href="{{ $target }}" class="lang-switch" title="{{ if eq $lang "en" }}Switch to English{{ else }}切換至中文{{ end }}">{{ if eq $lang "en" }}EN{{ else }}中文{{ end }}</a>
     {{ end }}
     {{ end }}
-    <div class="nav-search" id="nav-search" data-search-index="{{ "search/index.json" | absLangURL }}">
-      <button class="nav-search-toggle" id="nav-search-toggle" aria-label="Search" aria-expanded="false" title="Search">
+    <div class="nav-search" id="nav-search" data-search-index="{{ "search/index.json" | absLangURL }}" data-search-page="{{ "search/" | relLangURL }}" data-see-all="{{ i18n "search_see_all" }}" data-no-quick="{{ i18n "search_no_quick" }}">
+      <button class="nav-search-toggle" id="nav-search-toggle" aria-label="{{ i18n "search" }}" aria-expanded="false" title="{{ i18n "search" }}">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       </button>
       <div class="nav-search-dropdown" id="nav-search-dropdown" hidden>
-        <input type="search" class="nav-search-input" id="nav-search-input" placeholder="Search posts..." autocomplete="off" spellcheck="false">
+        <input type="search" class="nav-search-input" id="nav-search-input" placeholder="{{ i18n "search_placeholder" }}" autocomplete="off" spellcheck="false">
         <ul class="nav-search-results" id="nav-search-results"></ul>
       </div>
     </div>
-    <label class="theme-switch" title="Toggle dark mode">
-      <input type="checkbox" id="theme-toggle" aria-label="Toggle dark mode" />
+    <label class="theme-switch" title="{{ i18n "toggle_dark" }}">
+      <input type="checkbox" id="theme-toggle" aria-label="{{ i18n "toggle_dark" }}" />
       <span class="slider">
         <span class="icon icon-sun"
           ><svg

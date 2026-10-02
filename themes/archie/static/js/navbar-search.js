@@ -83,10 +83,10 @@
         var seeAll = document.createElement('li');
         seeAll.className = 'nav-search-see-all';
         var seeAllLink = document.createElement('a');
-        seeAllLink.href = '/search/?q=' + encodeURIComponent(query);
+        seeAllLink.href = (container.dataset.searchPage || '/search/') + '?q=' + encodeURIComponent(query);
         seeAllLink.textContent = entries.length
-            ? 'See all results for "' + query + '" \u2192'
-            : 'No quick results \u2014 search full index \u2192';
+            ? (container.dataset.seeAll || 'See all results for "{q}" \u2192').replace('{q}', query)
+            : (container.dataset.noQuick || 'No quick results \u2014 search full index \u2192');
         seeAll.appendChild(seeAllLink);
         resultsEl.appendChild(seeAll);
     }

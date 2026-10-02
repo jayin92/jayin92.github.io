@@ -3,7 +3,7 @@
 	<article>
 		<div class="title">
 			<h1 class="title">{{ .Title }}</h1>
-			<div class="meta">Posted on {{ dateFormat "Jan 2, 2006" .Date }}{{ if .Draft }} <span class="draft-label">DRAFT</span> {{ end }}</div>
+			<div class="meta">{{ i18n "posted_on" }} {{ dateFormat (i18n "date_format") .Date }}{{ if .Draft }} <span class="draft-label">DRAFT</span> {{ end }}</div>
 			{{ if .IsTranslated }}
 			<div class="meta translations">
 				{{ range .Translations }}

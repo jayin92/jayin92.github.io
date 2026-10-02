@@ -1,0 +1,14 @@
+posted_on = "發佈於"
+all_posts = "所有文章"
+all_tags = "所有標籤"
+other_tags = "其他標籤"
+start_here = "從這裡開始"
+search = "搜尋"
+search_placeholder = "搜尋文章⋯"
+search_see_all = "查看「{q}」的所有結果 →"
+search_no_quick = "沒有快速結果，搜尋完整索引 →"
+toggle_dark = "切換深色模式"
+date_format = "2006-01-02"
+
+[entries_tagged]
+other = "標籤：{{ .Tag }}"

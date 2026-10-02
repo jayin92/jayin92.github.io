@@ -1,0 +1,14 @@
+posted_on = "Posted on"
+all_posts = "All Posts"
+all_tags = "All tags"
+other_tags = "Other tags"
+start_here = "Start here"
+search = "Search"
+search_placeholder = "Search posts..."
+search_see_all = "See all results for \"{q}\" →"
+search_no_quick = "No quick results — search full index →"
+toggle_dark = "Toggle dark mode"
+date_format = "Jan 2, 2006"
+
+[entries_tagged]
+other = "Entries tagged - \"{{ .Tag }}\""
