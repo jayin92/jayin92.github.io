@@ -33,6 +33,7 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 - About page (`content/about.md`) uses TOML frontmatter (`+++` delimiters)
 - Images go in `content/image/<post-name>/` and are referenced as `{{<figure src="/image/..." title="...">}}`
 - Math is rendered with KaTeX (use standard LaTeX syntax in markdown)
+- Local images under `/image/...` are processed by Hugo (see Images below); keep using the same `/image/...` paths.
 
 ## Multilingual (zh-tw default, en under `/en/`)
 
@@ -41,6 +42,14 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 - English translations are currently `draft: true`, so preview them with `hugo server -D`. Remove the draft flag to publish.
 - Nav has a global language switcher (`themes/archie/layouts/partials/header.html`).
 - `config.toml` sets `[markup.goldmark.renderHooks.*] useEmbedded = "never"` because Hugo auto-enables embedded link/image render hooks on multilingual sites. Don't remove it, or zh output changes.
+
+## Images
+
+- `content/image` is also mounted as `assets/image` (`[module]` mounts in `config.toml`; declaring any mount replaces Hugo's defaults, so all are listed). Originals are still published at their old URLs.
+- `partials/responsive-image.html` turns `/image/...` PNG/JPEG/WebP into 640/960/1600px WebP with `srcset`, `width`/`height` and `loading="lazy"`; other URLs fall back to a plain `<img>`. JPEGs go through `images.AutoOrient` first, because resizing drops EXIF and phone photos are stored sideways.
+- Used by the overridden `figure` shortcode and `_default/_markup/render-image.html`, so posts need no changes.
+- `static/eth-cg24/` is a standalone hand-built report and is not processed.
+- The theme links CSS via `.Site.BaseURL` (absolute), so a static build served locally loads production CSS; build with `--baseURL http://localhost:PORT/` to test CSS changes. `hugo server` is unaffected.
 
 ## Comments
 

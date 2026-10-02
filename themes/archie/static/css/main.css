@@ -69,6 +69,7 @@ ul:not(.pagination) > li::before {
 img {
   border: 3px solid #ececec;
   max-width: 100%;
+  height: auto;
 }
 
 figure {
@@ -80,6 +81,7 @@ figure {
 
 figure img {
   max-height: 500px;
+  width: auto;
 }
 
 @media screen and (min-width: 600px) {

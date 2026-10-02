@@ -83,6 +83,34 @@ url = "/tags"
 weight = 4
 
 
+# Process content/image with Hugo's image pipeline (see partials/responsive-image.html).
+# Declaring any mount replaces the defaults, so they are all listed here.
+[module]
+  [[module.mounts]]
+    source = "archetypes"
+    target = "archetypes"
+  [[module.mounts]]
+    source = "assets"
+    target = "assets"
+  [[module.mounts]]
+    source = "content"
+    target = "content"
+  [[module.mounts]]
+    source = "data"
+    target = "data"
+  [[module.mounts]]
+    source = "i18n"
+    target = "i18n"
+  [[module.mounts]]
+    source = "layouts"
+    target = "layouts"
+  [[module.mounts]]
+    source = "static"
+    target = "static"
+  [[module.mounts]]
+    source = "content/image"
+    target = "assets/image"
+
 [outputFormats]
   [outputFormats.JSON]
     mediaType = "application/json"

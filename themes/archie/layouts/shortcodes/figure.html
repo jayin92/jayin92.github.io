@@ -1,0 +1,15 @@
+{{- /* Same markup as Hugo's built-in figure, but the <img> goes through responsive-image.html */ -}}
+<figure{{ with .Get "class" }} class="{{ . }}"{{ end }}>
+  {{- if .Get "link" }}<a href="{{ .Get "link" }}"{{ with .Get "target" }} target="{{ . }}"{{ end }}{{ with .Get "rel" }} rel="{{ . }}"{{ end }}>{{ end }}
+  {{ partial "responsive-image.html" (dict "src" (.Get "src") "alt" (.Get "alt" | default (.Get "caption") | default (.Get "title"))) }}
+  {{- if .Get "link" }}</a>{{ end }}
+  {{- if or (or (.Get "title") (.Get "caption")) (.Get "attr") }}
+  <figcaption>
+    {{- if isset .Params "title" }}<h4>{{ .Get "title" }}</h4>{{ end }}
+    {{- if or (.Get "caption") (.Get "attr") }}<p>
+      {{- .Get "caption" | markdownify }}
+      {{- with .Get "attrlink" }}<a href="{{ . }}">{{ end }}{{ .Get "attr" | markdownify }}{{ if .Get "attrlink" }}</a>{{ end }}
+    </p>{{ end }}
+  </figcaption>
+  {{- end }}
+</figure>

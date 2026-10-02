@@ -1,0 +1,34 @@
+{{- /*
+  Responsive image. Args: src, alt, title (all optional except src).
+  /image/* paths are resolved through assets/image (mounted from content/image in config.toml)
+  and emitted as resized WebP with srcset. Anything else falls back to a plain lazy <img>.
+*/ -}}
+{{- $src := .src -}}
+{{- $alt := .alt | default "" -}}
+{{- $res := "" -}}
+{{- if hasPrefix $src "/image/" -}}
+  {{- $res = resources.Get (strings.TrimPrefix "/" $src) -}}
+{{- end -}}
+{{- if and $res (eq $res.ResourceType "image") (in (slice "image/png" "image/jpeg" "image/webp") $res.MediaType.Type) -}}
+  {{- /* Resize/convert drops EXIF, so bake the rotation into the pixels first (phone photos are stored sideways). */ -}}
+  {{- if eq $res.MediaType.Type "image/jpeg" }}{{ $res = $res.Filter images.AutoOrient }}{{ end -}}
+  {{- $opts := "q80 photo" -}}
+  {{- if eq $res.MediaType.Type "image/png" }}{{ $opts = "q90 drawing" }}{{ end -}}
+  {{- $cands := slice -}}
+  {{- range slice 640 960 1600 -}}
+    {{- if lt . $res.Width -}}
+      {{- $cands = $cands | append ($res.Resize (printf "%dx webp %s" . $opts)) -}}
+    {{- end -}}
+  {{- end -}}
+  {{- if le $res.Width 1600 -}}
+    {{- $cands = $cands | append ($res.Process (printf "webp %s" $opts)) -}}
+  {{- end -}}
+  {{- $largest := index $cands (sub (len $cands) 1) -}}
+  <img src="{{ $largest.RelPermalink }}"
+    srcset="{{ range $i, $c := $cands }}{{ if $i }}, {{ end }}{{ $c.RelPermalink }} {{ $c.Width }}w{{ end }}"
+    sizes="(min-width: 800px) 800px, 100vw"
+    width="{{ $largest.Width }}" height="{{ $largest.Height }}"
+    alt="{{ $alt }}"{{ with .title }} title="{{ . }}"{{ end }} loading="lazy" decoding="async">
+{{- else -}}
+  <img src="{{ $src }}" alt="{{ $alt }}"{{ with .title }} title="{{ . }}"{{ end }} loading="lazy" decoding="async">
+{{- end -}}
