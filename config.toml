@@ -29,6 +29,14 @@ weight = 2
 	subtitle = "A Blog about My Daily Life"
 	mainSections = ["posts"]
 
+# Comments (giscus). Comments render only when repoId and categoryId are set.
+# Get the IDs from https://giscus.app after enabling Discussions + installing the giscus app.
+[params.giscus]
+  repo = "jayin92/jayin92.github.io"
+  repoId = ""
+  category = "Announcements"
+  categoryId = ""
+
 # Social Tags
 
 [[params.social]]

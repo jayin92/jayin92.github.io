@@ -1,0 +1,53 @@
+{{- /* giscus comments. Renders only for posts, when [params.giscus] has repoId + categoryId, and comments != false. */ -}}
+{{- $g := .Site.Params.giscus -}}
+{{- if and $g $g.repoid $g.categoryid (eq .Section "posts") (ne .Params.comments false) -}}
+<section class="comments" id="comments">
+	<div id="giscus-container"></div>
+	<script>
+	(function () {
+		var link = document.getElementById('dark-css');
+		function isDark() {
+			var saved = null;
+			try { saved = localStorage.getItem('theme'); } catch (e) {}
+			if (saved === 'dark') return true;
+			if (saved === 'light') return false;
+			if (link && link.media === 'all') return true;
+			if (link && link.media === 'not all') return false;
+			return window.matchMedia('(prefers-color-scheme: dark)').matches;
+		}
+		function theme() { return isDark() ? 'dark' : 'light'; }
+		function sendTheme() {
+			var frame = document.querySelector('iframe.giscus-frame');
+			if (!frame) return;
+			frame.contentWindow.postMessage({ giscus: { setConfig: { theme: theme() } } }, 'https://giscus.app');
+		}
+
+		var s = document.createElement('script');
+		s.src = 'https://giscus.app/client.js';
+		s.async = true;
+		s.crossOrigin = 'anonymous';
+		var attrs = {
+			'data-repo': {{ $g.repo | default "jayin92/jayin92.github.io" }},
+			'data-repo-id': {{ $g.repoid }},
+			'data-category': {{ $g.category | default "Announcements" }},
+			'data-category-id': {{ $g.categoryid }},
+			'data-mapping': 'pathname',
+			'data-strict': '0',
+			'data-reactions-enabled': '1',
+			'data-emit-metadata': '0',
+			'data-input-position': 'top',
+			'data-theme': theme(),
+			'data-lang': {{ if eq .Language.Lang "en" }}'en'{{ else }}'zh-TW'{{ end }},
+			'data-loading': 'lazy'
+		};
+		Object.keys(attrs).forEach(function (k) { s.setAttribute(k, attrs[k]); });
+		document.getElementById('giscus-container').appendChild(s);
+
+		// Keep giscus in sync with the nav theme toggle and the OS setting.
+		var toggle = document.getElementById('theme-toggle');
+		if (toggle) toggle.addEventListener('change', sendTheme);
+		window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', sendTheme);
+	})();
+	</script>
+</section>
+{{- end -}}
