@@ -1,0 +1,2 @@
+{{- /* True when the site (language) of the given page has at least one published post. Drafts are excluded in production builds. */ -}}
+{{- return (gt (len (where .Site.RegularPages "Type" "in" .Site.Params.mainSections)) 0) -}}

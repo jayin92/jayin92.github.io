@@ -11,8 +11,12 @@
     {{ range .Site.Home.Translations }}
     {{ $target := .RelPermalink }}
     {{ $lang := .Language.Lang }}
-    {{ range $page.Translations }}{{ if eq .Language.Lang $lang }}{{ $target = .RelPermalink }}{{ end }}{{ end }}
+    {{ $pageHasTranslation := false }}
+    {{ range $page.Translations }}{{ if eq .Language.Lang $lang }}{{ $target = .RelPermalink }}{{ $pageHasTranslation = $page.IsPage }}{{ end }}{{ end }}
+    {{- /* Offer the switch only if that language has a published post, or this content page itself has a translation */ -}}
+    {{ if or $pageHasTranslation (partial "site-published.html" .) }}
     <a href="{{ $target }}" class="lang-switch" title="{{ if eq $lang "en" }}Switch to English{{ else }}切換至中文{{ end }}">{{ if eq $lang "en" }}EN{{ else }}中文{{ end }}</a>
+    {{ end }}
     {{ end }}
     <div class="nav-search" id="nav-search" data-search-index="{{ "search/index.json" | absLangURL }}">
       <button class="nav-search-toggle" id="nav-search-toggle" aria-label="Search" aria-expanded="false" title="Search">

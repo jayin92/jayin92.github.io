@@ -1,0 +1,2 @@
+{{- /* True for index/list/search pages of a language that has no published posts (empty shells). Real content pages are never shells. */ -}}
+{{- return (and (not (partial "site-published.html" .)) (or (not .IsPage) (eq .Layout "search"))) -}}
