@@ -917,12 +917,13 @@ html:has(dialog.lightbox[open]) {
     max-height: calc(100vh - 4rem);
     overflow-y: auto;
     padding-right: 0.5em;
-    /* Thin, faint scrollbar that firms up on hover (standard properties; Chrome 121+, Firefox, Safari 18.2+) */
+    /* Thin scrollbar in the theme colour (--maincolor #00897B), solid on hover.
+       Standard properties: Chrome 121+, Firefox, Safari 18.2+. */
     scrollbar-width: thin;
-    scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+    scrollbar-color: rgba(0, 137, 123, 0.45) transparent;
   }
   .toc details:hover {
-    scrollbar-color: rgba(0, 0, 0, 0.35) transparent;
+    scrollbar-color: rgba(0, 137, 123, 0.9) transparent;
   }
   /* Older Safari only understands the -webkit- pseudo-elements */
   .toc details::-webkit-scrollbar {
@@ -932,11 +933,11 @@ html:has(dialog.lightbox[open]) {
     background: transparent;
   }
   .toc details::-webkit-scrollbar-thumb {
-    background-color: rgba(0, 0, 0, 0.15);
+    background-color: rgba(0, 137, 123, 0.45);
     border-radius: 3px;
   }
   .toc details:hover::-webkit-scrollbar-thumb {
-    background-color: rgba(0, 0, 0, 0.35);
+    background-color: rgba(0, 137, 123, 0.9);
   }
   .toc summary {
     list-style: none;

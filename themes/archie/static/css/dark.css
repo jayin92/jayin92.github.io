@@ -174,15 +174,16 @@ header {
 header::after {
   background-color: rgba(255, 255, 255, 0.1);
 }
+/* TOC scrollbar in the dark theme colour (--darkMaincolor #80CBC4) */
 .toc details {
-  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  scrollbar-color: rgba(128, 203, 196, 0.45) transparent;
 }
 .toc details:hover {
-  scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
+  scrollbar-color: rgba(128, 203, 196, 0.9) transparent;
 }
 .toc details::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.15);
+  background-color: rgba(128, 203, 196, 0.45);
 }
 .toc details:hover::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.35);
+  background-color: rgba(128, 203, 196, 0.9);
 }
