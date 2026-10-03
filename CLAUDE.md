@@ -51,6 +51,7 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 - `partials/responsive-image.html` turns `/image/...` PNG/JPEG/WebP into 640/960/1600px WebP with `srcset`, `width`/`height` and `loading="lazy"`; other URLs fall back to a plain `<img>`. JPEGs go through `images.AutoOrient` first, because resizing drops EXIF and phone photos are stored sideways.
 - Used by the overridden `figure` shortcode and `_default/_markup/render-image.html`, so posts need no changes.
 - Processed images also get `data-zoom-src` (the largest WebP); `static/js/lightbox.js` opens it in a `<dialog>` on click/Enter. Images inside links and external images are left alone.
+- Animations (lightbox zoom from the thumbnail, backdrop fade, search dropdown, cross-page View Transitions with a fixed header) all live behind `prefers-reduced-motion: no-preference` in `main.css` / a `reduceMotion` check in `lightbox.js`. Headless Chrome with `--virtual-time-budget` does not advance animation timelines, so test animations in real time.
 - `static/eth-cg24/` is a standalone hand-built report and is not processed.
 - The theme links CSS via `.Site.BaseURL` (absolute), so a static build served locally loads production CSS; build with `--baseURL http://localhost:PORT/` to test CSS changes. `hugo server` is unaffected.
 

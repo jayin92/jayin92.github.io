@@ -763,13 +763,51 @@ dialog.lightbox img {
   position: absolute;
   inset: 0;
   margin: auto;
-  width: auto;
-  height: auto;
   max-width: 96vw;
   max-height: 94vh;
   border: 0;
   cursor: zoom-out;
+  /* width/height are set inline by lightbox.js */
 }
 html:has(dialog.lightbox[open]) {
   overflow: hidden;
+  /* keep the scrollbar's space so the page doesn't shift sideways when scrolling is locked */
+  scrollbar-gutter: stable;
+}
+
+/* Animations — all skipped when the user prefers reduced motion */
+@media (prefers-reduced-motion: no-preference) {
+  /* Lightbox backdrop fades in/out; the image itself is animated by lightbox.js */
+  dialog.lightbox[open]::backdrop {
+    animation: fade-in 0.3s ease-out;
+  }
+  dialog.lightbox.closing::backdrop {
+    animation: fade-out 0.22s ease-in forwards;
+  }
+
+  /* Search dropdown */
+  .nav-search-dropdown:not([hidden]) {
+    animation: drop-in 0.16s ease-out;
+  }
+
+  /* Cross-page fade (View Transitions; browsers without support just navigate). Header stays put. */
+  @view-transition {
+    navigation: auto;
+  }
+  header {
+    view-transition-name: site-header;
+  }
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.22s;
+  }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+}
+@keyframes fade-out {
+  to { opacity: 0; }
+}
+@keyframes drop-in {
+  from { opacity: 0; transform: translateY(-4px); }
 }
