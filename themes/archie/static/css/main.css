@@ -890,6 +890,11 @@ html:has(dialog.lightbox[open]) {
 .toc a.active {
   color: var(--maincolor);
 }
+/* Override the theme's global a:hover (teal background + white text), which made the teal
+   TOC text vanish on hover */
+.toc a:hover {
+  background-color: transparent;
+}
 .toc a.active {
   font-weight: bold;
 }

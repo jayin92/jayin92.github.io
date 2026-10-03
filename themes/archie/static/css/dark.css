@@ -168,6 +168,9 @@ summary:focus-visible,
 .toc a.active {
   color: var(--darkMaincolor);
 }
+.toc a:hover {
+  background-color: transparent;
+}
 header {
   background-color: #202124;
 }
