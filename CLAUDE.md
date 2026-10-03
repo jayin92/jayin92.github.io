@@ -74,6 +74,7 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 - Renders only for `posts` when `[params.giscus] repoId` and `categoryId` in `config.toml` are set; set `comments: false` in a post's frontmatter to disable. Threads are keyed by URL path, so zh and en versions have separate threads.
 
 ## Deployment
+- Theme CSS/JS are linked through `partials/asset-url.html`, which appends `?v=<md5 of the file>[:8]`. They're served with a 4-hour max-age under fixed names, so link any new static CSS/JS the same way or browsers keep stale copies after a deploy.
 
 - Push to `main` triggers `.github/workflows/hugo.yml`, which builds with Hugo 0.167.0 extended and force-pushes to the `gh-pages` branch.
 - `public/` and `resources/` are gitignored and never committed.

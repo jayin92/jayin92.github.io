@@ -76,11 +76,11 @@
         <link href="https://fonts.googleapis.com/css2?family=Fira+Sans&display=swap" rel="stylesheet">
         <link href="https://fonts.googleapis.com/css?family=Roboto+Mono" rel="stylesheet">
 	{{- else -}}
-        <link href="{{ .Site.BaseURL }}css/fonts.css" rel="stylesheet">
+        <link href="{{ partial "asset-url.html" "css/fonts.css" }}" rel="stylesheet">
 	{{ end }}
-	<link rel="stylesheet" type="text/css" media="screen" href="{{ .Site.BaseURL }}css/main.css" />
+	<link rel="stylesheet" type="text/css" media="screen" href="{{ partial "asset-url.html" "css/main.css" }}" />
 	{{- if or (eq .Site.Params.mode "auto") (eq .Site.Params.mode "dark") -}}
-	{{- $darkCSS := printf "%scss/dark.css" .Site.BaseURL }}
+	{{- $darkCSS := partial "asset-url.html" "css/dark.css" }}
 	<script>
 	(function() {
 		var media = {{ if eq .Site.Params.mode "auto" }}'(prefers-color-scheme: dark)'{{ else }}'all'{{ end }};

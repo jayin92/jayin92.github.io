@@ -7,9 +7,9 @@
         {{- block "main" . }}{{- end }}
         {{- partial "footer.html" . -}}
         </div>
-        <script defer src="{{ absURL "js/navbar-search.js" }}"></script>
-        <script defer src="{{ absURL "js/lightbox.js" }}"></script>
-        <script defer src="{{ absURL "js/nav-hide.js" }}"></script>
+        <script defer src="{{ partial "asset-url.html" "js/navbar-search.js" }}"></script>
+        <script defer src="{{ partial "asset-url.html" "js/lightbox.js" }}"></script>
+        <script defer src="{{ partial "asset-url.html" "js/nav-hide.js" }}"></script>
         {{- partial "analytics.html" . -}}
         <script>
         (function() {

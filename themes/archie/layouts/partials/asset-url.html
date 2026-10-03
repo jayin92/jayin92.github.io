@@ -1,0 +1,5 @@
+{{- /* "css/main.css" → absolute URL + ?v=<content hash>. These files are served with a 4-hour
+       max-age and a fixed name, so without the hash browsers (and Cloudflare) keep stale copies
+       after a deploy. The hash changes only when the file's contents do. */ -}}
+{{- $v := substr (readFile (printf "themes/archie/static/%s" .) | md5) 0 8 -}}
+{{- return printf "%s?v=%s" (absURL .) $v -}}
