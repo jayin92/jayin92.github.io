@@ -80,16 +80,26 @@
 	{{ end }}
 	<link rel="stylesheet" type="text/css" media="screen" href="{{ .Site.BaseURL }}css/main.css" />
 	{{- if or (eq .Site.Params.mode "auto") (eq .Site.Params.mode "dark") -}}
-		<link id="dark-css" rel="stylesheet" type="text/css" href="{{ .Site.BaseURL }}css/dark.css" {{ if eq .Site.Params.mode "auto" }}media="(prefers-color-scheme: dark)"{{ end }} />
+	{{- $darkCSS := printf "%scss/dark.css" .Site.BaseURL }}
+	<script>
+	(function() {
+		var media = {{ if eq .Site.Params.mode "auto" }}'(prefers-color-scheme: dark)'{{ else }}'all'{{ end }};
+		try {
+			var saved = localStorage.getItem('theme');
+			if (saved === 'dark') media = 'all';
+			else if (saved === 'light') media = 'not all';
+		} catch (e) {}
+		// Write the link from the parser with the final media already set, so the browser waits for it
+		// before the first paint. Switching media on an existing link left it non-render-blocking, which
+		// flashed light on every page (and view transition) for a manual dark choice on a light OS.
+		document.write('<link id="dark-css" rel="stylesheet" type="text/css" href="' + {{ $darkCSS }} + '" media="' + media + '">');
+	})();
+	</script>
+	<noscript><link id="dark-css" rel="stylesheet" type="text/css" href="{{ $darkCSS }}" {{ if eq .Site.Params.mode "auto" }}media="(prefers-color-scheme: dark)"{{ end }}></noscript>
 	{{ end }}
 	<script>
 	(function() {
 		document.documentElement.classList.add('no-transition');
-		var link = document.getElementById('dark-css');
-		if (!link) return;
-		var saved = localStorage.getItem('theme');
-		if (saved === 'dark') link.media = 'all';
-		else if (saved === 'light') link.media = 'not all';
 		window.addEventListener('DOMContentLoaded', function() {
 			requestAnimationFrame(function() {
 				document.documentElement.classList.remove('no-transition');
