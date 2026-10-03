@@ -30,6 +30,38 @@ p {
   line-height: 1.7;
 }
 
+/* All prose inside a post uses the paragraph font; monospace stays for the site title, nav,
+   headings, dates/meta and code. Before, lists, tables and captions inherited the monospace root font. */
+.body li,
+.body td,
+.body th,
+.body dt,
+.body dd,
+.body figcaption {
+  font-family: 'Fira Sans', 'Noto Sans TC', sans-serif;
+}
+.body li {
+  line-height: 1.7;
+}
+/* Keep the "* " bullet monospace and size the hanging indent in em (Roboto Mono is 0.6em per
+   character, so "* " = 1.2em), so wrapped lines still line up now that list text is proportional. */
+.body ul {
+  padding-left: 1.2em;
+}
+.body ul li {
+  text-indent: -1.2em;
+}
+.body ul li::before {
+  font-family: 'Roboto Mono', monospace;
+}
+
+code,
+pre,
+kbd,
+samp {
+  font-family: 'Roboto Mono', 'Noto Sans TC', monospace;
+}
+
 hr {
   border: 0;
   border-top: 3px dotted var(--bordercl);
