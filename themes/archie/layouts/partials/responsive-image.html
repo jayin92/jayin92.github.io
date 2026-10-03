@@ -27,7 +27,7 @@
   <img src="{{ $largest.RelPermalink }}"
     srcset="{{ range $i, $c := $cands }}{{ if $i }}, {{ end }}{{ $c.RelPermalink }} {{ $c.Width }}w{{ end }}"
     sizes="(min-width: 800px) 800px, 100vw"
-    width="{{ $largest.Width }}" height="{{ $largest.Height }}"
+    width="{{ $largest.Width }}" height="{{ $largest.Height }}" data-zoom-src="{{ $largest.RelPermalink }}"
     alt="{{ $alt }}"{{ with .title }} title="{{ . }}"{{ end }} loading="lazy" decoding="async">
 {{- else -}}
   <img src="{{ $src }}" alt="{{ $alt }}"{{ with .title }} title="{{ . }}"{{ end }} loading="lazy" decoding="async">
