@@ -7,6 +7,25 @@
   </head>
   <body>
     <!-- Sveltia CMS, pinned: this page gets write access to the repo, so upgrade deliberately. -->
-    <script src="https://unpkg.com/@sveltia/cms@0.227.2/dist/sveltia-cms.js"></script>
+    <script src="https://unpkg.com/@sveltia/cms@0.227.3/dist/sveltia-cms.js"></script>
+    <script>
+      // Render the editor preview with the blog's own fonts and styles (the preview then runs in
+      // an iframe). These URLs aren't cache-busted, so after a style change the preview may lag
+      // behind for a few hours; the live site is unaffected.
+      CMS.registerPreviewStyle('/css/fonts.css');
+      CMS.registerPreviewStyle('/css/main.css');
+      CMS.registerPreviewStyle(`
+        @import url('/css/dark.css') (prefers-color-scheme: dark);
+        /* Same column as a post page */
+        body { max-width: 800px; margin: 0 auto; padding: 1rem 1.5rem; }
+        /* On the site these rules sit under .body (the post content); the preview has no such
+           wrapper, so apply them to the Body field instead */
+        [data-key-path='body'] li,
+        [data-key-path='body'] td,
+        [data-key-path='body'] th,
+        [data-key-path='body'] figcaption { font-family: 'Fira Sans', 'Noto Sans TC', sans-serif; }
+        [data-key-path='body'] li { line-height: 1.7; }
+      `, { raw: true });
+    </script>
   </body>
 </html>

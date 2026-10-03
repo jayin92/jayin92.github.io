@@ -12,6 +12,12 @@ backend:
   repo: jayin92/jayin92.github.io
   branch: main
 
+app_title: Jayinnn's Blog CMS
+logo:
+  src: /android-chrome-192x192.png
+site_url: https://blog.jayinnn.dev
+display_url: https://blog.jayinnn.dev
+
 # Uploads land next to the existing images and are referenced as /image/..., so Hugo's
 # responsive-image pipeline (WebP srcset + lightbox) picks them up.
 media_folder: /content/image
