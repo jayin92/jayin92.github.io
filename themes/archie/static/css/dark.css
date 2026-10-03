@@ -168,3 +168,9 @@ summary:focus-visible,
 .toc a.active {
   color: var(--darkMaincolor);
 }
+header {
+  background-color: #202124;
+}
+header::after {
+  background-color: rgba(255, 255, 255, 0.1);
+}

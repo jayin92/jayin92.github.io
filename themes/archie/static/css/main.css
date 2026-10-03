@@ -250,7 +250,16 @@ header {
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  margin: 1em 0;
+  /* Sticky, hidden while scrolling down (static/js/nav-hide.js). Spacing is padding so the
+     background covers the whole bar. */
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  /* The negative bottom margin cancels the bottom padding: the old 1em margin collapsed with the
+     next heading's margin, padding doesn't, so without it the page would start 0.5em lower. */
+  margin: 0 0 -0.5em;
+  padding: 1em 0 0.5em;
+  background-color: #fff;
 }
 
 header .main {
@@ -851,7 +860,7 @@ html:has(dialog.lightbox[open]) {
 .body h3 {
   scroll-margin-top: 1rem;
 }
-/* Sidebar in the left margin once there is room for it beside the 800px column */
+/* Sidebar in the right margin once there is room for it beside the 800px column */
 @media (min-width: 1320px) {
   article {
     position: relative;
@@ -860,9 +869,9 @@ html:has(dialog.lightbox[open]) {
     position: absolute;
     top: 0;
     bottom: 0;
-    right: 100%;
+    left: 100%;
     width: 220px;
-    margin-right: 2.5rem;
+    margin-left: 2.5rem;
   }
   .toc details {
     position: sticky;
@@ -884,5 +893,29 @@ html:has(dialog.lightbox[open]) {
 @media (prefers-reduced-motion: no-preference) {
   html {
     scroll-behavior: smooth;
+  }
+}
+
+/* Hide-on-scroll header (static/js/nav-hide.js) */
+header::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background-color: rgba(0, 0, 0, 0.08);
+  opacity: 0;
+}
+header.nav-pinned::after {
+  opacity: 1;
+}
+header.nav-hidden {
+  transform: translateY(-100%);
+}
+@media (prefers-reduced-motion: no-preference) {
+  /* More specific than the theme's global `body *` colour transition, which would override it */
+  .content > header {
+    transition: transform 0.25s ease, background-color 0.15s ease;
   }
 }
