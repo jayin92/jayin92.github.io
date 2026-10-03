@@ -9,22 +9,19 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
+      - uses: actions/checkout@v7
 
+      # resources/_gen holds Hugo's processed images (WebP variants), so builds don't redo them.
       - name: Cache Hugo resources
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
-          path: |
-            resources/
-            /tmp/hugo_cache/
+          path: resources/
           key: ${{ runner.os }}-hugo-${{ hashFiles('config.toml') }}
           restore-keys: |
             ${{ runner.os }}-hugo-
 
       - name: Setup Hugo
-        uses: peaceiris/actions-hugo@v2
+        uses: peaceiris/actions-hugo@v3
         with:
           hugo-version: '0.167.0'
           extended: true
@@ -33,20 +30,20 @@ jobs:
       # Non-fatal: if it fails, the committed subset is used and missing glyphs fall back
       # to Noto Sans TC.
       - name: Cache Sarasa source fonts
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .font-cache/
           key: sarasa-mono-tc-${{ hashFiles('tools/subset_fonts.py') }}
 
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
       - name: Subset fonts to the site's characters
         continue-on-error: true
         run: |
-          pip install --quiet fonttools brotli
+          pip install --quiet fonttools brotli py7zr
           python3 tools/subset_fonts.py
 
       - name: Build

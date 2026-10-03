@@ -7,7 +7,7 @@ The full font is ~14 MB per weight, so we ship a subset and regenerate it whenev
 changes (CI runs this before `hugo` — see .github/workflows/hugo.yml). Characters missing
 from the subset fall back to Noto Sans TC, so a stale subset never shows tofu.
 
-Usage:  pip install fonttools brotli && python3 tools/subset_fonts.py
+Usage:  pip install fonttools brotli py7zr && python3 tools/subset_fonts.py
 """
 import pathlib
 import shutil
@@ -51,11 +51,19 @@ def ensure_source_fonts():
     if not archive.exists():
         print(f"downloading {URL}")
         urllib.request.urlretrieve(URL, archive)
+    try:  # pure Python, so it doesn't depend on what the CI image ships (pip install py7zr)
+        import py7zr
+        with py7zr.SevenZipFile(archive) as z:
+            z.extractall(path=CACHE)
+        if all(p.exists() for p in wanted):
+            return
+    except ImportError:
+        pass
     for tool in (["7z", "x", "-y", f"-o{CACHE}", str(archive)], ["bsdtar", "-xf", str(archive), "-C", str(CACHE)],
                  ["tar", "-xf", str(archive), "-C", str(CACHE)]):
         if shutil.which(tool[0]) and subprocess.run(tool, capture_output=True).returncode == 0 and all(p.exists() for p in wanted):
             return
-    sys.exit("could not extract the Sarasa archive (need 7z or bsdtar)")
+    sys.exit("could not extract the Sarasa archive (need py7zr, 7z or bsdtar)")
 
 
 def main():
