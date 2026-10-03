@@ -18,12 +18,17 @@
 			{{ .Params.tldr }}
 		</div>{{ end }}
 
-		{{ if isset .Params "outline" }}
-		<aside>
-			<!-- <br> -->
-			<!-- <strong>TOC:</strong> -->
-			{{ .TableOfContents }}
+		{{- /* Contents: shown for posts with 3+ h2/h3 (or outline: true); hide with toc: false.
+		       Sidebar on wide screens, collapsible box above the post otherwise (static/js/toc.js). */ -}}
+		{{- $headings := len (findRE `<h[23][ >]` .Content) }}
+		{{ if and (ne .Type "page") (ne .Params.toc false) (or .Params.outline (ge $headings 3)) }}
+		<aside class="toc" aria-label="{{ i18n "toc" }}">
+			<details>
+				<summary>{{ i18n "toc" }}</summary>
+				{{ .TableOfContents }}
+			</details>
 		</aside>
+		<script defer src="{{ absURL "js/toc.js" }}"></script>
 		{{ end }}
 
 		<section class="body">

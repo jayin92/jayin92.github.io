@@ -124,11 +124,15 @@ weight = 4
     codeFences = true
     guessSyntax = true
   [markup.tableOfContents]
-    endLevel = 2
+    endLevel = 3
     ordered = false
     startLevel = 2
   # Hugo auto-enables embedded link/image render hooks on multilingual
   # single-host sites; keep them off so zh output stays identical.
+  # Standalone images reach the image render hook as blocks (.IsBlock), so a titled image can become
+  # a <figure> with caption; the hook re-adds the <p> wrapper for untitled ones.
+  [markup.goldmark.parser]
+    wrapStandAloneImageWithinParagraph = false
   [markup.goldmark.renderHooks.image]
     useEmbedded = "never"
   [markup.goldmark.renderHooks.link]

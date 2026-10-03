@@ -164,3 +164,7 @@ summary:focus-visible,
 .theme-switch input:focus-visible + .slider {
   outline-color: var(--darkMaincolor);
 }
+.toc a:hover,
+.toc a.active {
+  color: var(--darkMaincolor);
+}

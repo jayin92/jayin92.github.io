@@ -811,3 +811,78 @@ html:has(dialog.lightbox[open]) {
 @keyframes drop-in {
   from { opacity: 0; transform: translateY(-4px); }
 }
+
+/* Table of contents (layouts/_default/single.html + static/js/toc.js) */
+.toc details {
+  margin: 0 0 1.5em;
+}
+.toc summary {
+  cursor: pointer;
+  font-weight: bold;
+}
+.toc ul {
+  margin: 0.3em 0;
+  padding-left: 1.1em;
+}
+.toc nav > ul {
+  padding-left: 0;
+}
+.toc ul > li::before {
+  content: none;
+}
+.toc li {
+  text-indent: 0;
+  margin: 0.3em 0;
+  line-height: 1.4;
+}
+.toc a {
+  border-bottom: none;
+  color: grey;
+  font-size: 0.88rem;
+}
+.toc a:hover,
+.toc a.active {
+  color: var(--maincolor);
+}
+.toc a.active {
+  font-weight: bold;
+}
+.body h2,
+.body h3 {
+  scroll-margin-top: 1rem;
+}
+/* Sidebar in the left margin once there is room for it beside the 800px column */
+@media (min-width: 1320px) {
+  article {
+    position: relative;
+  }
+  .toc {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 100%;
+    width: 220px;
+    margin-right: 2.5rem;
+  }
+  .toc details {
+    position: sticky;
+    top: 2rem;
+    margin: 0;
+    max-height: calc(100vh - 4rem);
+    overflow-y: auto;
+  }
+  .toc summary {
+    list-style: none;
+    pointer-events: none;
+    font-size: 0.9rem;
+    color: grey;
+  }
+  .toc summary::-webkit-details-marker {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}

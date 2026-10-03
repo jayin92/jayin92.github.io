@@ -33,6 +33,7 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 - About page (`content/about.md`) uses TOML frontmatter (`+++` delimiters)
 - Images go in `content/image/<post-name>/` and are referenced as `{{<figure src="/image/..." title="...">}}`
 - Math is rendered with KaTeX (use standard LaTeX syntax in markdown)
+- Posts get a table of contents automatically when they have 3+ h2/h3 headings (or `outline: true`); `toc: false` hides it. Sidebar on screens ≥1320px, collapsible box otherwise (`single.html`, `static/js/toc.js`; breakpoint is duplicated in `main.css`).
 - Local images under `/image/...` are processed by Hugo (see Images below); keep using the same `/image/...` paths.
 
 ## Multilingual (zh-tw default, en under `/en/`)
@@ -53,6 +54,7 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 - Processed images also get `data-zoom-src` (the largest WebP); `static/js/lightbox.js` opens it in a `<dialog>` on click/Enter. Images inside links and external images are left alone.
 - Animations (lightbox zoom from the thumbnail, backdrop fade, search dropdown, cross-page View Transitions with a fixed header) all live behind `prefers-reduced-motion: no-preference` in `main.css` / a `reduceMotion` check in `lightbox.js`. Headless Chrome with `--virtual-time-budget` does not advance animation timelines, so test animations in real time.
 - `static/eth-cg24/` is a standalone hand-built report and is not processed.
+- A standalone Markdown image with a title (`![alt](/image/x.webp "caption")`, which is what the CMS writes) renders as a `<figure>` with a caption like the `figure` shortcode. This relies on `wrapStandAloneImageWithinParagraph = false` in `config.toml`; the render hook re-adds `<p>` for untitled images.
 - The theme links CSS via `.Site.BaseURL` (absolute), so a static build served locally loads production CSS; build with `--baseURL http://localhost:PORT/` to test CSS changes. `hugo server` is unaffected.
 
 ## CMS (Sveltia)
