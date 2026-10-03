@@ -916,6 +916,27 @@ html:has(dialog.lightbox[open]) {
     margin: 0;
     max-height: calc(100vh - 4rem);
     overflow-y: auto;
+    padding-right: 0.5em;
+    /* Thin, faint scrollbar that firms up on hover (standard properties; Chrome 121+, Firefox, Safari 18.2+) */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+  }
+  .toc details:hover {
+    scrollbar-color: rgba(0, 0, 0, 0.35) transparent;
+  }
+  /* Older Safari only understands the -webkit- pseudo-elements */
+  .toc details::-webkit-scrollbar {
+    width: 6px;
+  }
+  .toc details::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .toc details::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.15);
+    border-radius: 3px;
+  }
+  .toc details:hover::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.35);
   }
   .toc summary {
     list-style: none;

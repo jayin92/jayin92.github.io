@@ -20,6 +20,7 @@
     if (!headings.length) return;
 
     var current = null;
+    var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     function update() {
         // The active section is the last heading that has scrolled above 30% of the viewport.
         var line = window.innerHeight * 0.3;
@@ -33,6 +34,21 @@
         if (current) current.classList.remove('active');
         if (link) link.classList.add('active');
         current = link;
+        if (link) keepVisible(link);
+        else if (wide.matches && details.scrollTop > 0) details.scrollTo({ top: 0, behavior: reduceMotion.matches ? 'auto' : 'smooth' });
+    }
+
+    // When the sidebar is taller than the screen it scrolls on its own: keep the active entry in
+    // view. Scroll the sidebar box directly (not scrollIntoView, which would also move the page).
+    function keepVisible(link) {
+        if (!wide.matches || details.scrollHeight <= details.clientHeight) return;
+        var margin = 48;
+        var top = link.getBoundingClientRect().top - details.getBoundingClientRect().top + details.scrollTop;
+        var bottom = top + link.offsetHeight;
+        var target = null;
+        if (top < details.scrollTop + margin) target = top - margin;
+        else if (bottom > details.scrollTop + details.clientHeight - margin) target = bottom - details.clientHeight + margin;
+        if (target !== null) details.scrollTo({ top: Math.max(0, target), behavior: reduceMotion.matches ? 'auto' : 'smooth' });
     }
 
     var queued = false;

@@ -174,3 +174,15 @@ header {
 header::after {
   background-color: rgba(255, 255, 255, 0.1);
 }
+.toc details {
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+.toc details:hover {
+  scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
+}
+.toc details::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+.toc details:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.35);
+}
