@@ -148,11 +148,6 @@ pre {
   padding: 1em;
 }
 
-.highlight pre ::selection {
-  background: rgba(255, 255, 255, 0.2);
-  color: inherit;
-}
-
 pre code {
   background-color: transparent;
   color: inherit;
@@ -430,77 +425,79 @@ footer svg{
     margin-left: 6px;
     background-color: #f9f2f4;
 }
+/* Code blocks: Chroma output (<div class="highlight"><pre class="chroma"><code data-lang=…>).
+   Colours: css/syntax.css (light) / dark.css (dark). Copy button: js/code-copy.js. */
 .highlight {
   position: relative;
+  margin: 1.2em 0;
+}
+.highlight pre {
+  margin: 0;
+  /* top padding leaves a strip for the language label and the copy button */
+  padding: 2.2em 1.1em 1em;
+  background-color: #f6f8fa;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
-.highlight pre code[class*="language-"] {
-  -webkit-overflow-scrolling: touch;
-}
-.highlight pre code[class*="language-"]::before {
-  background: black;
-  border-radius: 0 0 0.25rem 0.25rem;
-  color: white;
-  font-size: 12px;
-  letter-spacing: 0.025rem;
-  padding: 0.1rem 0.5rem;
+.highlight pre code[data-lang]::before {
+  content: attr(data-lang);
   position: absolute;
-  right: 1rem;
-  text-align: right;
+  top: 0.7em;
+  left: 1.25em;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  top: 0;
+  color: rgba(0, 0, 0, 0.4);
 }
-
-.highlight pre code[class=language-javaScript]::before,
-.highlight pre code[class="language-js"]::before {
-content: "js";
-background: #f7df1e;
-color: black;
+/* Highlighted lines (hl_lines) and line numbers ({linenos=true}) */
+.chroma .hl {
+  background-color: rgba(0, 0, 0, 0.06);
 }
-.highlight pre code[class*='language-yml']::before,
-.highlight pre code[class*='language-yaml']::before {
-content: 'yaml';
-background: #f71e6a;
-color: white;
+.chroma .ln {
+  display: inline-block;
+  min-width: 2ch;
+  margin-right: 1em;
+  padding: 0;
+  text-align: right;
+  color: rgba(0, 0, 0, 0.3);
 }
-.highlight pre code[class*='language-shell']::before,
-.highlight pre code[class*='language-bash']::before,
-.highlight pre code[class*='language-sh']::before {
-content: 'shell';
-background: green;
-color: white;
+.code-copy {
+  position: absolute;
+  top: 0.4em;
+  right: 0.5em;
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  padding: 0.2em 0.45em;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(0, 0, 0, 0.45);
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
 }
-.highlight pre code[class*='language-json']::before{
-content: 'json';
-background: dodgerblue;
-color: #000000;
+.highlight:hover .code-copy,
+.code-copy:focus-visible,
+.code-copy.copied {
+  opacity: 1;
 }
-.highlight pre code[class*='language-python']::before,
-.highlight pre code[class*='language-py']::before {
-content: 'Python';
-background: blue;
-color: yellow ;
+/* Touch screens have no hover: keep the button visible */
+@media (hover: none) {
+  .code-copy {
+    opacity: 1;
+  }
 }
-.highlight pre code[class*='language-css']::before{
-content: 'css';
-background: cyan;
-color: black ;
-}
-.highlight pre code[class*='language-go']::before{
-content: 'Go';
-background: cyan;
-color: royalblue ;
-}
-.highlight pre code[class*='language-md']::before{
-content: 'Markdown';
-background: royalblue;
-color: whitesmoke ;
-}
-
-.highlight pre code[class*='language-cpp']::before{
-content: 'C++';
-background: royalblue;
-color: whitesmoke ;
+.code-copy:hover,
+.code-copy:focus-visible {
+  color: #000;
+  background-color: rgba(0, 0, 0, 0.06);
 }
 
 /* Responsive */

@@ -33,6 +33,7 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 - About page (`content/about.md`) uses TOML frontmatter (`+++` delimiters)
 - Images go in `content/image/<post-name>/` and are referenced as `{{<figure src="/image/..." title="...">}}`
 - Math is rendered with KaTeX (use standard LaTeX syntax in markdown)
+- Code blocks: Chroma with CSS classes (`noClasses = false`). Colours: `css/syntax.css` (github, light) and the github-dark block in `dark.css`, whose rules are prefixed with `.highlight` after a token reset so light colours never leak into dark mode — regenerate with `hugo gen chromastyles` and keep that prefix. Language label comes from `data-lang`; `js/code-copy.js` adds the copy button (skips line numbers). Line numbers per block: ```` ```python {linenos=true,hl_lines=[3]} ```` (`lineNumbersInTable = false`).
 - Posts get a table of contents automatically when they have 3+ h2/h3 headings (or `outline: true`); `toc: false` hides it. Right-hand sidebar on screens ≥1320px, collapsible box otherwise (`single.html`, `static/js/toc.js`; breakpoint is duplicated in `main.css`).
 - Local images under `/image/...` are processed by Hugo (see Images below); keep using the same `/image/...` paths.
 

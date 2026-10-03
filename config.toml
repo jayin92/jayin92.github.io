@@ -120,9 +120,15 @@ weight = 4
 
 [markup]
   [markup.highlight]
-    style = "monokai"
+    # Chroma emits CSS classes; colours come from css/syntax.css (light, github) and
+    # css/dark.css (dark, github-dark). `style` only matters if noClasses is turned back on.
+    style = "github"
+    noClasses = false
     codeFences = true
     guessSyntax = true
+    # Line numbers ({linenos=true} on a block) as inline spans in a single <pre>, so the block
+    # styling and the copy button deal with one element; the numbers are user-select:none.
+    lineNumbersInTable = false
   [markup.tableOfContents]
     endLevel = 3
     ordered = false

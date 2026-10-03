@@ -79,6 +79,7 @@
         <link href="{{ partial "asset-url.html" "css/fonts.css" }}" rel="stylesheet">
 	{{ end }}
 	<link rel="stylesheet" type="text/css" media="screen" href="{{ partial "asset-url.html" "css/main.css" }}" />
+	<link rel="stylesheet" type="text/css" href="{{ partial "asset-url.html" "css/syntax.css" }}" />
 	{{- if or (eq .Site.Params.mode "auto") (eq .Site.Params.mode "dark") -}}
 	{{- $darkCSS := partial "asset-url.html" "css/dark.css" }}
 	<script>
