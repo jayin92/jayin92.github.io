@@ -42,7 +42,7 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 - English translations are currently `draft: true`, so preview them with `hugo server -D`. Remove the draft flag to publish.
 - The English translations of the ETH posts were LLM-generated: keep them `draft: true` until a human-written/reviewed version exists.
 - Nav language switcher (`partials/head.html`) is shown only if the other language has a published post or the current content page has a translation. `partials/site-published.html` / `partials/is-shell.html` implement this; empty English index/list/search pages get `noindex` (`partials/header.html`) and are left out of the sitemap (`layouts/sitemap.xml`). So it turns on by itself once a real English post is published; `hugo server -D` (drafts) always shows it.
-- UI strings live in `i18n/zh-tw.toml` / `i18n/en.toml` (use `{{ i18n "key" }}`); the Chinese subtitle is under `[languages.zh-tw.params]` in `config.toml`. The nav menu stays in English on both languages (top-level `[[menu.main]]`).
+- UI strings live in `i18n/zh-tw.toml` / `i18n/en.toml` (use `{{ i18n "key" }}`); the subtitle and nav menu stay in English on both languages (top-level `[params]` / `[[menu.main]]`).
 - `config.toml` sets `[markup.goldmark.renderHooks.*] useEmbedded = "never"` because Hugo auto-enables embedded link/image render hooks on multilingual sites. Don't remove it, or zh output changes.
 
 ## Images

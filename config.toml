@@ -19,9 +19,6 @@ weight = 2
 
 # Code Highlight — configured under [markup.highlight] below
 
-[languages.zh-tw.params]
-  subtitle = "記錄修課、專題與生活的個人部落格"
-
 [pagination]
   pagerSize = 10 # articles per page
 
