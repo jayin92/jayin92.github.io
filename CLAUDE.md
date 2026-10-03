@@ -65,7 +65,9 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 
 ## CMS (Sveltia)
 
-- `static/admin/` serves Sveltia CMS at `/admin/` (script pinned in `index.html`; config in `config.yml`). Locally: `hugo server`, open `http://localhost:1313/admin/` in a Chromium browser → "Work with Local Repository" (writes files only, no git). Online: sign in with a repo-scoped GitHub token; saving commits to `main` and deploys.
+- `static/admin/` serves Sveltia CMS at `/admin/` (script pinned in `index.html`; config in `config.yml`). Locally: `hugo server`, open `http://localhost:1313/admin/` in a Chromium browser → "Work with Local Repository" (writes files only, no git). Online: "Sign In with GitHub" (or a repo-scoped GitHub token); saving commits to `main` and deploys.
+- "Sign In with GitHub" uses the Sveltia CMS Authenticator worker on Cloudflare: `sveltia-cms-auth` → `https://sveltia-cms-auth.jayin920805.workers.dev` (`backend.base_url`). Code is upstream `github.com/sveltia/sveltia-cms-auth` (not forked); redeploy with `git clone` + `npx wrangler@4 deploy` — secrets persist. Worker secrets: `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `ALLOWED_DOMAINS=blog.jayinnn.dev`. GitHub OAuth App "Jayinnn Blog CMS", callback `<worker>/callback`, expiring user tokens (re-sign-in after ~8 h; the worker has no refresh flow). `backend.auth_scope: public_repo` keeps tokens off private repos — keep it unless the repo becomes private.
+- Preview styles: `index.html` registers the site's `fonts.css`/`main.css` (+ `dark.css` for dark mode) with `CMS.registerPreviewStyle`; `.body`-scoped prose rules are re-applied to the Body field there.
 - Uploads go to `content/image` as WebP (max 2560px), referenced as `/image/...`. Posts use i18n `multiple_files` with the default locale omitted, matching `post.md` / `post.en.md`; new entries start zh-tw only and default to `draft: true`.
 
 ## Comments
