@@ -1,11 +1,15 @@
 ---
 title: "In Between: Building a Physically-Based Renderer from Scratch in ETH's Computer Graphics Course"
 date: 2026-07-19T12:00:00+08:00
-description: "The physically-based renderer I built during my exchange at ETH Zürich"
-tags: ["ETH", "Computer Graphics", "Rendering", "Exchange"]
-tldr: "While taking Computer Graphics at ETH, I built a physically-based renderer on top of the course's Nori 2 framework, adding features like heterogeneous participating media rendering, equiangular sampling, and an environment map emitter, and used it to render our final piece 'In Between' for the rendering competition."
+description: The physically-based renderer I built during my exchange at ETH Zürich
+tags:
+  - ETH
+  - Computer Graphics
+  - Rendering
+  - Exchange
 draft: true
 outline: true
+tldr: While taking Computer Graphics at ETH, I built a physically-based renderer on top of the course's Nori 2 framework, adding features like heterogeneous participating media rendering, equiangular sampling, and an environment map emitter, and used it to render our final piece 'In Between' for the rendering competition.
 ---
 
 This post is about the physically-based renderer I built in the Computer Graphics course during [my exchange at ETH Zürich](/en/posts/eth/).
