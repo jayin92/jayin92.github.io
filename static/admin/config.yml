@@ -3,14 +3,21 @@
 # Local (recommended): run `hugo server`, open http://localhost:1313/admin/ in a Chromium browser
 #   (Arc/Chrome/Edge), choose "Work with Local Repository" and pick this repo folder.
 #   It only writes files — review, commit and push yourself.
-# Online: https://blog.jayinnn.dev/admin/ → "Sign In with Token" using a GitHub fine-grained
-#   personal access token limited to this repo (Contents: read and write). Saving commits to main,
-#   which deploys the site.
+# Online: https://blog.jayinnn.dev/admin/ → "Sign In with GitHub" (OAuth via the worker below),
+#   or "Sign In Using Access Token" with a fine-grained token limited to this repo
+#   (Contents: read and write). Saving commits to main, which deploys the site.
 
 backend:
   name: github
   repo: jayin92/jayin92.github.io
   branch: main
+  # "Sign In with GitHub" goes through our Sveltia CMS Authenticator worker (Cloudflare,
+  # source: github.com/sveltia/sveltia-cms-auth; secrets GITHUB_CLIENT_ID/_SECRET and
+  # ALLOWED_DOMAINS=blog.jayinnn.dev live on the worker).
+  base_url: https://sveltia-cms-auth.jayin920805.workers.dev
+  # OAuth apps can't be limited to one repo; this repo is public, so ask only for public-repo
+  # access (the default "repo" would include every private repo too).
+  auth_scope: public_repo
 
 app_title: Jayinnn's Blog CMS
 logo:
