@@ -158,9 +158,6 @@ a:hover {
   background-color: var(--darkMaincolor);
   color: black;
 }
-.featured {
-  border-left-color: var(--darkMaincolor);
-}
 a:focus-visible,
 button:focus-visible,
 summary:focus-visible,

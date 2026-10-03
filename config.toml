@@ -21,27 +21,6 @@ weight = 2
 
 [languages.zh-tw.params]
   subtitle = "記錄修課、專題與生活的個人部落格"
-  intro = "我是李杰穎（Jayinnn），畢業於陽明交大資工系，大四上學期到蘇黎世聯邦理工學院（ETH Zürich）交換。這裡記錄修課心得、專題和生活。"
-
-[[languages.zh-tw.menus.main]]
-  name = "首頁"
-  url = "/"
-  weight = 1
-
-[[languages.zh-tw.menus.main]]
-  name = "文章"
-  url = "/posts"
-  weight = 2
-
-[[languages.zh-tw.menus.main]]
-  name = "關於"
-  url = "/about"
-  weight = 3
-
-[[languages.zh-tw.menus.main]]
-  name = "標籤"
-  url = "/tags"
-  weight = 4
 
 [pagination]
   pagerSize = 10 # articles per page
@@ -52,8 +31,6 @@ weight = 2
 	useCDN=false # don't use CDNs for fonts and icons, instead serve them locally.
 	subtitle = "A Blog about My Daily Life"
 	mainSections = ["posts"]
-	# Shown under "Start here" on the home page (content paths; skipped if missing/draft)
-	featured = ["posts/eth", "posts/eth-cg24-final-project", "posts/eth-tutorial"]
 
 # Comments (giscus). Comments render only when repoId and categoryId are set.
 # Get the IDs from https://giscus.app after enabling Discussions + installing the giscus app.

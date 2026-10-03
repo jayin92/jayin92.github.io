@@ -666,7 +666,7 @@ color: whitesmoke ;
   margin-top: 3rem;
 }
 
-/* Tag pills, home intro/featured, year groups */
+/* Tag pills, year groups */
 .pills {
   list-style: none;
   margin: 0;
@@ -719,29 +719,6 @@ ul.pills > li::before {
 }
 .item-meta .draft-label {
   margin-left: 0;
-}
-.intro {
-  line-height: 1.8;
-}
-.featured {
-  margin: 1.5em 0 2.4em;
-  padding: 0.2em 0 0.2em 1.1em;
-  border-left: 3px solid var(--maincolor);
-}
-.featured-title {
-  font-size: 1rem;
-  margin: 0 0 0.5em;
-}
-.featured ul {
-  margin: 0;
-  padding-left: 1.1em;
-}
-.featured li {
-  margin-bottom: 0.4em;
-}
-.featured-desc {
-  color: grey;
-  font-size: 0.9em;
 }
 .year-group .year {
   font-size: 1.1rem;

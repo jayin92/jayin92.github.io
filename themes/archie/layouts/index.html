@@ -4,24 +4,7 @@
 		{{- with .Site.Params.subtitle }}
 		<p>{{ . | markdownify }}</p>
 		{{- end }}
-		{{- with .Site.Params.intro }}
-		<p class="intro">{{ . | markdownify }}</p>
-		{{- end }}
 	</div>
-	{{- $featured := slice -}}
-	{{- range .Site.Params.featured -}}
-		{{- with $.Site.GetPage (printf "/%s" .) -}}{{- $featured = $featured | append . -}}{{- end -}}
-	{{- end -}}
-	{{ with $featured }}
-	<section class="featured">
-		<h2 class="featured-title">{{ i18n "start_here" }}</h2>
-		<ul>
-			{{- range . }}
-			<li><a href="{{ .RelPermalink }}">{{ .Title }}</a>{{ with .Description }}<span class="featured-desc"> — {{ . }}</span>{{ end }}</li>
-			{{- end }}
-		</ul>
-	</section>
-	{{ end }}
 	{{ $pages := where .Site.RegularPages "Type" "in" .Site.Params.mainSections }}
 	{{ $paginator := .Paginate (where $pages "Params.hidden" "ne" true) }}
 	{{ range $paginator.Pages }}
