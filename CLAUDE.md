@@ -55,6 +55,11 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 - `static/eth-cg24/` is a standalone hand-built report and is not processed.
 - The theme links CSS via `.Site.BaseURL` (absolute), so a static build served locally loads production CSS; build with `--baseURL http://localhost:PORT/` to test CSS changes. `hugo server` is unaffected.
 
+## CMS (Sveltia)
+
+- `static/admin/` serves Sveltia CMS at `/admin/` (script pinned in `index.html`; config in `config.yml`). Locally: `hugo server`, open `http://localhost:1313/admin/` in a Chromium browser → "Work with Local Repository" (writes files only, no git). Online: sign in with a repo-scoped GitHub token; saving commits to `main` and deploys.
+- Uploads go to `content/image` as WebP (max 2560px), referenced as `/image/...`. Posts use i18n `multiple_files` with the default locale omitted, matching `post.md` / `post.en.md`; new entries start zh-tw only and default to `draft: true`.
+
 ## Comments
 
 - giscus (GitHub Discussions), via `themes/archie/layouts/partials/comments.html`, included at the bottom of `single.html`.
