@@ -29,6 +29,26 @@ jobs:
           hugo-version: '0.167.0'
           extended: true
 
+      # Re-subset the Sarasa Mono TC webfont so characters from new posts are covered.
+      # Non-fatal: if it fails, the committed subset is used and missing glyphs fall back
+      # to Noto Sans TC.
+      - name: Cache Sarasa source fonts
+        uses: actions/cache@v4
+        with:
+          path: .font-cache/
+          key: sarasa-mono-tc-${{ hashFiles('tools/subset_fonts.py') }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Subset fonts to the site's characters
+        continue-on-error: true
+        run: |
+          pip install --quiet fonttools brotli
+          python3 tools/subset_fonts.py
+
       - name: Build
         run: hugo --gc --minify --cleanDestinationDir
 

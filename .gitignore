@@ -8,3 +8,5 @@ public/
 .idea/
 .vscode/
 .claude/
+.font-cache/
+__pycache__/

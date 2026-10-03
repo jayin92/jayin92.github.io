@@ -41,3 +41,30 @@
        url('../fonts/ibm-plex-mono-v6-latin-500italic.ttf') format('truetype');
   font-display: swap;
 }
+
+/* roboto-mono-700 - latin: real bold for monospace headings (Apache-2.0) */
+@font-face {
+  font-family: 'Roboto Mono';
+  font-style: normal;
+  font-weight: 700;
+  src: url('../fonts/roboto-mono-latin-700.woff2') format('woff2');
+  font-display: swap;
+}
+
+/* Sarasa Mono TC (SIL OFL 1.1, see fonts/OFL-Sarasa-Gothic.txt): the Chinese glyphs in every
+   monospace context, after Roboto Mono in the stack. Subset to the site's characters by
+   tools/subset_fonts.py (CI regenerates it before each build). */
+@font-face {
+  font-family: 'Sarasa Mono TC';
+  font-style: normal;
+  font-weight: 400;
+  src: url('../fonts/sarasa-mono-tc-400.woff2') format('woff2');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Sarasa Mono TC';
+  font-style: normal;
+  font-weight: 700;
+  src: url('../fonts/sarasa-mono-tc-700.woff2') format('woff2');
+  font-display: swap;
+}
