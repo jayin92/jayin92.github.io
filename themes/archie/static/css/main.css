@@ -334,6 +334,11 @@ footer .footer-meta {
   border-bottom: none;
   text-decoration: none;
 }
+/* The root line-height is a fixed 1.5em (24px), barely taller than this 22.4px title, so on a
+   two-line title the hover background of one line overlapped the other. Use a ratio instead. */
+.list-item .title {
+  line-height: 1.4;
+}
 
 time {
   color: grey;
