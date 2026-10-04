@@ -6,7 +6,7 @@
   <figcaption><h4>{{ .Title }}</h4></figcaption>
 </figure>
 {{- else if .IsBlock -}}
-<p>{{ partial "responsive-image.html" (dict "src" .Destination "alt" .PlainText) }}</p>
+<p class="image-block">{{ partial "responsive-image.html" (dict "src" .Destination "alt" .PlainText) }}</p>
 {{- else -}}
 {{ partial "responsive-image.html" (dict "src" .Destination "alt" .PlainText "title" .Title) }}
 {{- end -}}

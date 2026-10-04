@@ -104,11 +104,28 @@ img {
   height: auto;
 }
 
+/* Images are centred in the column, caption included (figure shortcode and titled Markdown
+   images → <figure>; untitled standalone Markdown images → <p class="image-block">). */
 figure {
   box-sizing: border-box;
-  display: inline-block;
+  display: block;
   margin: 0;
   max-width: 100%;
+  text-align: center;
+}
+.image-block {
+  text-align: center;
+}
+/* As blocks with auto margins, so the whitespace around <img> in the markup can't nudge it
+   off-centre (text-align alone left it ~3px out) */
+figure img,
+.image-block img {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  /* Count the 3px border inside max-width: otherwise a full-width image is 6px wider than the
+     column, the right margin goes negative and the image sits 3px right of centre */
+  box-sizing: border-box;
 }
 
 figure img {
