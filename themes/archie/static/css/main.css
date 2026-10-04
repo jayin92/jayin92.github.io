@@ -431,13 +431,6 @@ footer svg{
   position: relative;
   margin: 1.2em 0;
 }
-/* Inset like figures (figure { padding: 0 40px } from 600px up), full width on phones */
-@media screen and (min-width: 600px) {
-  .highlight {
-    margin-left: 40px;
-    margin-right: 40px;
-  }
-}
 .highlight pre {
   margin: 0;
   /* top padding leaves a strip for the language label and the copy button */
