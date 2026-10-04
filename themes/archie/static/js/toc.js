@@ -5,7 +5,7 @@
     var details = toc.querySelector('details');
 
     // Must match the sidebar breakpoint in main.css.
-    var wide = window.matchMedia('(min-width: 1320px)');
+    var wide = window.matchMedia('(min-width: 1200px)');
     function syncOpen() { if (wide.matches) details.open = true; }
     syncOpen();
     wide.addEventListener('change', syncOpen);

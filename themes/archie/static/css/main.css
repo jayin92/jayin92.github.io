@@ -29,6 +29,14 @@ p {
   font-family: 'Fira Sans', 'Noto Sans TC', sans-serif;
   line-height: 1.7;
 }
+/* Post prose at 17px in a 680px column ≈ 40 CJK characters per line (was 16px × 800px ≈ 50,
+   past the 30–40 that reads comfortably in Chinese) */
+.body p,
+.body li,
+.body td,
+.body th {
+  font-size: 1.0625rem;
+}
 
 /* All prose inside a post uses the paragraph font; monospace stays for the site title, nav,
    headings, dates/meta and code. Before, lists, tables and captions inherited the monospace root font. */
@@ -99,7 +107,8 @@ ul:not(.pagination) > li::before {
 
 /* Images */
 img {
-  border: 3px solid #ececec;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 6px;
   max-width: 100%;
   height: auto;
 }
@@ -110,7 +119,8 @@ figure {
   box-sizing: border-box;
   /* Shrink to the image so the caption starts at the image's left edge ("↳" hangs off its corner) */
   display: table;
-  margin: 0 auto;
+  /* equal space above the image and below the caption */
+  margin: 1.5em auto;
   max-width: 100%;
 }
 figure figcaption {
@@ -138,18 +148,14 @@ figure img {
   width: auto;
 }
 
-@media screen and (min-width: 600px) {
-  /* Same max image width as the old 40px side padding, but as a width limit: a table caption
-     spans the padding, which put the caption 40px left of the image */
-  figure {
-    max-width: calc(100% - 80px);
-  }
-}
 
+
+/* Captions are supporting text: smaller, regular weight, muted */
 figure h4 {
-  font-size: 1rem;
-  margin: 0;
-  margin-bottom: 1em;
+  font-size: 0.875rem;
+  font-weight: normal;
+  color: #6a737d;
+  margin: 0.6em 0 0;
 }
 figure h4::before {
   content: '↳ ';
@@ -184,7 +190,7 @@ pre code {
   margin-bottom: 4em;
   margin-left: auto;
   margin-right: auto;
-  max-width: 800px;
+  max-width: 680px;
   padding: 0 1.5rem;
   word-wrap: break-word;
 }
@@ -928,7 +934,7 @@ html:has(dialog.lightbox[open]) {
   scroll-margin-top: 1rem;
 }
 /* Sidebar in the right margin once there is room for it beside the 800px column */
-@media (min-width: 1320px) {
+@media (min-width: 1200px) {
   article {
     position: relative;
   }

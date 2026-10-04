@@ -26,7 +26,7 @@
   {{- $largest := index $cands (sub (len $cands) 1) -}}
   <img src="{{ $largest.RelPermalink }}"
     srcset="{{ range $i, $c := $cands }}{{ if $i }}, {{ end }}{{ $c.RelPermalink }} {{ $c.Width }}w{{ end }}"
-    sizes="(min-width: 800px) 800px, 100vw"
+    sizes="(min-width: 728px) 680px, 100vw"
     width="{{ $largest.Width }}" height="{{ $largest.Height }}" data-zoom-src="{{ $largest.RelPermalink }}"
     alt="{{ $alt }}"{{ with .title }} title="{{ . }}"{{ end }} loading="lazy" decoding="async">
 {{- else -}}
