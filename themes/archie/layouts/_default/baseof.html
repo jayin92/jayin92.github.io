@@ -28,13 +28,21 @@
                 toggle.checked = isDark();
             }
 
+            function apply(dark) {
+                link.media = dark ? 'all' : 'not all';
+                localStorage.setItem('theme', dark ? 'dark' : 'light');
+            }
+
+            // Crossfade the whole page with a View Transition (a GPU snapshot fade, same cost on any
+            // page, so phones and desktops behave alike). It replaced a 0.15s colour transition on
+            // every element, which iPhone Safari couldn't keep up with on long pages.
+            var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
             toggle.addEventListener('change', function() {
-                if (toggle.checked) {
-                    link.media = 'all';
-                    localStorage.setItem('theme', 'dark');
+                var dark = toggle.checked;
+                if (document.startViewTransition && !reduceMotion.matches) {
+                    document.startViewTransition(function() { apply(dark); });
                 } else {
-                    link.media = 'not all';
-                    localStorage.setItem('theme', 'light');
+                    apply(dark);
                 }
             });
 

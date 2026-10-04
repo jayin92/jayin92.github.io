@@ -98,23 +98,7 @@
 	</script>
 	<noscript><link id="dark-css" rel="stylesheet" type="text/css" href="{{ $darkCSS }}" {{ if eq .Site.Params.mode "auto" }}media="(prefers-color-scheme: dark)"{{ end }}></noscript>
 	{{ end }}
-	<script>
-	(function() {
-		document.documentElement.classList.add('no-transition');
-		window.addEventListener('DOMContentLoaded', function() {
-			requestAnimationFrame(function() {
-				document.documentElement.classList.remove('no-transition');
-			});
-		});
-	})();
-	</script>
 	<style>
-	body, body * {
-		transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-	}
-	.no-transition, .no-transition * {
-		transition: none !important;
-	}
 	.theme-switch {
 		position: relative;
 		display: inline-block;
