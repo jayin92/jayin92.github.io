@@ -306,3 +306,12 @@ img {
 figure h4 {
   color: #9aa0a6;
 }
+
+/* Tables (dark) */
+.body th,
+.body td {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+.body th {
+  border-bottom-color: rgba(255, 255, 255, 0.25);
+}

@@ -455,6 +455,31 @@ footer svg{
     margin-left: 6px;
     background-color: #f9f2f4;
 }
+/* Tables (the theme had none: no padding or rules, and the browser centred the header cells).
+   Left-aligned by default; alignment set in Markdown (|:---:|) arrives as an inline style and
+   still wins. display:block lets a wide table scroll sideways instead of overflowing the page. */
+.body table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 1.2em 0;
+}
+.body th,
+.body td {
+  padding: 0.45em 0.9em;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+.body th {
+  font-weight: 700;
+  border-bottom: 2px solid rgba(0, 0, 0, 0.2);
+}
+.body tr:last-child td {
+  border-bottom: none;
+}
+
 /* Code blocks: Chroma output (<div class="highlight"><pre class="chroma"><code data-lang=…>).
    Colours: css/syntax.css (light) / dark.css (dark). Copy button: js/code-copy.js. */
 .highlight {
