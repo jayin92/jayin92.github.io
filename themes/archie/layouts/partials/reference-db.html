@@ -1,0 +1,6 @@
+{{- /* All references visible to a page: data/references.yaml (hugo.Data), overridden by the page's
+       `references:` frontmatter. Keys lowercased (Hugo lowercases frontmatter keys anyway). */ -}}
+{{- $db := dict -}}
+{{- range $k, $v := hugo.Data.references | default dict }}{{ $db = merge $db (dict (lower $k) $v) }}{{ end -}}
+{{- range $k, $v := .Params.references | default dict }}{{ $db = merge $db (dict (lower $k) $v) }}{{ end -}}
+{{- return $db -}}

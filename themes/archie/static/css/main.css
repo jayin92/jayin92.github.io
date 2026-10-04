@@ -1039,3 +1039,140 @@ header.nav-hidden {
     transition: transform 0.25s ease, background-color 0.15s ease;
   }
 }
+
+/* Footnotes ([^1], Goldmark) and citations ({{< cite >}} + partials/references.html).
+   Hover previews: static/js/notes.js. */
+.body sup {
+  /* keep superscripts from pushing their line apart */
+  line-height: 0;
+}
+.body a.footnote-ref,
+.body .cite a {
+  border-bottom: none;
+  color: var(--maincolor);
+  padding: 0 0.1em;
+  border-radius: 3px;
+}
+.body a.footnote-ref {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.75em;
+}
+.body .cite {
+  font-size: 0.9em;
+  color: grey;
+  white-space: nowrap;
+}
+.body a.footnote-ref:hover,
+.body .cite a:hover {
+  color: #fff;
+}
+.cite-missing {
+  color: #c62828;
+}
+.footnotes,
+.references {
+  margin-top: 3em;
+  color: #4a4a57;
+}
+.footnotes hr {
+  width: 6em;
+  margin: 0 0 1em;
+  border-top: 1px solid rgba(0, 0, 0, 0.2);
+}
+.footnotes + .references {
+  margin-top: 2em;
+}
+.footnotes ol,
+.references ol {
+  padding-left: 1.6em;
+  margin: 0;
+}
+.references ol {
+  list-style: none;
+  padding-left: 0;
+}
+.body .footnotes li,
+.body .footnotes li p,
+.body .references li {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+.footnotes li,
+.references li {
+  margin: 0.5em 0;
+  scroll-margin-top: 1rem;
+  border-radius: 4px;
+}
+.footnotes li::marker {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.85em;
+  color: grey;
+}
+.footnotes li p {
+  margin: 0;
+}
+.references li {
+  display: flex;
+  gap: 0.6em;
+  font-family: 'Fira Sans', 'Noto Sans TC', sans-serif;
+}
+.ref-num {
+  flex: none;
+  min-width: 2.2em;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.85em;
+  color: grey;
+}
+.ref-body {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ref-body a {
+  border-bottom-width: 1px;
+}
+a.footnote-backref,
+a.ref-backref {
+  border-bottom: none;
+  color: grey;
+  padding: 0 0.2em;
+  border-radius: 3px;
+}
+/* Briefly mark where a footnote / reference link or its back-link landed */
+.footnotes li:target,
+.references li:target,
+.cite a:target,
+sup:target a {
+  background-color: rgba(0, 137, 123, 0.12);
+}
+
+/* Hover preview of a footnote or reference (static/js/notes.js) */
+.note-popover {
+  position: absolute;
+  z-index: 20;
+  box-sizing: border-box;
+  max-width: min(26rem, calc(100vw - 2rem));
+  padding: 0.7em 0.9em;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  font-family: 'Fira Sans', 'Noto Sans TC', sans-serif;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: #4a4a57;
+}
+.note-popover p {
+  margin: 0;
+  line-height: inherit;
+}
+.note-popover p + p {
+  margin-top: 0.5em;
+}
+.note-popover a {
+  border-bottom-width: 1px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .note-popover {
+    animation: drop-in 0.12s ease-out;
+  }
+}

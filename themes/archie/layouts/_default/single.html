@@ -33,7 +33,11 @@
 
 		<section class="body">
 			{{ .Content }}
+			{{- partial "references.html" . }}
 		</section>
+		{{- if findRE `class="(footnote-ref|cite)"` .Content 1 }}
+		<script defer src="{{ partial "asset-url.html" "js/notes.js" }}"></script>
+		{{- end }}
 
 		
 

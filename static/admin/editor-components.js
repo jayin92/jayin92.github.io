@@ -45,6 +45,30 @@
       },
     },
     {
+      // Theme shortcode (layouts/shortcodes/cite.html): {{< cite "key1, key2" "p. 12" >}};
+      // sources live in data/references.yaml or the post's `references:` frontmatter.
+      id: 'cite',
+      label: 'Citation',
+      icon: 'format_quote',
+      fields: [
+        { name: 'keys', label: 'Reference key(s)', widget: 'string', hint: 'From data/references.yaml, comma-separated, e.g. mildenhall2020nerf' },
+        { name: 'loc', label: 'Page / section', widget: 'string', required: false, hint: 'e.g. p. 12' },
+        { name: 'raw', widget: 'hidden', required: false },
+      ],
+      pattern: /\{\{<\s*cite\s+"([^"]*)"(?:\s+"([^"]*)")?\s*>\}\}/,
+      fromBlock: function (m) { return { keys: m[1] || '', loc: m[2] || '', raw: m[0] }; },
+      toBlock: function (v) {
+        if (v.raw) {
+          var m = v.raw.match(/cite\s+"([^"]*)"(?:\s+"([^"]*)")?/) || [];
+          if ((m[1] || '') === (v.keys || '') && (m[2] || '') === (v.loc || '')) return v.raw;
+        }
+        return '{{< cite "' + (v.keys || '') + '"' + (v.loc ? ' "' + v.loc + '"' : '') + ' >}}';
+      },
+      toPreview: function (v) {
+        return '<span style="color:#00897B">[' + esc(v.keys) + (v.loc ? ', ' + esc(v.loc) : '') + ']</span>';
+      },
+    },
+    {
       // Theme shortcode (layouts/shortcodes/callout.html): default 💡, tip 🔎, warning ⚠️, alert 🚨, custom
       id: 'callout',
       label: 'Callout',

@@ -1,0 +1,28 @@
+{{- /* Citation: {{< cite "key" >}}, {{< cite "key1, key2" >}}, {{< cite "key" "p. 12" >}} → [1], [1, 2], [1, p. 12].
+       Entries come from data/references.yaml, or a post's own `references:` frontmatter (which wins).
+       Numbers follow first use; partials/references.html lists them at the end of the post.
+       Keys are matched case-insensitively. */ -}}
+{{- $db := partial "reference-db.html" .Page -}}
+{{- $pos := printf "%v" .Position -}}
+{{- $links := slice -}}
+{{- range split (.Get 0) "," -}}
+  {{- $k := lower (trim . " ") -}}
+  {{- if index $db $k -}}
+    {{- if not (index ($.Page.Store.Get "citeNum" | default dict) $k) -}}
+      {{- $.Page.Store.Add "citeKeys" (slice $k) -}}
+      {{- $.Page.Store.SetInMap "citeNum" $k (len ($.Page.Store.Get "citeKeys")) -}}
+      {{- $.Page.Store.SetInMap "citeFirst" $k $pos -}}
+    {{- end -}}
+    {{- $n := index ($.Page.Store.Get "citeNum") $k -}}
+    {{- /* The first citation of each source is the reference list's back-link target. Comparing
+           positions (not "seen before?") keeps the id when the content is rendered twice. */ -}}
+    {{- $id := cond (eq (index ($.Page.Store.Get "citeFirst") $k) $pos) (printf ` id="cite-ref-%d"` $n) "" -}}
+    {{- $links = $links | append (printf `<a href="#ref-%d" class="cite-ref"%s>%d</a>` $n $id $n) -}}
+  {{- else -}}
+    {{- warnf "%s: unknown reference %q in {{< cite >}} (add it to data/references.yaml or the post's references:)" $.Page.File.Path $k -}}
+    {{- $links = $links | append (printf `<span class="cite-missing">?%s</span>` $k) -}}
+  {{- end -}}
+{{- end -}}
+{{- with .Get 1 }}{{ $links = $links | append . }}{{ end -}}
+<span class="cite">[{{ delimit $links ", " | safeHTML }}]</span>
+{{- /**/ -}}

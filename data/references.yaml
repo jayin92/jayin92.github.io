@@ -1,0 +1,25 @@
+# Sources for {{< cite "key" >}} (themes/archie/layouts/shortcodes/cite.html), shared by all posts.
+# Add BibTeX with: python3 tools/bib2yaml.py refs.bib   (or edit by hand; keys are case-insensitive)
+#
+# key:
+#   author: [First Author, Second Author]   # or one string
+#   title: Paper or page title
+#   venue: CVPR                             # journal, conference, publisher, site…
+#   year: 2024
+#   url: https://…                          # or doi: 10.xxxx/…
+#   note: optional extra text (Markdown)
+# A post can also list its own sources under `references:` in its frontmatter (same fields).
+# `text: …` (Markdown) replaces the formatted entry entirely.
+
+mildenhall2020nerf:
+  author: [Ben Mildenhall, Pratul P. Srinivasan, Matthew Tancik, Jonathan T. Barron, Ravi Ramamoorthi, Ren Ng]
+  title: "NeRF: Representing Scenes as Neural Radiance Fields for View Synthesis"
+  venue: ECCV
+  year: 2020
+  url: https://arxiv.org/abs/2003.08934
+kerbl2023gaussians:
+  author: [Bernhard Kerbl, Georgios Kopanas, Thomas Leimkühler, George Drettakis]
+  title: 3D Gaussian Splatting for Real-Time Radiance Field Rendering
+  venue: ACM Transactions on Graphics
+  year: 2023
+  doi: 10.1145/3592433

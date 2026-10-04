@@ -1,0 +1,34 @@
+{{- /* Reference list for the sources cited with {{< cite >}} (shortcodes/cite.html), in order of
+       first citation. Must run after .Content has been rendered. Entry fields: author (string or
+       list), title, venue, year, url, doi, note — or `text` (Markdown) to write the entry by hand. */ -}}
+{{- with .Store.Get "citeKeys" -}}
+{{- $db := partial "reference-db.html" $ -}}
+<section class="references">
+<h2 id="references">{{ i18n "references" }}</h2>
+<ol>
+{{- range $i, $k := . }}
+{{- $r := index $db $k }}
+{{- $n := add $i 1 }}
+<li id="ref-{{ $n }}"><span class="ref-num">[{{ $n }}]</span> <span class="ref-body">
+{{- with $r.text }}{{ . | $.RenderString }}{{ else }}
+  {{- $authors := $r.author }}
+  {{- if reflect.IsSlice $authors }}
+    {{- if gt (len $authors) 5 }}{{ $authors = printf "%s, et al." (delimit (first 3 $authors) ", ") }}
+    {{- else }}{{ $authors = delimit $authors ", " (cond (eq (len $authors) 2) " and " ", and ") }}{{ end }}
+  {{- end }}
+  {{- $url := $r.url | default (cond (isset $r "doi") (printf "https://doi.org/%v" $r.doi) "") }}
+  {{- $parts := slice }}
+  {{- with $authors }}{{ $parts = $parts | append (cond (hasSuffix . ".") . (printf "%s." .)) }}{{ end }}
+  {{- with $r.title }}
+    {{- $t := . | $.RenderString }}
+    {{- $parts = $parts | append (printf "%s." (cond (ne $url "") (printf `<a href="%s">%s</a>` $url $t) $t)) }}
+  {{- end }}
+  {{- with $r.venue }}{{ $parts = $parts | append (printf "<i>%s</i>%s" ($.RenderString .) (cond (isset $r "year") "," ".")) }}{{ end }}
+  {{- with $r.year }}{{ $parts = $parts | append (printf "%v." .) }}{{ end }}
+  {{- with $r.note }}{{ $parts = $parts | append ($.RenderString .) }}{{ end }}
+  {{- delimit $parts " " | safeHTML }}
+{{- end }} <a href="#cite-ref-{{ $n }}" class="ref-backref" aria-label="{{ i18n "back_to_text" }}">↩︎</a></span></li>
+{{- end }}
+</ol>
+</section>
+{{- end -}}

@@ -315,3 +315,42 @@ figure h4 {
 .body th {
   border-bottom-color: rgba(255, 255, 255, 0.25);
 }
+
+/* Footnotes, citations and their hover preview — dark mode */
+.body a.footnote-ref,
+.body .cite a {
+  color: var(--darkMaincolor);
+}
+.body a.footnote-ref:hover,
+.body .cite a:hover {
+  color: black;
+}
+.body .cite,
+.ref-num,
+.footnotes li::marker,
+a.footnote-backref,
+a.ref-backref {
+  color: #999;
+}
+.footnotes,
+.references,
+.note-popover {
+  color: #c8c8c8;
+}
+.footnotes hr {
+  border-top-color: rgba(255, 255, 255, 0.2);
+}
+.cite-missing {
+  color: #ff8a80;
+}
+.footnotes li:target,
+.references li:target,
+.cite a:target,
+sup:target a {
+  background-color: rgba(128, 203, 196, 0.15);
+}
+.note-popover {
+  background: #2a2a2a;
+  border-color: #444;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
