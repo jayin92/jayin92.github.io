@@ -137,6 +137,10 @@ weight = 4
   # single-host sites; keep them off so zh output stays identical.
   # Standalone images reach the image render hook as blocks (.IsBlock), so a titled image can become
   # a <figure> with caption; the hook re-adds the <p> wrapper for untitled ones.
+  # Raw HTML in Markdown is kept (Goldmark drops it by default). Needed so shortcodes that emit
+  # HTML (cite, figure…) still work inside another shortcode's Markdown body, e.g. details.
+  [markup.goldmark.renderer]
+    unsafe = true
   [markup.goldmark.parser]
     wrapStandAloneImageWithinParagraph = false
   [markup.goldmark.renderHooks.image]

@@ -79,7 +79,7 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 - Citations: `{{< cite "key" >}}`, `{{< cite "k1, k2" >}}`, `{{< cite "key" "p. 12" >}}` → `[1]`, `[1, 2]`, `[1, p. 12]` (`shortcodes/cite.html`). Numbered by first use via `.Page.Store` (reset on every rebuild, so `hugo server` renumbers correctly); `partials/references.html` prints the list at the end of `.body` in `single.html`, after the footnotes. Unknown keys log a `WARN` and render `[?key]` — they don't fail the build.
 - Sources: `data/references.yaml` (shared; keys lowercased) merged with a post's own `references:` frontmatter, which wins (`partials/reference-db.html`). Fields: `author` (string or list; >5 → first 3 + "et al."), `title`, `venue`, `year`, `url` or `doi`, `note`; or `text` (Markdown) for a hand-written entry. Add BibTeX with `python3 tools/bib2yaml.py refs.bib` (stdlib only; appends, skips existing keys unless `--force`).
 - `static/js/notes.js` shows the footnote/reference in a hover popover (hover-capable devices only); loaded only on pages with footnotes or citations.
-- A `cite` nested inside another shortcode's Markdown body (e.g. `details`) shows as "raw HTML omitted", because `goldmark.renderer.unsafe` is off — same as any HTML shortcode nested there.
+- `[markup.goldmark.renderer] unsafe = true` keeps raw HTML in Markdown, so HTML-emitting shortcodes (cite, figure) also work inside another shortcode's Markdown body (`details`). Side effect: HTML comments in posts reach the RSS feeds (`--minify` strips them from the HTML pages).
 
 ## Comments
 
