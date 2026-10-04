@@ -108,10 +108,15 @@ img {
    images → <figure>; untitled standalone Markdown images → <p class="image-block">). */
 figure {
   box-sizing: border-box;
-  display: block;
-  margin: 0;
+  /* Shrink to the image so the caption starts at the image's left edge ("↳" hangs off its corner) */
+  display: table;
+  margin: 0 auto;
   max-width: 100%;
-  text-align: center;
+}
+figure figcaption {
+  display: table-caption;
+  caption-side: bottom;
+  text-align: left;
 }
 .image-block {
   text-align: center;
@@ -134,8 +139,10 @@ figure img {
 }
 
 @media screen and (min-width: 600px) {
+  /* Same max image width as the old 40px side padding, but as a width limit: a table caption
+     spans the padding, which put the caption 40px left of the image */
   figure {
-    padding: 0 40px;
+    max-width: calc(100% - 80px);
   }
 }
 
@@ -554,7 +561,7 @@ footer svg{
   }
 
   figure {
-    padding: 0;
+    max-width: 100%;
   }
 
   figure img {
