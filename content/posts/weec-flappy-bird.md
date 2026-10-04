@@ -39,7 +39,7 @@ draft: false
 - `CENTER`: 代表中央位置
 
 具體程式範例如下：
-```java
+```processing
 size(400, 400);
 rectMode(CORNER);  // Default rectMode is CORNER
 fill(255);  // Set fill to white
@@ -80,7 +80,7 @@ rect(200, 200, 120, 120);  // Draw gray rect using CENTER mode
 - `fill(r, g, b)`。`r, g, b` 分別代表紅、綠、藍，都必須介於 0 和 255 之間。
 - `fill(grayscale)`。`grayscale` 代表灰階度。0 為黑色、255 為白色。
 
-```java
+```processing
 void draw(){
   size(400, 400);
   fill(204, 102, 0);
@@ -96,7 +96,7 @@ void draw(){
 
 直接呼叫 `noFill()` 即可。
 
-```java
+```processing
 void setup(){
    size(400, 400);
 }
@@ -141,7 +141,7 @@ void draw(){
 
 有人可能覺得，簡單，那就畫兩條線，讓這兩條線的中央位置落在 `(mouseX, mouseY)` 就好了。如果這樣寫的話，程式碼大概會長下面這樣：
 
-```java
+```processing
 void setup(){
   size(800, 600);
   background(255, 255, 255); // R, G, B
@@ -174,7 +174,7 @@ void draw(){
 
 可以發現雖然十字確實有顯示在畫面上，但因為畫面沒有清空的關係，所以一旦十字顯示在畫面上，就不會消失了。這當然不是我們預期的結果。所以有些人可能又想，或許我可以每次都把畫面清空。於是程式碼變成下面這樣：
 
-```java
+```processing
 void setup(){
   size(800, 600);
   background(255, 255, 255); // R, G, B
@@ -234,7 +234,7 @@ void draw(){
 
 結合剛剛的陣列，通常的使用方法長這樣：
 
-```java
+```processing
 void setup() {
   int[] x = {1, 2, 3, 4, 5}; // 另一種宣告陣列的方法
   // 利用 x.length 可以達到陣列中的變數數量
@@ -251,7 +251,7 @@ void draw(){
 ### 把東西拼起來吧！
 有了上面的知識，我們現在可以宣告四個陣列，分別儲存 `pmouseX`, `pmouseY`, `mouseX`, `mouseY` 四個變數的歷史紀錄，程式碼長下面這樣：
 
-```java
+```processing
 int[] px = new int[10000];
 int[] py = new int[10000];
 int[] x = new int[10000];
@@ -298,7 +298,7 @@ Processing 其實核心是使用 Java 來撰寫，Processing 的程式碼會先�
 
 而在一個物件中，我們會有很多成員 (Member)，這些成員可以是變數、物件或是函數，如下面的程式碼：
 
-```java
+```processing
 class bird {
     float xPos;
     void move() {
@@ -311,7 +311,7 @@ class bird {
 
 而在物件中有一個很特別的存在，建構子 (constructor)。建構子是一個用來新建物件的類似函數的存在，但其和函數的宣告方法不太一樣：
 
-```java
+```processing
 class bird {
     float xPos;
     void move() {
@@ -327,7 +327,7 @@ class bird {
 
 我們在宣告物件的時候，就可以利用建構子新建物件，像下面這樣：
 
-```java
+```processing
 class bird {
     float xPos;
     void move() {
@@ -343,7 +343,7 @@ bird b = new bird(100);
 
 那如果我們要在外界 (也就是非 class 的定義範圍內) 呼叫一個函數或改變一個函數的值，我們可以使用 `.` 這個符號：
 
-```java
+```processing
 class bird {
     float xPos;
     void move() {

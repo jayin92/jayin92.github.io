@@ -1,0 +1,21 @@
+{{- /* Code fences. Same output as Hugo's default, plus:
+       - Languages Chroma has no lexer for are highlighted with a close relative and keep their own
+         label (data-lang), e.g. ```processing → Java rules, "processing" label.
+       - Blocks of $autoLines+ lines get line numbers unless the fence sets linenos itself
+         ({linenos=false} turns them off). */ -}}
+{{- $autoLines := 5 -}}
+{{- $aliases := dict "processing" "java" -}}
+{{- $opts := .Options -}}
+{{- $lines := len (split (strings.TrimRight "\n" .Inner) "\n") -}}
+{{- if and $autoLines (not (isset .Options "linenos")) (ge $lines $autoLines) -}}
+  {{- $opts = merge $opts (dict "linenos" true) -}}
+{{- end -}}
+{{- /* Hugo's own fence renderer highlights Inner + "\n"; without it a // comment on the last line
+       isn't recognised (the comment rules end at a newline). */ -}}
+{{- $code := printf "%s\n" .Inner -}}
+{{- with index $aliases .Type -}}
+  {{- $html := transform.Highlight $code . $opts -}}
+  {{- replace $html (printf `data-lang="%s"` .) (printf `data-lang="%s"` $.Type) | safeHTML -}}
+{{- else -}}
+  {{- transform.Highlight $code $.Type $opts -}}
+{{- end -}}
