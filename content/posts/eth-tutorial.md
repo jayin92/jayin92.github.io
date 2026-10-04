@@ -69,8 +69,9 @@ ETH 校內沒有宿舍，而是由一個叫 WOKO 的組織去管理包含 ETH �
 
 ## Hours
 
-| V | lecture |
+| 代號 | 意思 |
 | --- | --- |
+| V | lecture |
 | G | lecture with exercise |
 | U | exercise |
 | S | seminar |
@@ -82,8 +83,9 @@ ETH 校內沒有宿舍，而是由一個叫 WOKO 的組織去管理包含 ETH �
 
 ## Type
 
-| O | Compulsory |
+| 代號 | 意思 |
 | --- | --- |
+| O | Compulsory |
 | W+ | Eligible for credits and recommended |
 | W | Eligible for credits |
 | E- | Recommended, not eligible for credits |
