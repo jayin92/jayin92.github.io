@@ -453,6 +453,10 @@ footer svg{
   text-transform: uppercase;
   color: rgba(0, 0, 0, 0.4);
 }
+/* Blocks without a language (``` alone) get data-lang="fallback": no label for those */
+.highlight pre code[data-lang="fallback"]::before {
+  content: none;
+}
 /* Highlighted lines (hl_lines) and line numbers ({linenos=true}) */
 .chroma .hl {
   background-color: rgba(0, 0, 0, 0.06);
