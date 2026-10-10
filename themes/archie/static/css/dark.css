@@ -354,3 +354,6 @@ sup:target a {
   border-color: #444;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
+.reading-progress {
+  background-color: var(--darkMaincolor);
+}

@@ -1,5 +1,9 @@
 {{ define "main" }}
 <main>
+	{{- if ne .Type "page" }}
+	<div class="reading-progress" aria-hidden="true"></div>
+	<script defer src="{{ partial "asset-url.html" "js/reading-progress.js" }}"></script>
+	{{- end }}
 	<article>
 		<div class="title">
 			<h1 class="title">{{ .Title }}</h1>

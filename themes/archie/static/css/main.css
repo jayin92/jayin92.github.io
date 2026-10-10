@@ -1176,3 +1176,29 @@ sup:target a {
     animation: drop-in 0.12s ease-out;
   }
 }
+
+/* Reading progress bar (static/js/reading-progress.js). Fixed to the viewport, above the
+   sticky header, so it stays visible while the header is hidden. */
+.reading-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background-color: var(--maincolor);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 300;
+  view-transition-name: reading-progress;
+}
+.reading-progress.visible {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: no-preference) {
+  /* Fade in/out only; the width follows the scroll directly */
+  .reading-progress {
+    transition: opacity 0.2s ease;
+  }
+}
