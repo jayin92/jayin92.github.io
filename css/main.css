@@ -1,0 +1,1204 @@
+/* Markdown */
+:root{
+--maincolor: #00897B;
+--bordercl: #0782bf;
+--callouctcolor:dodgerblue;
+--hovercolor: #00897B;
+--darkMaincolor: #80CBC4;
+}
+html {
+  color: #232333;
+  font-family: 'Roboto Mono', 'Sarasa Mono TC', 'Noto Sans TC', monospace;
+  font-size: 16px;
+  line-height: 1.5em;
+}
+body{
+  display: block;
+  margin: 0px;
+}
+* {
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+}
+
+::selection {
+  background: var(--maincolor);
+  color: #fff;
+}
+
+p {
+  font-family: 'Fira Sans', 'Noto Sans TC', sans-serif;
+  line-height: 1.7;
+}
+/* Post prose at 17px in a 680px column ≈ 40 CJK characters per line (was 16px × 800px ≈ 50,
+   past the 30–40 that reads comfortably in Chinese) */
+.body p,
+.body li,
+.body td,
+.body th {
+  font-size: 1.0625rem;
+}
+
+/* All prose inside a post uses the paragraph font; monospace stays for the site title, nav,
+   headings, dates/meta and code. Before, lists, tables and captions inherited the monospace root font. */
+.body li,
+.body td,
+.body th,
+.body dt,
+.body dd,
+.body figcaption {
+  font-family: 'Fira Sans', 'Noto Sans TC', sans-serif;
+}
+.body li {
+  line-height: 1.7;
+}
+/* Keep the "* " bullet monospace and size the hanging indent in em (Roboto Mono is 0.6em per
+   character, so "* " = 1.2em), so wrapped lines still line up now that list text is proportional. */
+.body ul {
+  padding-left: 1.2em;
+}
+.body ul li {
+  text-indent: -1.2em;
+}
+.body ul li::before {
+  font-family: 'Roboto Mono', monospace;
+}
+
+code,
+pre,
+kbd,
+samp {
+  font-family: 'Roboto Mono', 'Sarasa Mono TC', 'Noto Sans TC', monospace;
+}
+
+hr {
+  border: 0;
+  border-top: 3px dotted var(--bordercl);
+  margin: 1em 0;
+}
+
+blockquote {
+  border-left: 3px solid var(--bordercl);
+  color: #737373;
+  margin: 0;
+  padding-left: 1em;
+}
+
+a {
+  border-bottom: 3px solid var(--maincolor);
+  color: inherit;
+  text-decoration: none;
+}
+a:hover {
+    background-color: var(--hovercolor);
+    color: #fff;
+}
+
+ul {
+  list-style: none;
+  padding-left: 2ch;
+}
+ul li {
+  text-indent: -2ch;
+}
+ul:not(.pagination) > li::before {
+  content: '* ';
+  font-weight: bold;
+}
+
+/* Images */
+img {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 6px;
+  max-width: 100%;
+  height: auto;
+}
+
+/* Images are centred in the column, caption included (figure shortcode and titled Markdown
+   images → <figure>; untitled standalone Markdown images → <p class="image-block">). */
+figure {
+  box-sizing: border-box;
+  /* Shrink to the image so the caption starts at the image's left edge ("↳" hangs off its corner) */
+  display: table;
+  /* equal space above the image and below the caption */
+  margin: 1.5em auto;
+  max-width: 100%;
+}
+figure figcaption {
+  display: table-caption;
+  caption-side: bottom;
+  text-align: left;
+}
+.image-block {
+  text-align: center;
+}
+/* As blocks with auto margins, so the whitespace around <img> in the markup can't nudge it
+   off-centre (text-align alone left it ~3px out) */
+figure img,
+.image-block img {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  /* Count the 3px border inside max-width: otherwise a full-width image is 6px wider than the
+     column, the right margin goes negative and the image sits 3px right of centre */
+  box-sizing: border-box;
+}
+
+figure img {
+  max-height: 500px;
+  width: auto;
+}
+
+
+
+/* Captions are supporting text: smaller, regular weight, muted */
+figure h4 {
+  font-size: 0.875rem;
+  font-weight: normal;
+  color: #6a737d;
+  margin: 0.6em 0 0;
+}
+figure h4::before {
+  content: '↳ ';
+}
+
+/* Code blocks */
+code {
+  background-color: #f1f1f1;
+  padding: 0.2em 0.4em;
+  margin: 0;
+  font-size: 85%;
+  white-space: break-spaces;
+  border-radius: 6px;
+}
+
+pre {
+  background-color: #ececec;
+  line-height: 1.4;
+  overflow-x: auto;
+  padding: 1em;
+}
+
+pre code {
+  background-color: transparent;
+  color: inherit;
+  font-size: 100%;
+  padding: 0;
+}
+
+/* Containers */
+.content {
+  margin-bottom: 4em;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 680px;
+  padding: 0 1.5rem;
+  word-wrap: break-word;
+}
+
+/* Navbar inline search */
+.nav-search {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  margin-left: 0.5em;
+}
+.nav-search-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  padding: 2px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+}
+.nav-search-toggle:hover {
+  color: var(--maincolor);
+}
+.nav-search-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 300px;
+  background: #fff;
+  border: 2px solid var(--bordercl);
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  z-index: 200;
+}
+.nav-search-input {
+  display: block;
+  width: 100%;
+  padding: 0.5em 0.75em;
+  border: none;
+  border-bottom: 1px solid #eee;
+  font-family: inherit;
+  font-size: 0.9rem;
+  background: transparent;
+  color: inherit;
+  box-sizing: border-box;
+}
+.nav-search-input:focus { outline: none; }
+.nav-search-results {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.nav-search-results li { text-indent: 0; }
+.nav-search-results .nav-search-result::before,
+.nav-search-results .nav-search-see-all::before { content: none; }
+.nav-search-result-link {
+  display: block;
+  padding: 0.45em 0.75em;
+  border-bottom: none;
+  text-decoration: none;
+}
+.nav-search-result-link:hover {
+  background-color: var(--hovercolor);
+  color: #fff;
+}
+.nav-search-result-link:hover .nav-search-result-date {
+  color: rgba(255,255,255,0.75);
+}
+.nav-search-result-title {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: bold;
+  line-height: 1.3;
+}
+.nav-search-result-date {
+  display: block;
+  font-size: 0.75rem;
+  color: grey;
+  margin-top: 1px;
+}
+.nav-search-result:not(.nav-search-see-all) {
+  border-bottom: 1px solid #f0f0f0;
+}
+.nav-search-see-all a {
+  display: block;
+  padding: 0.45em 0.75em;
+  font-size: 0.82rem;
+  border-bottom: none;
+  border-top: 2px dotted var(--bordercl);
+  color: var(--maincolor);
+  text-decoration: none;
+}
+.nav-search-see-all a:hover {
+  background-color: var(--hovercolor);
+  color: #fff;
+}
+@media screen and (max-width: 600px) {
+  .nav-search-dropdown {
+    position: fixed;
+    left: 1rem;
+    right: 1rem;
+    width: auto;
+    top: auto;
+  }
+}
+
+/* Header */
+header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  /* Sticky, hidden while scrolling down (static/js/nav-hide.js). Spacing is padding so the
+     background covers the whole bar. */
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  /* The negative bottom margin cancels the bottom padding: the old 1em margin collapsed with the
+     next heading's margin, padding doesn't, so without it the page would start 0.5em lower. */
+  margin: 0 0 -0.5em;
+  padding: 1em 0 0.5em;
+  background-color: #fff;
+}
+
+header .main {
+  font-size: 1.5rem;
+  line-height: 2em;
+}
+
+h1 {
+  font-size: 1.4rem;
+  margin-top: 1.5em;
+}
+
+h2 {
+  font-size: 1.3rem;
+}
+
+h3, h4, h5, h6 {
+  font-size: 1.2rem;
+  margin-top: 1.5em;
+}
+
+h1::before, h2::before, h3::before, h4::before, h5::before, h6::before {
+  speak: never;
+}
+h1::before { color: var(--maincolor); content: '# '; }
+h2::before { color: var(--maincolor); content: '## '; }
+h3::before { color: var(--maincolor); content: '### '; }
+h4::before { color: var(--maincolor); content: '#### '; }
+h5::before { color: var(--maincolor); content: '##### '; }
+h6::before { color: var(--maincolor); content: '###### '; }
+
+/* Footer */
+footer {
+  margin-top: 1em;
+  padding-bottom: 1em;
+}
+footer .footer-content {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25em 0;
+}
+footer .footer-icons {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.1em;
+  margin-right: 0.5em;
+}
+footer .footer-meta {
+  font-size: 0.9em;
+  color: inherit;
+}
+@media screen and (max-width: 480px) {
+  footer .footer-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4em;
+  }
+  footer .footer-meta {
+    font-size: 0.85em;
+  }
+}
+
+/* Common */
+.title h1 {
+  margin-bottom: 0.15em;
+}
+
+/* List page title links: no underline (they're obviously links in context) */
+.list-item .title a {
+  border-bottom: none;
+  text-decoration: none;
+}
+/* The root line-height is a fixed 1.5em (24px), barely taller than this 22.4px title, so on a
+   two-line title the hover background of one line overlapped the other. Use a ratio instead. */
+.list-item .title {
+  line-height: 1.4;
+}
+
+time {
+  color: grey;
+}
+
+/* Posts */
+article .title {
+  margin-bottom: 1em;
+}
+
+
+/* Callout */
+.callout {
+  background-color: var(--callouctcolor);
+  color: #fff;
+  padding: 1em;
+}
+
+.callout p {
+  font-family: 'IBM Plex Mono', 'Noto Sans TC', monospace;
+  margin: 0;
+}
+
+.callout a {
+  border-bottom: 3px solid #fff;
+}
+
+.callout a:hover {
+  background-color: #fff;
+  color: var(--callouctcolor);
+}
+
+.site-description {
+  display: block;
+}
+.tag-cloud .tags li::before {
+  content: none;
+}
+.tags a{
+  border-bottom: 3px solid var(--maincolor); 
+}
+.tags a:hover{
+  color:white;
+  background-color: var(--hovercolor); 
+}
+footer svg{
+  max-height: 15px;
+}
+.soc:hover{
+  color: white;
+}
+.draft-label{ 
+    color: var(--bordercl);
+    text-decoration: none;
+    padding: 2px 4px;
+    border-radius: 4px;
+    margin-left: 6px;
+    background-color: #f9f2f4;
+}
+/* Tables (the theme had none: no padding or rules, and the browser centred the header cells).
+   Left-aligned by default; alignment set in Markdown (|:---:|) arrives as an inline style and
+   still wins. display:block lets a wide table scroll sideways instead of overflowing the page. */
+.body table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 1.2em 0;
+}
+.body th,
+.body td {
+  padding: 0.45em 0.9em;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+.body th {
+  font-weight: 700;
+  border-bottom: 2px solid rgba(0, 0, 0, 0.2);
+}
+.body tr:last-child td {
+  border-bottom: none;
+}
+
+/* Code blocks: Chroma output (<div class="highlight"><pre class="chroma"><code data-lang=…>).
+   Colours: css/syntax.css (light) / dark.css (dark). Copy button: js/code-copy.js. */
+.highlight {
+  position: relative;
+  margin: 1.2em 0;
+}
+.highlight pre {
+  margin: 0;
+  /* top padding leaves a strip for the language label and the copy button */
+  padding: 2.2em 1.1em 1em;
+  background-color: #f6f8fa;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.highlight pre code[data-lang]::before {
+  content: attr(data-lang);
+  position: absolute;
+  top: 0.7em;
+  left: 1.25em;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(0, 0, 0, 0.4);
+}
+/* Blocks without a language (``` alone) get data-lang="fallback": no label for those */
+.highlight pre code[data-lang="fallback"]::before {
+  content: none;
+}
+/* Highlighted lines (hl_lines) and line numbers ({linenos=true}) */
+.chroma .hl {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+.chroma .ln {
+  display: inline-block;
+  min-width: 2ch;
+  margin-right: 1em;
+  padding: 0;
+  text-align: right;
+  color: rgba(0, 0, 0, 0.3);
+}
+.code-copy {
+  position: absolute;
+  top: 0.4em;
+  right: 0.5em;
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  padding: 0.2em 0.45em;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(0, 0, 0, 0.45);
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.highlight:hover .code-copy,
+.code-copy:focus-visible,
+.code-copy.copied {
+  opacity: 1;
+}
+/* Touch screens have no hover: keep the button visible */
+@media (hover: none) {
+  .code-copy {
+    opacity: 1;
+  }
+}
+.code-copy:hover,
+.code-copy:focus-visible {
+  color: #000;
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+/* Responsive */
+@media screen and (max-width: 768px) {
+  html {
+    font-size: 15px;
+  }
+
+  .content {
+    padding: 0 1rem;
+  }
+
+  header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  header .main {
+    margin-bottom: 0.25em;
+  }
+
+  header nav a {
+    margin-right: 0.5em;
+  }
+
+  h1 { font-size: 1.3rem; }
+  h2 { font-size: 1.2rem; }
+  h3, h4, h5, h6 { font-size: 1.1rem; }
+
+  pre {
+    padding: 0.75em;
+    font-size: 14px;
+  }
+
+  figure {
+    max-width: 100%;
+  }
+
+  figure img {
+    max-height: none;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  html {
+    font-size: 14px;
+  }
+
+  .content {
+    padding: 0 0.75rem;
+  }
+
+  header .main {
+    font-size: 1.3rem;
+  }
+
+  pre {
+    font-size: 13px;
+    border-radius: 0;
+    margin-left: -0.75rem;
+    margin-right: -0.75rem;
+    padding: 0.75em;
+  }
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.25em;
+  list-style: none;
+  padding: 0;
+  padding-left: 0;
+  margin: 2em 0;
+  font-family: 'Roboto Mono', monospace;
+}
+.pagination li {
+  text-indent: 0;
+}
+.pagination .page-link {
+  display: inline-block;
+  padding: 0.2em 0.5em;
+  text-decoration: none;
+  color: inherit;
+  border-bottom: 3px solid transparent;
+}
+.pagination a.page-link:hover {
+  background-color: var(--hovercolor);
+  color: #fff;
+}
+.pagination .active .page-link {
+  border-bottom: 3px solid var(--maincolor);
+  font-weight: bold;
+}
+
+/* Search */
+.search-panel {
+  margin-top: 1.5em;
+}
+.search-label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 0.4em;
+}
+.search-input {
+  width: 100%;
+  padding: 0.5em 0.75em;
+  font-size: 1rem;
+  font-family: inherit;
+  border: 2px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+  background: inherit;
+  color: inherit;
+}
+.search-input:focus {
+  outline: none;
+  border-color: var(--maincolor);
+}
+.search-hint {
+  font-size: 0.85em;
+  color: grey;
+  margin: 0.4em 0 0;
+}
+.search-hint kbd {
+  font-family: inherit;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  padding: 0.1em 0.35em;
+  font-size: 0.9em;
+}
+.search-status {
+  margin: 0.75em 0;
+  font-size: 0.9em;
+  color: grey;
+}
+.search-status-error {
+  color: #c00;
+}
+.search-results {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.search-results li {
+  text-indent: 0;
+}
+.search-results .search-result::before {
+  content: none;
+}
+.search-result-card {
+  border-top: 2px dotted var(--bordercl);
+  padding: 1em 0;
+}
+.search-result-title {
+  font-size: 1.1rem;
+  margin: 0 0 0.2em;
+}
+.search-result-title a {
+  border-bottom: none;
+  text-decoration: none;
+}
+.search-result-title a:hover {
+  background-color: var(--hovercolor);
+  color: #fff;
+}
+.search-result-meta {
+  font-size: 0.85em;
+  color: grey;
+  margin: 0 0 0.4em;
+}
+.search-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3em;
+  list-style: none;
+  padding: 0;
+  margin: 0.4em 0;
+}
+.search-tag-list li {
+  text-indent: 0;
+}
+.search-tag-list .search-tag-item::before {
+  content: none;
+}
+.search-tag {
+  font-size: 0.8em;
+  background: #f1f1f1;
+  border-radius: 3px;
+  padding: 0.1em 0.4em;
+}
+.search-result-snippet {
+  font-family: 'Fira Sans', 'Noto Sans TC', sans-serif;
+  font-size: 0.9em;
+  color: #555;
+  margin: 0.4em 0 0;
+  line-height: 1.5;
+}
+
+/* Callout types */
+.callout-alert  { background-color: #ffe0e0; color: #7a0000; }
+.callout-tip    { background-color: #e0f4ff; color: #004a70; }
+.callout-warning { background-color: #fff4d6; color: #6b4c00; }
+.callout-alert a, .callout-tip a, .callout-warning a {
+  border-bottom-color: currentColor;
+}
+.comments {
+  margin-top: 3rem;
+}
+
+/* Tag pills, year groups */
+.pills {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: inline;
+}
+.pills li {
+  display: inline-block;
+  margin: 0 0.35em 0.35em 0;
+  text-indent: 0;
+}
+ul.pills > li::before {
+  content: none;
+}
+.pills a {
+  display: inline-block;
+  border: 1px solid var(--maincolor);
+  border-radius: 999px;
+  padding: 1px 0.7em;
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+.pills a:hover {
+  background-color: var(--hovercolor);
+  color: #fff;
+}
+.pills .count {
+  opacity: 0.6;
+  margin-left: 0.45em;
+}
+.tag-pills li {
+  margin-bottom: 0.5em;
+}
+.tag-pills a {
+  font-size: 0.9rem;
+}
+.rare-tags summary {
+  cursor: pointer;
+  margin: 1.4em 0 0.8em;
+}
+.item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3em 0.8em;
+  margin: 0.25em 0 0.5em;
+}
+.item-meta .pills li {
+  margin-bottom: 0;
+}
+.item-meta .draft-label {
+  margin-left: 0;
+}
+.year-group .year {
+  font-size: 1.1rem;
+  margin: 1.8em 0 0.5em;
+}
+.posts .meta {
+  margin-left: 0.5em;
+}
+.lang-switch svg {
+  vertical-align: -2px;
+  margin-right: 0.25em;
+}
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible,
+.theme-switch input:focus-visible + .slider {
+  outline: 2px solid var(--maincolor);
+  outline-offset: 2px;
+}
+
+/* Image lightbox (static/js/lightbox.js) */
+.body img[data-zoom-src] {
+  cursor: zoom-in;
+}
+dialog.lightbox {
+  width: 100vw;
+  height: 100vh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+dialog.lightbox:focus {
+  outline: none;
+}
+dialog.lightbox::backdrop {
+  background: rgba(0, 0, 0, 0.88);
+}
+dialog.lightbox img {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  max-width: 96vw;
+  max-height: 94vh;
+  border: 0;
+  cursor: zoom-out;
+  /* width/height are set inline by lightbox.js */
+}
+html:has(dialog.lightbox[open]) {
+  overflow: hidden;
+  /* keep the scrollbar's space so the page doesn't shift sideways when scrolling is locked */
+  scrollbar-gutter: stable;
+}
+
+/* Animations — all skipped when the user prefers reduced motion */
+@media (prefers-reduced-motion: no-preference) {
+  /* Lightbox backdrop fades in/out; the image itself is animated by lightbox.js */
+  dialog.lightbox[open]::backdrop {
+    animation: fade-in 0.3s ease-out;
+  }
+  dialog.lightbox.closing::backdrop {
+    animation: fade-out 0.22s ease-in forwards;
+  }
+
+  /* Search dropdown */
+  .nav-search-dropdown:not([hidden]) {
+    animation: drop-in 0.16s ease-out;
+  }
+
+  /* Cross-page fade (View Transitions; browsers without support just navigate). Header stays put. */
+  @view-transition {
+    navigation: auto;
+  }
+  header {
+    view-transition-name: site-header;
+  }
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.22s;
+  }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+}
+@keyframes fade-out {
+  to { opacity: 0; }
+}
+@keyframes drop-in {
+  from { opacity: 0; transform: translateY(-4px); }
+}
+
+/* Table of contents (layouts/_default/single.html + static/js/toc.js) */
+.toc details {
+  margin: 0 0 1.5em;
+}
+.toc summary {
+  cursor: pointer;
+  font-weight: bold;
+}
+.toc ul {
+  margin: 0.3em 0;
+  padding-left: 1.1em;
+}
+.toc nav > ul {
+  padding-left: 0;
+}
+.toc ul > li::before {
+  content: none;
+}
+.toc li {
+  text-indent: 0;
+  margin: 0.3em 0;
+  line-height: 1.4;
+}
+.toc a {
+  border-bottom: none;
+  color: grey;
+  font-size: 0.88rem;
+}
+.toc a:hover,
+.toc a.active {
+  color: var(--maincolor);
+}
+/* Override the theme's global a:hover (teal background + white text), which made the teal
+   TOC text vanish on hover */
+.toc a:hover {
+  background-color: transparent;
+}
+.toc a.active {
+  font-weight: bold;
+}
+.body h2,
+.body h3 {
+  scroll-margin-top: 1rem;
+}
+/* Sidebar in the right margin once there is room for it beside the 800px column */
+@media (min-width: 1200px) {
+  article {
+    position: relative;
+  }
+  .toc {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 100%;
+    width: 220px;
+    margin-left: 2.5rem;
+  }
+  .toc details {
+    position: sticky;
+    top: 2rem;
+    margin: 0;
+    max-height: calc(100vh - 4rem);
+    overflow-y: auto;
+    padding-right: 0.5em;
+    /* Thin scrollbar in the theme colour (--maincolor #00897B), solid on hover.
+       Standard properties: Chrome 121+, Firefox, Safari 18.2+. */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 137, 123, 0.45) transparent;
+  }
+  .toc details:hover {
+    scrollbar-color: rgba(0, 137, 123, 0.9) transparent;
+  }
+  /* Older Safari only understands the -webkit- pseudo-elements */
+  .toc details::-webkit-scrollbar {
+    width: 6px;
+  }
+  .toc details::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .toc details::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 137, 123, 0.45);
+    border-radius: 3px;
+  }
+  .toc details:hover::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 137, 123, 0.9);
+  }
+  .toc summary {
+    list-style: none;
+    pointer-events: none;
+    font-size: 0.9rem;
+    color: grey;
+  }
+  .toc summary::-webkit-details-marker {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Hide-on-scroll header (static/js/nav-hide.js) */
+header::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background-color: rgba(0, 0, 0, 0.08);
+  opacity: 0;
+}
+header.nav-pinned::after {
+  opacity: 1;
+}
+header.nav-hidden {
+  transform: translateY(-100%);
+}
+@media (prefers-reduced-motion: no-preference) {
+  /* More specific than the theme's global `body *` colour transition, which would override it */
+  .content > header {
+    transition: transform 0.25s ease, background-color 0.15s ease;
+  }
+}
+
+/* Footnotes ([^1], Goldmark) and citations ({{< cite >}} + partials/references.html).
+   Hover previews: static/js/notes.js. */
+.body sup {
+  /* keep superscripts from pushing their line apart */
+  line-height: 0;
+}
+.body a.footnote-ref,
+.body .cite a {
+  border-bottom: none;
+  color: var(--maincolor);
+  padding: 0 0.1em;
+  border-radius: 3px;
+}
+.body a.footnote-ref {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.75em;
+}
+.body .cite {
+  font-size: 0.9em;
+  color: grey;
+  white-space: nowrap;
+}
+.body a.footnote-ref:hover,
+.body .cite a:hover {
+  color: #fff;
+}
+.cite-missing {
+  color: #c62828;
+}
+.footnotes,
+.references {
+  margin-top: 3em;
+  color: #4a4a57;
+}
+.footnotes hr {
+  width: 6em;
+  margin: 0 0 1em;
+  border-top: 1px solid rgba(0, 0, 0, 0.2);
+}
+.footnotes + .references {
+  margin-top: 2em;
+}
+.footnotes ol,
+.references ol {
+  padding-left: 1.6em;
+  margin: 0;
+}
+.references ol {
+  list-style: none;
+  padding-left: 0;
+}
+.body .footnotes li,
+.body .footnotes li p,
+.body .references li {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+.footnotes li,
+.references li {
+  margin: 0.5em 0;
+  scroll-margin-top: 1rem;
+  border-radius: 4px;
+}
+.footnotes li::marker {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.85em;
+  color: grey;
+}
+.footnotes li p {
+  margin: 0;
+}
+.references li {
+  display: flex;
+  gap: 0.6em;
+  font-family: 'Fira Sans', 'Noto Sans TC', sans-serif;
+}
+.ref-num {
+  flex: none;
+  min-width: 2.2em;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.85em;
+  color: grey;
+}
+.ref-body {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ref-body a {
+  border-bottom-width: 1px;
+}
+a.footnote-backref,
+a.ref-backref {
+  border-bottom: none;
+  color: grey;
+  padding: 0 0.2em;
+  border-radius: 3px;
+}
+/* Briefly mark where a footnote / reference link or its back-link landed */
+.footnotes li:target,
+.references li:target,
+.cite a:target,
+sup:target a {
+  background-color: rgba(0, 137, 123, 0.12);
+}
+
+/* Hover preview of a footnote or reference (static/js/notes.js) */
+.note-popover {
+  position: absolute;
+  z-index: 20;
+  box-sizing: border-box;
+  max-width: min(26rem, calc(100vw - 2rem));
+  padding: 0.7em 0.9em;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  font-family: 'Fira Sans', 'Noto Sans TC', sans-serif;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: #4a4a57;
+}
+.note-popover p {
+  margin: 0;
+  line-height: inherit;
+}
+.note-popover p + p {
+  margin-top: 0.5em;
+}
+.note-popover a {
+  border-bottom-width: 1px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .note-popover {
+    animation: drop-in 0.12s ease-out;
+  }
+}
+
+/* Reading progress bar (static/js/reading-progress.js). Fixed to the viewport, above the
+   sticky header, so it stays visible while the header is hidden. */
+.reading-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background-color: var(--maincolor);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 300;
+  view-transition-name: reading-progress;
+}
+.reading-progress.visible {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: no-preference) {
+  /* Fade in/out only; the width follows the scroll directly */
+  .reading-progress {
+    transition: opacity 0.2s ease;
+  }
+}

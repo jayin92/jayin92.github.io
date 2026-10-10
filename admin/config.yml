@@ -1,0 +1,86 @@
+# Sveltia CMS (https://sveltiacms.app/en/docs), served at /admin/.
+#
+# Local (recommended): run `hugo server`, open http://localhost:1313/admin/ in a Chromium browser
+#   (Arc/Chrome/Edge), choose "Work with Local Repository" and pick this repo folder.
+#   It only writes files — review, commit and push yourself.
+# Online: https://blog.jayinnn.dev/admin/ → "Sign In with GitHub" (OAuth via the worker below),
+#   or "Sign In Using Access Token" with a fine-grained token limited to this repo
+#   (Contents: read and write). Saving commits to main, which deploys the site.
+
+backend:
+  name: github
+  repo: jayin92/jayin92.github.io
+  branch: main
+  # "Sign In with GitHub" goes through our Sveltia CMS Authenticator worker (Cloudflare,
+  # source: github.com/sveltia/sveltia-cms-auth; secrets GITHUB_CLIENT_ID/_SECRET and
+  # ALLOWED_DOMAINS=blog.jayinnn.dev live on the worker).
+  base_url: https://sveltia-cms-auth.jayin920805.workers.dev
+  # OAuth apps can't be limited to one repo; this repo is public, so ask only for public-repo
+  # access (the default "repo" would include every private repo too).
+  auth_scope: public_repo
+
+app_title: Jayinnn's Blog CMS
+logo:
+  src: /android-chrome-192x192.png
+site_url: https://blog.jayinnn.dev
+display_url: https://blog.jayinnn.dev
+
+# Uploads land next to the existing images and are referenced as /image/..., so Hugo's
+# responsive-image pipeline (WebP srcset + lightbox) picks them up.
+media_folder: /content/image
+public_folder: /image
+
+# Shrink/convert photos in the browser before they reach the repo (phone photos are 5-13 MB).
+media_libraries:
+  all:
+    transformations:
+      raster_image:
+        format: webp
+        quality: 85
+        width: 2560
+        height: 2560
+
+# Hugo translations are sibling files: eth.md (zh-tw) + eth.en.md.
+# New entries start zh-tw only, so no empty English file is created by accident.
+i18n:
+  structure: multiple_files
+  locales: [zh-tw, en]
+  default_locale: zh-tw
+  omit_default_locale_from_file_path: true
+  initial_locales: default
+
+collections:
+  - name: posts
+    label: Posts
+    folder: /content/posts
+    create: true
+    extension: md
+    format: yaml-frontmatter
+    i18n: true
+    slug: "{{slug}}"
+    sortable_fields: [date, title]
+    summary: "{{title}} · {{date | date('YYYY-MM-DD')}}"
+    fields:
+      - { label: Title, name: title, widget: string, i18n: true }
+      - { label: Date, name: date, widget: datetime, format: "YYYY-MM-DDTHH:mm:ssZ", i18n: duplicate }
+      - { label: Description, name: description, widget: string, required: false, i18n: true }
+      - { label: Tags, name: tags, widget: list, required: false, i18n: true }
+      # Default to draft so nothing goes live by accident; per-locale so an English draft can stay hidden.
+      - { label: Draft, name: draft, widget: boolean, default: true, i18n: true }
+      - { label: Body, name: body, widget: markdown, i18n: true }
+
+  # Diaries are not published on the site (content/diaries/_index.md sets render: never).
+  - name: diaries
+    label: Diaries
+    folder: /content/diaries
+    create: true
+    extension: md
+    format: yaml-frontmatter
+    slug: "{{year}}-{{month}}-{{day}}"
+    sortable_fields: [date]
+    fields:
+      - { label: Title, name: title, widget: string }
+      - { label: Date, name: date, widget: datetime, format: "YYYY-MM-DDTHH:mm:ssZ" }
+      - { label: Tags, name: tags, widget: list, default: [Diary] }
+      - { label: Draft, name: draft, widget: boolean, default: false }
+      - { label: Body, name: body, widget: markdown }
