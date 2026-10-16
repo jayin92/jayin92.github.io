@@ -3,6 +3,10 @@ body {
   color: #e3e3e3;
   background-color: #202124;
 }
+:root {
+  /* secondary text (see main.css): 6.1:1 on #202124, 5.3:1 on the search inputs */
+  --muted: #9aa0a6;
+}
 
 ::-moz-selection {
   background: blue;
@@ -121,6 +125,15 @@ a:hover {
   background-color: var(--darkMaincolor);
   color: #000;
 }
+/* main.css's translucent white date is 1.6:1 on the light teal hover background */
+.nav-search-result-link:hover .nav-search-result-date {
+  color: rgba(0, 0, 0, 0.7);
+}
+/* Chrome's default placeholder grey is 3:1 on the dark inputs */
+.nav-search-input::placeholder,
+.search-input::placeholder {
+  color: var(--muted);
+}
 
 /* Search — dark mode */
 .search-input {
@@ -139,6 +152,9 @@ a:hover {
 }
 .search-result-snippet {
   color: #aaa;
+}
+.search-status-error {
+  color: #ff8a80;
 }
 
 /* Callout types — dark mode */
@@ -304,7 +320,7 @@ img {
   border-color: rgba(255, 255, 255, 0.08);
 }
 figure h4 {
-  color: #9aa0a6;
+  color: var(--muted);
 }
 
 /* Tables (dark) */

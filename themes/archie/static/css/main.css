@@ -5,6 +5,8 @@
 --callouctcolor:dodgerblue;
 --hovercolor: #00897B;
 --darkMaincolor: #80CBC4;
+/* Secondary text (dates, TOC, captions, hints, quotes): 5.3:1 on white, WCAG AA. dark.css sets its own. */
+--muted: #656d76;
 }
 html {
   color: #232333;
@@ -78,7 +80,7 @@ hr {
 
 blockquote {
   border-left: 3px solid var(--bordercl);
-  color: #737373;
+  color: var(--muted);
   margin: 0;
   padding-left: 1em;
 }
@@ -154,7 +156,7 @@ figure img {
 figure h4 {
   font-size: 0.875rem;
   font-weight: normal;
-  color: #6a737d;
+  color: var(--muted);
   margin: 0.6em 0 0;
 }
 figure h4::before {
@@ -272,7 +274,7 @@ pre code {
 .nav-search-result-date {
   display: block;
   font-size: 0.75rem;
-  color: grey;
+  color: var(--muted);
   margin-top: 1px;
 }
 .nav-search-result:not(.nav-search-see-all) {
@@ -398,7 +400,7 @@ footer .footer-meta {
 }
 
 time {
-  color: grey;
+  color: var(--muted);
 }
 
 /* Posts */
@@ -679,7 +681,7 @@ footer svg{
 }
 .search-hint {
   font-size: 0.85em;
-  color: grey;
+  color: var(--muted);
   margin: 0.4em 0 0;
 }
 .search-hint kbd {
@@ -692,7 +694,7 @@ footer svg{
 .search-status {
   margin: 0.75em 0;
   font-size: 0.9em;
-  color: grey;
+  color: var(--muted);
 }
 .search-status-error {
   color: #c00;
@@ -726,7 +728,7 @@ footer svg{
 }
 .search-result-meta {
   font-size: 0.85em;
-  color: grey;
+  color: var(--muted);
   margin: 0 0 0.4em;
 }
 .search-tag-list {
@@ -796,7 +798,8 @@ ul.pills > li::before {
   color: #fff;
 }
 .pills .count {
-  opacity: 0.6;
+  /* 0.7 of the text colour: 5.8:1 on white (0.6 was 4.2) */
+  opacity: 0.7;
   margin-left: 0.45em;
 }
 .tag-pills li {
@@ -939,7 +942,7 @@ html:has(dialog.lightbox[open]) {
 }
 .toc a {
   border-bottom: none;
-  color: grey;
+  color: var(--muted);
   font-size: 0.88rem;
 }
 .toc a:hover,
@@ -1004,7 +1007,7 @@ html:has(dialog.lightbox[open]) {
     list-style: none;
     pointer-events: none;
     font-size: 0.9rem;
-    color: grey;
+    color: var(--muted);
   }
   .toc summary::-webkit-details-marker {
     display: none;
@@ -1059,7 +1062,7 @@ header.nav-hidden {
 }
 .body .cite {
   font-size: 0.9em;
-  color: grey;
+  color: var(--muted);
   white-space: nowrap;
 }
 .body a.footnote-ref:hover,
@@ -1106,7 +1109,7 @@ header.nav-hidden {
 .footnotes li::marker {
   font-family: 'Roboto Mono', monospace;
   font-size: 0.85em;
-  color: grey;
+  color: var(--muted);
 }
 .footnotes li p {
   margin: 0;
@@ -1121,7 +1124,7 @@ header.nav-hidden {
   min-width: 2.2em;
   font-family: 'Roboto Mono', monospace;
   font-size: 0.85em;
-  color: grey;
+  color: var(--muted);
 }
 .ref-body {
   min-width: 0;
@@ -1133,7 +1136,7 @@ header.nav-hidden {
 a.footnote-backref,
 a.ref-backref {
   border-bottom: none;
-  color: grey;
+  color: var(--muted);
   padding: 0 0.2em;
   border-radius: 3px;
 }

@@ -43,6 +43,11 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 - Monospace contexts (site title, nav, headings, dates/meta, TOC, tags, code): `'Roboto Mono', 'Sarasa Mono TC', 'Noto Sans TC', monospace` — Roboto Mono for Latin (400 + 700), Sarasa Mono TC for Chinese (400 + 700). Prose inside posts (paragraphs, lists, tables, captions): Fira Sans + Noto Sans TC.
 - Sarasa Mono TC is subset to the site's characters by `tools/subset_fonts.py` (`pip install fonttools brotli`; caches the source TTFs in gitignored `.font-cache/`). CI re-runs it before every build, non-fatally; characters missing from the subset fall back to Noto Sans TC. Licence: `themes/archie/static/fonts/OFL-Sarasa-Gothic.txt` (OFL 1.1; only "Source" is a reserved name, so the subset keeps its name).
 
+## Colours
+
+- Text colours must pass WCAG AA (4.5:1, 3:1 for large text and UI borders) in both modes; compute the ratio, and give every colour in `main.css` its `dark.css` counterpart.
+- Secondary text (dates, TOC, captions, blockquotes, search hints, footnote/citation numbers) uses `var(--muted)`: #656d76 in `main.css` (5.3:1 on white), redefined as #9aa0a6 in `dark.css` (6.1:1 on #202124). Don't use `grey`: 3.9:1 / 4.1:1.
+
 ## Multilingual (zh-tw default, en under `/en/`)
 
 - Default language is zh-tw served at the root (`defaultContentLanguageInSubdir = false`); English lives under `/en/`.
