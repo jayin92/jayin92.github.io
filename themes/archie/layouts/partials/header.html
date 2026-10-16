@@ -46,6 +46,7 @@
 
 	{{- /* Open Graph + Twitter cards; the image is the post's first picture or the site icon (params.og_image overrides the icon) */ -}}
 	{{- partial "social-meta.html" . -}}
+	{{- partial "json-ld.html" . -}}
 	{{- /* KaTeX (front matter katex: true). Inside <head> and before the site CSS, so the site's
 	       rules still win; the scripts are deferred, so they run before DOMContentLoaded. */}}
 	{{- if .Params.katex -}}

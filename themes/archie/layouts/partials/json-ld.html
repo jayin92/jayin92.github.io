@@ -1,0 +1,47 @@
+{{- /* schema.org JSON-LD: BlogPosting for posts (mainSections), WebSite for the home page. The author
+       is [params.author] (name, url) plus the http(s) links of [[params.social]] as sameAs. */ -}}
+{{- $ISO8601 := "2006-01-02T15:04:05-07:00" -}}
+{{- $author := dict "@type" "Person" -}}
+{{- with site.Params.author -}}
+  {{- $author = merge $author (dict "name" .name "url" .url) -}}
+  {{- $sameAs := slice -}}
+  {{- $url := .url -}}
+  {{- range site.Params.social -}}
+    {{- if and (hasPrefix .url "http") (ne (strings.TrimRight "/" .url) (strings.TrimRight "/" $url)) -}}
+      {{- $sameAs = $sameAs | append .url -}}
+    {{- end -}}
+  {{- end -}}
+  {{- with $sameAs }}{{ $author = merge $author (dict "sameAs" .) }}{{ end -}}
+{{- end -}}
+{{- $ld := dict -}}
+{{- if and .IsPage (in site.Params.mainSections .Type) -}}
+  {{- $ld = dict
+    "@context" "https://schema.org"
+    "@type" "BlogPosting"
+    "headline" (.Title | plainify)
+    "url" .Permalink
+    "mainEntityOfPage" (dict "@type" "WebPage" "@id" .Permalink)
+    "datePublished" (.PublishDate.Format $ISO8601)
+    "dateModified" (.Lastmod.Format $ISO8601)
+    "inLanguage" .Language.Locale
+    "isPartOf" (dict "@type" "Blog" "name" site.Title "url" site.Home.Permalink)
+  -}}
+  {{- if site.Params.author }}{{ $ld = merge $ld (dict "author" $author) }}{{ end -}}
+  {{- with partial "meta-description.html" . }}{{ $ld = merge $ld (dict "description" .) }}{{ end -}}
+  {{- with .Params.tags }}{{ $ld = merge $ld (dict "keywords" .) }}{{ end -}}
+  {{- $image := partial "page-image.html" . -}}
+  {{- if $image.post }}{{ $ld = merge $ld (dict "image" (slice $image.url)) }}{{ end -}}
+{{- else if and .IsHome (not (partial "is-shell.html" .)) -}}
+  {{- $ld = dict
+    "@context" "https://schema.org"
+    "@type" "WebSite"
+    "name" site.Title
+    "url" .Permalink
+    "inLanguage" .Language.Locale
+  -}}
+  {{- with site.Params.description }}{{ $ld = merge $ld (dict "description" .) }}{{ end -}}
+  {{- if site.Params.author }}{{ $ld = merge $ld (dict "author" $author) }}{{ end -}}
+{{- end -}}
+{{- with $ld }}
+	<script type="application/ld+json">{{ . | jsonify | safeJS }}</script>
+{{- end -}}

@@ -90,6 +90,7 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 
 - Meta description: `partials/meta-description.html` — the page's `description`, the home page's `params.description`, or for a post the first 160 characters of its summary; list pages without one get no tag. Keywords come from front matter `keywords` (an "a, b, c" string, as written).
 - Open Graph/Twitter tags are `partials/social-meta.html` (not Hugo's internal templates). The image (`partials/page-image.html`) is the post's first local `/image/...` picture, converted to a JPEG ≤1200px wide; `summary_large_image` only when it's ≥600px wide. Otherwise, and on list pages, it's the 512px site icon (`params.og_image` overrides that default).
+- JSON-LD (`partials/json-ld.html`): `BlogPosting` on posts, `WebSite` on the home page; author from `[params.author]`, with the http(s) `[[params.social]]` links as `sameAs`. Output through `jsonify | safeJS`; check changes with `json.loads` on the built pages.
 
 ## Comments
 

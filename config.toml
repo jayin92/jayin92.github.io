@@ -30,6 +30,11 @@ weight = 2
 	description = "A blog of jayinnn's daily life" # home page meta/og description
 	mainSections = ["posts"]
 
+# Author in the JSON-LD (partials/json-ld.html); the http(s) [[params.social]] links become sameAs.
+[params.author]
+  name = "Jie-Ying Lee"
+  url = "https://jayinnn.dev"
+
 # Comments (giscus). Comments render only when repoId and categoryId are set.
 # Get the IDs from https://giscus.app after enabling Discussions + installing the giscus app.
 [params.giscus]
