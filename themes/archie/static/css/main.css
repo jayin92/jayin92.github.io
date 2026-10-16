@@ -1202,3 +1202,92 @@ sup:target a {
     transition: opacity 0.2s ease;
   }
 }
+
+/* ── Archive dates (partials/post-list.html) ── */
+/* Keep a date in one piece: on phones "05-18" broke at its hyphen, leaving "05-" at the end of a
+   line and "18" on the next. The date (and a DRAFT label) now moves down as a unit. */
+.posts .meta {
+  white-space: nowrap;
+}
+
+/* ── Dates as <time datetime> (single.html meta, partials/post-list.html) ── */
+/* The global `time { color: grey }` is meant for the home list. In a post's "發佈於 <date>" line and
+   the archive, the date keeps the colour of the text around it, as before it was a <time>. */
+.meta time {
+  color: inherit;
+}
+
+/* ── Home list headings (index.html) ── */
+/* The home page has one (visually hidden) <h1>, the site title; post titles are <h2>s (they used
+   to be ten <h1>s). These rules keep the old h1 look: size, spacing and the "# " marker. */
+.list-item h2.title {
+  font-size: 1.4rem;
+  margin-top: 1.5em;
+  margin-bottom: 0.67em;
+}
+.list-item h2.title::before {
+  content: '# ';
+}
+@media screen and (max-width: 768px) {
+  .list-item h2.title {
+    font-size: 1.3rem;
+  }
+}
+/* Read by screen readers, not shown */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* ── Newer/older post links (partials/post-nav.html, in single.html) ── */
+/* "← 較新的文章" on the left, "較舊的文章 →" on the right (the same directions as the pagination);
+   each is one block link: a small grey label over the title. Stacked on phones. */
+.post-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1em 2em;
+  margin-top: 2.5em;
+}
+.post-nav a {
+  display: block;
+  max-width: 48%;
+  border-bottom: none;
+  line-height: 1.5;
+}
+.post-nav-older {
+  margin-left: auto;
+  text-align: right;
+}
+.post-nav-label {
+  display: block;
+  margin-bottom: 0.15em;
+  font-size: 0.8rem;
+  color: grey;
+}
+.post-nav-title {
+  border-bottom: 3px solid var(--maincolor);
+}
+.post-nav a:hover .post-nav-label {
+  color: inherit;
+}
+@media screen and (max-width: 600px) {
+  .post-nav {
+    flex-direction: column;
+  }
+  .post-nav a {
+    max-width: 100%;
+  }
+}
+
+/* ── 404 page (404.html): search box (reuses .search-input) and latest posts ── */
+.not-found-search {
+  margin: 1.5em 0 0.5em;
+}

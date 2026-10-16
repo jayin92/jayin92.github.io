@@ -357,3 +357,11 @@ sup:target a {
 .reading-progress {
   background-color: var(--darkMaincolor);
 }
+
+/* ── Newer/older post links (partials/post-nav.html) — dark mode ── */
+.post-nav-label {
+  color: #999;
+}
+.post-nav-title {
+  border-bottom-color: var(--darkMaincolor);
+}

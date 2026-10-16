@@ -1,5 +1,7 @@
 {{ define "main" }}
-<main class="list">
+<main id="main" class="list">
+	{{- /* One page heading for screen readers and outlines; the post titles below are its h2s */}}
+	<h1 class="visually-hidden">{{ .Site.Title }}</h1>
 	<div class="site-description">
 		{{- with .Site.Params.subtitle }}
 		<p>{{ . | markdownify }}</p>
@@ -9,16 +11,19 @@
 	{{ $paginator := .Paginate (where $pages "Params.hidden" "ne" true) }}
 	{{ range $paginator.Pages }}
 	<section class="list-item">
-		<h1 class="title"><a href="{{ .RelPermalink }}">{{.Title}}</a></h1>
+		<h2 class="title"><a href="{{ .RelPermalink }}">{{.Title}}</a></h2>
 		<div class="item-meta">
-			<time>{{ dateFormat (i18n "date_format") .Date }}</time>{{ if .Draft }}<span class="draft-label">DRAFT</span>{{ end }}
+			<time datetime="{{ .Date.Format "2006-01-02" }}">{{ dateFormat (i18n "date_format") .Date }}</time>{{ if .Draft }}<span class="draft-label">DRAFT</span>{{ end }}
 			{{ partial "pills.html" . }}
 		</div>
+		{{- /* The description, or (when it's missing or "", as the archetype leaves it) the start of
+		       the summary as plain text, minus headings, figures/captions and footnote marks. Cut by
+		       characters: without hasCJKLanguage, .Summary runs on for paragraphs. */}}
 		<div class="description">
-			{{ if isset .Params "description" }}
-			{{ .Description }}
+			{{ with .Description }}
+			{{ . }}
 			{{ else }}
-			{{ .Summary }}&hellip;
+			{{ .Summary | replaceRE `(?s)<figure\b.*?</figure>|<h[1-6]\b.*?</h[1-6]>|<sup\b.*?</sup>` " " | plainify | htmlUnescape | replaceRE `\s+` " " | strings.TrimSpace | truncate 80 "…" }}
 			{{ end }}
 		</div>
 	</section>

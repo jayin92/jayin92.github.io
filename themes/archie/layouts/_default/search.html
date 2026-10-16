@@ -1,5 +1,5 @@
 {{ define "main" }}
-<main>
+<main id="main">
   <article class="search-page">
     <div class="title">
       <h1 class="title">{{ .Title }}</h1>
@@ -11,11 +11,17 @@
     </section>
     {{ end }}
 
+    {{- /* data-text-*: the messages search.js shows, localized here ({n} = count, {q} = query) */}}
     <section
       class="search-panel"
       data-search-root
-      {{ with .OutputFormats.Get "json" }}data-search-index-url="{{ .RelPermalink }}"{{ end }}>
-      <label class="search-label" for="search-query">Find entries</label>
+      {{ with .OutputFormats.Get "json" }}data-search-index-url="{{ .RelPermalink }}"{{ end }}
+      data-text-start="{{ i18n "search_start" }}"
+      data-text-no-results="{{ i18n "search_no_results" }}"
+      data-text-result="{{ i18n "search_result" }}"
+      data-text-results="{{ i18n "search_results" }}"
+      data-text-error="{{ i18n "search_error" }}">
+      <label class="search-label" for="search-query">{{ i18n "search_label" }}</label>
       <input
         id="search-query"
         class="search-input"
@@ -26,18 +32,18 @@
         spellcheck="false"
         aria-controls="search-results"
         aria-describedby="search-help search-status"
-        placeholder="Search by title, tag, or content">
+        placeholder="{{ i18n "search_page_placeholder" }}">
       <p id="search-help" class="search-hint">
-        Search across your indexed content. Press <kbd>/</kbd> to focus the field.
+        {{ i18n "search_hint" | safeHTML }}
       </p>
       <p id="search-status" class="search-status" data-search-status aria-live="polite">
-        Loading search index...
+        {{ i18n "search_loading" }}
       </p>
       <ul id="search-results" class="search-results" data-search-results></ul>
     </section>
 
     <noscript>
-      <p class="search-status search-status-error">Search requires JavaScript to load the index and filter results.</p>
+      <p class="search-status search-status-error">{{ i18n "search_noscript" }}</p>
     </noscript>
   </article>
 </main>
