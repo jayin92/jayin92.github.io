@@ -94,6 +94,7 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 - `404.html`: localized message, a search box (a plain GET form to `search/?q=`, which search.js reads, so it works without JS) and the 5 latest posts. GitHub Pages serves only the root (zh) 404.html, for every missing URL at any depth, so its links must stay root-relative.
 - Search page (`_default/search.html`): every string is i18n (`search_*` keys). The messages search.js prints come from attributes on `[data-search-root]`: `data-text-start`, `data-text-no-results`, `data-text-result` / `data-text-results` (placeholders `{n}` count, `{q}` query) and `data-text-error`. The index's `displayDate` (search page and nav dropdown) uses the site's `date_format`.
 - Tags: the tags page prints `.Page.LinkTitle` (the tag as written, "NYCU"), not `.Name` (the lowercased key, "nycu"). Tag links end in `/` (`/tags/<tag | urlize>/`); without it GitHub Pages answers with a redirect first.
+- Nav (`partials/head.html`): the menu link of the page being shown gets `aria-current="page"` (URLs compared without the trailing slash; not styled). The language switch and the post's "Read in English" link carry `hreflang`/`lang` of the target language.
 
 ## Comments
 

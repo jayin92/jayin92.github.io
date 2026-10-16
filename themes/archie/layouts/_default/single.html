@@ -11,7 +11,7 @@
 			{{ if .IsTranslated }}
 			<div class="meta translations">
 				{{ range .Translations }}
-				<a href="{{ .RelPermalink }}">{{ if eq .Language.Lang "en" }}Read in English &rarr;{{ else }}閱讀中文版 &rarr;{{ end }}</a>
+				<a href="{{ .RelPermalink }}" hreflang="{{ .Language.Locale }}" lang="{{ .Language.Locale }}">{{ if eq .Language.Lang "en" }}Read in English &rarr;{{ else }}閱讀中文版 &rarr;{{ end }}</a>
 				{{ end }}
 			</div>
 			{{ end }}
