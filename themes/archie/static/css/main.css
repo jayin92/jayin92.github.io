@@ -1251,3 +1251,38 @@ label.theme-switch.no-transition .slider::before {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* ── Heading anchors (static/js/heading-anchors.js) ──
+   A "#" after each heading in .body, shown while the heading is hovered or the link focused. */
+.heading-anchor {
+  margin-left: 0.35em;
+  padding: 0 0.15em;
+  border-bottom: none;
+  color: var(--maincolor);
+  font-weight: normal;
+  opacity: 0;
+}
+.heading-anchor::before {
+  content: '#';
+}
+/* :where() keeps this at the specificity of the :hover rule below, so that one wins */
+:where(.body h1, .body h2, .body h3, .body h4, .body h5, .body h6):hover > .heading-anchor,
+.heading-anchor:focus-visible {
+  opacity: 0.6;
+}
+.heading-anchor:hover {
+  opacity: 1;
+}
+/* No hover on touch screens: leave it out rather than leave an invisible tap target */
+@media (hover: none) {
+  .heading-anchor {
+    display: none;
+  }
+}
+/* h2/h3 already have this (TOC): every heading a link can jump to stops just below the top */
+.body h1,
+.body h4,
+.body h5,
+.body h6 {
+  scroll-margin-top: 1rem;
+}

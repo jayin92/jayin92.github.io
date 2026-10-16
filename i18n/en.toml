@@ -15,6 +15,7 @@ date_short = "Jan 2"
 code_copy = "Copy"
 code_copied = "Copied"
 code_copy_failed = "Copy failed"
+heading_link = "Link to this section: {title}"
 
 [entries_tagged]
 other = "Entries tagged - \"{{ .Tag }}\""

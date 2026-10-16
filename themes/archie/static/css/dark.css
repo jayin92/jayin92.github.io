@@ -362,3 +362,8 @@ sup:target a {
 .code-copy.copied {
   color: var(--darkMaincolor);
 }
+
+/* ── Heading anchors (static/js/heading-anchors.js) — dark ── */
+.heading-anchor {
+  color: var(--darkMaincolor);
+}
