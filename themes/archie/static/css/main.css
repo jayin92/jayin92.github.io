@@ -843,9 +843,23 @@ ul.pills > li::before {
 a:focus-visible,
 button:focus-visible,
 summary:focus-visible,
-.theme-switch input:focus-visible + .slider {
+.theme-switch input:focus-visible + .slider,
+.highlight pre:focus-visible,
+img[data-zoom-src]:focus-visible {
   outline: 2px solid var(--maincolor);
   outline-offset: 2px;
+}
+/* The head partial's inline <style> hides the checkbox with display:none, which also drops it
+   from the tab order: the theme toggle was unreachable by keyboard. Hide it visually instead
+   (the attribute selector outranks the inline rule, which loads after this file). */
+.theme-switch input[type="checkbox"] {
+  display: block;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* Image lightbox (static/js/lightbox.js) */

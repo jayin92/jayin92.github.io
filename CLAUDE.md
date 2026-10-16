@@ -48,6 +48,7 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 - Text colours must pass WCAG AA (4.5:1, 3:1 for large text and UI borders) in both modes; compute the ratio, and give every colour in `main.css` its `dark.css` counterpart.
 - Secondary text (dates, TOC, captions, blockquotes, search hints, footnote/citation numbers) uses `var(--muted)`: #656d76 in `main.css` (5.3:1 on white), redefined as #9aa0a6 in `dark.css` (6.1:1 on #202124). Don't use `grey`: 3.9:1 / 4.1:1.
 - Code-block chrome (language label, copy button, line numbers) is `rgba(0,0,0,.55)` light (4.7:1) / `rgba(255,255,255,.5)` dark (5.2:1). `syntax.css` loads after `main.css`, so a light override of a generated rule needs the `.highlight` prefix too (e.g. `.highlight .chroma .ln`).
+- Keyboard focus is one 2px teal `:focus-visible` outline (`main.css`; `dark.css` recolours it) on links, buttons, `summary`, code blocks (Chroma's `pre tabindex="0"`), zoomable images and the theme toggle; add new focusable elements to both selector lists. The toggle's checkbox is visually hidden by `.theme-switch input[type="checkbox"]` in `main.css`: the head partial's inline `display: none` took it out of the tab order.
 
 ## Multilingual (zh-tw default, en under `/en/`)
 
