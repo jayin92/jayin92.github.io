@@ -86,6 +86,11 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 - `static/js/notes.js` shows the footnote/reference in a hover popover (hover-capable devices only); loaded only on pages with footnotes or citations.
 - `[markup.goldmark.renderer] unsafe = true` keeps raw HTML in Markdown, so HTML-emitting shortcodes (cite, figure) also work inside another shortcode's Markdown body (`details`). Side effect: HTML comments in posts reach the RSS feeds (`--minify` strips them from the HTML pages).
 
+## SEO & feeds
+
+- Meta description: `partials/meta-description.html` — the page's `description`, the home page's `params.description`, or for a post the first 160 characters of its summary; list pages without one get no tag. Keywords come from front matter `keywords` (an "a, b, c" string, as written).
+- Open Graph/Twitter tags are `partials/social-meta.html` (not Hugo's internal templates). The image (`partials/page-image.html`) is the post's first local `/image/...` picture, converted to a JPEG ≤1200px wide; `summary_large_image` only when it's ≥600px wide. Otherwise, and on list pages, it's the 512px site icon (`params.og_image` overrides that default).
+
 ## Comments
 
 - giscus (GitHub Discussions), via `themes/archie/layouts/partials/comments.html`, included at the bottom of `single.html`.

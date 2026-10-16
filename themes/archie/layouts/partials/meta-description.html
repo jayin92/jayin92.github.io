@@ -1,0 +1,14 @@
+{{- /* The page's description for <meta name="description">, Open Graph/Twitter and JSON-LD: its own
+       description, else the site's (home), else the start of a post's summary as plain text.
+       Empty for list pages without one, so the tag is left out rather than sent as content="". */ -}}
+{{- $d := "" -}}
+{{- with .Description -}}
+  {{- $d = . -}}
+{{- else -}}
+  {{- if .IsHome -}}
+    {{- $d = site.Params.description -}}
+  {{- else if .IsPage -}}
+    {{- $d = .Summary | plainify | htmlUnescape | replaceRE `\s+` " " | strings.TrimSpace | truncate 160 -}}
+  {{- end -}}
+{{- end -}}
+{{- return ($d | default "") -}}

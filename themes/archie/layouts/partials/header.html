@@ -5,17 +5,21 @@
 	{{- $siteTitle := ( .Site.Title ) -}}
 	{{- if .IsHome -}}
 	<title>{{ $siteTitle }} | Home </title>
-	<meta name="description" content="A blog of jayinnn's daily life">
     <meta name="KEYWORDS" content="Home Page">
 	{{- else -}}
 	<title>{{ $title }} - {{ $siteTitle }}</title>
-	<meta name="description" content="{{ .Description }}">
-    <meta name="KEYWORDS" content="{{ .Keywords }}">
+	{{- /* Front matter keywords are mostly an "a, b, c" string, which Hugo splits on whitespace
+	       ("a," "b," "c"): rejoin those with spaces, a YAML list with commas. */ -}}
+	{{- with .Keywords }}
+	{{- $keywords := delimit . " " }}
+	{{- if not (strings.Contains $keywords ",") }}{{ $keywords = delimit . ", " }}{{ end }}
+    <meta name="KEYWORDS" content="{{ strings.TrimRight ", " $keywords }}">
+	{{- end }}
 	{{- end -}}
-
-	
-	
-
+	{{- /* Home: params.description; posts without one: start of the summary (partials/meta-description.html) */ -}}
+	{{- with partial "meta-description.html" . }}
+	<meta name="description" content="{{ . }}">
+	{{- end }}
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
 	<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
@@ -36,13 +40,12 @@
 
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 
-	{{ with .Site.Params.og_image }}<meta property="og:image" content="{{ . }}"/>{{ end }}
 	{{ with .OutputFormats.Get "rss" -}}
 	{{ printf `<link rel="%s" type="%s" href="%s" title="%s" />` .Rel .MediaType.Type .Permalink $.Site.Title | safeHTML }}
 	{{ end -}}
-	
-	{{- template "_internal/opengraph.html" . -}}
-	{{- template "_internal/twitter_cards.html" . -}}
+
+	{{- /* Open Graph + Twitter cards; the image is the post's first picture or the site icon (params.og_image overrides the icon) */ -}}
+	{{- partial "social-meta.html" . -}}
 	{{- /* KaTeX (front matter katex: true). Inside <head> and before the site CSS, so the site's
 	       rules still win; the scripts are deferred, so they run before DOMContentLoaded. */}}
 	{{- if .Params.katex -}}

@@ -1,0 +1,46 @@
+{{- /* Open Graph and Twitter card tags, in place of Hugo's internal opengraph/twitter_cards templates
+       (same tags), plus: an image on every page (partials/page-image.html) with a large card when a
+       post has a picture, the same description as <meta name="description">, and og:locale in
+       Facebook's ll_CC form (zh_TW, not zh_tw). */ -}}
+{{- $description := partial "meta-description.html" . -}}
+{{- $image := partial "page-image.html" . -}}
+{{- $title := .Title | default site.Title | plainify -}}
+{{- $locale := split .Language.Locale "-" -}}
+{{- $ogLocale := index $locale 0 -}}
+{{- if gt (len $locale) 1 }}{{ $ogLocale = printf "%s_%s" $ogLocale (upper (index $locale 1)) }}{{ end }}
+	<meta property="og:url" content="{{ .Permalink }}">
+	<meta property="og:site_name" content="{{ site.Title | plainify }}">
+	<meta property="og:title" content="{{ $title }}">
+	{{- with $description }}
+	<meta property="og:description" content="{{ . }}">
+	{{- end }}
+	<meta property="og:locale" content="{{ $ogLocale }}">
+	{{- if .IsPage }}
+	<meta property="og:type" content="article">
+	{{- with .Section }}
+	<meta property="article:section" content="{{ . }}">
+	{{- end }}
+	{{- $ISO8601 := "2006-01-02T15:04:05-07:00" }}
+	{{- with .PublishDate }}
+	<meta property="article:published_time" {{ .Format $ISO8601 | printf "content=%q" | safeHTMLAttr }}>
+	{{- end }}
+	{{- with .Lastmod }}
+	<meta property="article:modified_time" {{ .Format $ISO8601 | printf "content=%q" | safeHTMLAttr }}>
+	{{- end }}
+	{{- range .GetTerms "tags" | first 6 }}
+	<meta property="article:tag" content="{{ .Page.Title | plainify }}">
+	{{- end }}
+	{{- else }}
+	<meta property="og:type" content="website">
+	{{- end }}
+	<meta property="og:image" content="{{ $image.url }}">
+	{{- if $image.width }}
+	<meta property="og:image:width" content="{{ $image.width }}">
+	<meta property="og:image:height" content="{{ $image.height }}">
+	{{- end }}
+	<meta name="twitter:card" content="{{ if $image.large }}summary_large_image{{ else }}summary{{ end }}">
+	<meta name="twitter:image" content="{{ $image.url }}">
+	<meta name="twitter:title" content="{{ $title }}">
+	{{- with $description }}
+	<meta name="twitter:description" content="{{ . }}">
+	{{- end }}
