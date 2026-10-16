@@ -384,3 +384,21 @@ sup:target a {
 .compare-frame:has(.compare-range:focus-visible) {
   outline-color: var(--darkMaincolor);
 }
+
+/* ── Link card (dark): shortcodes/linkcard.html ── */
+.linkcard {
+  border-color: rgba(255, 255, 255, 0.14);
+  border-left-color: var(--darkMaincolor);
+}
+.linkcard:hover {
+  border-color: var(--darkMaincolor);
+}
+.linkcard:has(.linkcard-title:focus-visible) {
+  outline-color: var(--darkMaincolor);
+}
+.body .linkcard-desc {
+  color: #aaa;
+}
+.body .linkcard-meta {
+  color: #999;
+}

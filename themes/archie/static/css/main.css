@@ -1422,3 +1422,49 @@ sup:target a {
   outline: 2px solid var(--maincolor);
   outline-offset: 2px;
 }
+
+/* ── Link card shortcode (shortcodes/linkcard.html) ──
+   The whole card is clickable: the title link's ::after covers it, so hovering the card gives the
+   title the theme's usual link hover. */
+.linkcard {
+  position: relative;
+  margin: 1.2em 0;
+  padding: 0.7em 1em;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-left: 3px solid var(--maincolor);
+  border-radius: 6px;
+}
+.linkcard:hover {
+  border-color: var(--maincolor);
+}
+.linkcard:has(.linkcard-title:focus-visible) {
+  outline: 2px solid var(--maincolor);
+  outline-offset: 2px;
+}
+.linkcard-title {
+  font-family: 'Roboto Mono', 'Sarasa Mono TC', 'Noto Sans TC', monospace;
+  font-weight: 700;
+  line-height: 1.5;
+}
+.linkcard-title::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+.body .linkcard-desc {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  margin: 0.3em 0 0;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: #555;
+}
+.body .linkcard-meta {
+  margin: 0.3em 0 0;
+  font-family: 'Roboto Mono', 'Sarasa Mono TC', 'Noto Sans TC', monospace;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: grey;
+}

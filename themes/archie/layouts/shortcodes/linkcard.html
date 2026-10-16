@@ -1,0 +1,64 @@
+{{- /* A card linking to another post (title, description, date), on a line of its own:
+         {{< linkcard "nycu-cs-eth-exchange" >}}          file name, "posts/eth" or "/posts/eth/"
+         {{< linkcard page="eth" title="…" description="…" >}}       override what the card shows
+         {{< linkcard url="/eth-cg24/project/" title="…" description="…" >}}   any other link
+       A bare file name is looked up in the main sections (posts/) first, so "eth" means posts/eth
+       and not the ETH tag. Posts are found in the current language first, then the others (an
+       English post can link a zh-only one; the card then names the language). The description
+       falls back to the post's tldr. A post that can't be found renders nothing and logs a WARN. */ -}}
+{{- $ref := cond .IsNamedParams (.Get "page") (.Get 0) -}}
+{{- $url := .Get "url" -}}
+{{- $title := .Get "title" -}}
+{{- $desc := .Get "description" -}}
+{{- $meta := slice -}}
+{{- $ok := true -}}
+{{- if $ref -}}
+  {{- $ref = strings.TrimSuffix "/" $ref -}}
+  {{- $paths := slice -}}
+  {{- if not (strings.Contains $ref "/") -}}
+    {{- range site.Params.mainSections | default (slice "posts") }}{{ $paths = $paths | append (printf "/%s/%s" . $ref) }}{{ end -}}
+  {{- end -}}
+  {{- $paths = $paths | append $ref -}}
+  {{- $sites := slice site -}}
+  {{- range hugo.Sites }}{{ if ne .Language.Lang site.Language.Lang }}{{ $sites = $sites | append . }}{{ end }}{{ end -}}
+  {{- $p := "" -}}
+  {{- $err := "" -}}
+  {{- range $s := $sites -}}
+    {{- range $path := $paths -}}
+      {{- if not $p -}}
+        {{- /* GetPage fails the build on an ambiguous name; report it as a WARN instead */ -}}
+        {{- with try ($s.GetPage $path) -}}
+          {{- if .Err }}{{ $err = replaceRE `^.*error calling GetPage: ` "" (printf "%v" .Err) }}{{ else if .Value }}{{ $p = .Value }}{{ end -}}
+        {{- end -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+  {{- with $p -}}
+    {{- $url = .RelPermalink -}}
+    {{- $title = $title | default .LinkTitle -}}
+    {{- $desc = $desc | default .Description | default .Params.tldr -}}
+    {{- with .Date }}{{ if not .IsZero }}{{ $meta = $meta | append (dateFormat (i18n "date_format") .) }}{{ end }}{{ end -}}
+    {{- if ne .Language.Lang site.Language.Lang }}{{ $meta = $meta | append .Language.Label }}{{ end -}}
+  {{- else -}}
+    {{- $ok = false -}}
+    {{- warnf "%s: {{< linkcard >}} can't find the post %q (give its file name, e.g. \"eth\", or a path like \"posts/eth\")%s" $.Position $ref (cond (ne $err "") (printf ": %s" $err) "") -}}
+  {{- end -}}
+{{- else if $url -}}
+  {{- if not $title -}}
+    {{- $ok = false -}}
+    {{- warnf "%s: {{< linkcard url=%q >}} needs a title=\"…\"" .Position $url -}}
+  {{- end -}}
+  {{- with (urls.Parse $url).Host }}{{ $meta = $meta | append (strings.TrimPrefix "www." .) }}{{ end -}}
+{{- else -}}
+  {{- $ok = false -}}
+  {{- warnf "%s: {{< linkcard >}} needs a post (\"eth\") or url=\"…\" title=\"…\"" .Position -}}
+{{- end -}}
+{{- if $ok -}}
+<div class="linkcard">
+<a class="linkcard-title" href="{{ $url }}">{{ $title | htmlUnescape }}</a>
+{{ with $desc }}<p class="linkcard-desc">{{ . | htmlUnescape | plainify | truncate 140 }}</p>
+{{ end -}}
+{{ with $meta }}<p class="linkcard-meta">{{ delimit . " · " }}</p>
+{{ end -}}
+</div>
+{{- end -}}

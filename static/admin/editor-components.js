@@ -61,6 +61,12 @@
   // {{< compare before="…" after="…" before-label="…" after-label="…" start="…" caption="…" >}} on its
   // own line (the m flag makes it a block component). Attribute names may contain "-".
   var compareRe = /^\{\{<\s*compare((?:\s+[a-zA-Z-]+="[^"]*")+)\s*>\}\}$/m;
+  // {{< linkcard "post" >}} or {{< linkcard page="…"|url="…" title="…" description="…" >}} on its own line
+  var linkcardRe = /^\{\{<\s*linkcard(?:\s+"([^"]*)"|((?:\s+[a-zA-Z]+="[^"]*")+))\s*>\}\}$/m;
+  var linkcardValues = function (m) {
+    var a = m[2] ? attrs(m[2]) : { page: m[1] };
+    return { page: a.page || '', url: a.url || '', title: unquote(a.title), description: unquote(a.description) };
+  };
   var compareAttrs = function (s) {
     var out = {};
     String(s || '').replace(/([a-zA-Z-]+)="([^"]*)"/g, function (_, k, v) { out[k] = v; });
@@ -163,6 +169,49 @@
           '<div style="position:absolute;top:0;bottom:0;left:' + pos + ';width:2px;margin-left:-1px;background:#fff"></div>' +
           label(v.beforeLabel || '之前', 'left') + label(v.afterLabel || '之後', 'right') + '</div>' +
           (v.caption ? '<figcaption><h4>' + esc(v.caption) + '</h4></figcaption>' : '') + '</figure>';
+      },
+    },
+    {
+      // Theme shortcode (layouts/shortcodes/linkcard.html): a card linking to another post (title,
+      // description and date come from the post) or to any URL (title required).
+      id: 'linkcard',
+      label: 'Link card',
+      icon: 'link',
+      fields: [
+        { name: 'page', label: 'Post', widget: 'string', required: false, hint: 'File name of a post, e.g. eth or nycu-cs-eth-exchange. Leave empty to link a URL instead.' },
+        { name: 'url', label: 'URL (instead of a post)', widget: 'string', required: false },
+        { name: 'title', label: 'Title', widget: 'string', required: false, hint: 'Posts: leave empty to use the post title. URLs: required.' },
+        { name: 'description', label: 'Description', widget: 'string', required: false, hint: 'Posts: leave empty to use the post description.' },
+        { name: 'raw', widget: 'hidden', required: false },
+      ],
+      pattern: linkcardRe,
+      fromBlock: function (m) {
+        var v = linkcardValues(m);
+        v.raw = m[0];
+        return v;
+      },
+      toBlock: function (v) {
+        var keys = ['page', 'url', 'title', 'description'];
+        if (v.raw) {
+          var m = String(v.raw).match(linkcardRe);
+          var o = m && linkcardValues(m);
+          if (o && keys.every(function (k) { return o[k] === (v[k] || ''); })) return v.raw;
+        }
+        var page = String(v.page || '').trim();
+        if (page && !v.url && !v.title && !v.description) return '{{< linkcard "' + page.replace(/"/g, '') + '" >}}';
+        var s = '{{< linkcard';
+        if (page) s += ' page="' + page.replace(/"/g, '') + '"';
+        if (v.url) s += ' url="' + String(v.url).trim().replace(/"/g, '%22') + '"';
+        if (v.title) s += ' title="' + quoted(v.title) + '"';
+        if (v.description) s += ' description="' + quoted(v.description) + '"';
+        return s + ' >}}';
+      },
+      toPreview: function (v) {
+        var target = v.page ? '/posts/' + v.page.replace(/^\/?(posts\/)?|\/$/g, '') + '/' : v.url;
+        return '<div style="margin:1.2em 0;padding:.7em 1em;border:1px solid rgba(0,0,0,.12);border-left:3px solid #00897b;border-radius:6px">' +
+          '<div style="font:700 15px/1.5 monospace">' + esc(v.title || (v.page ? '(title of ' + v.page + ')' : '(no title)')) + '</div>' +
+          (v.description ? '<div style="font-size:14px;color:#777">' + esc(v.description) + '</div>' : '') +
+          '<div style="font:12px/1.5 monospace;color:grey">→ ' + esc(target || '(no post or URL yet)') + '</div></div>';
       },
     },
     {
