@@ -58,8 +58,19 @@ collections:
     format: yaml-frontmatter
     i18n: true
     slug: "{{slug}}"
-    sortable_fields: [date, title]
-    summary: "{{title}} · {{date | date('YYYY-MM-DD')}}"
+    # Newest first; "Draft"/"Published" filters and per-year groups in the list's toolbar.
+    # Published is `ne: true` so posts without a draft key (published to Hugo) are included.
+    sortable_fields:
+      fields: [date, title]
+      default: { field: date, direction: descending }
+    view_filters:
+      filters:
+        - { name: drafts, label: Drafts, field: draft, eq: true }
+        - { name: published, label: Published, field: draft, ne: true }
+    view_groups:
+      groups:
+        - { name: year, label: Year, field: date, pattern: '\d{4}' }
+    summary: "{{title}} · {{date | date('YYYY-MM-DD')}}{{draft | ternary(' · DRAFT', '')}}"
     fields:
       - { label: Title, name: title, widget: string, i18n: true }
       - { label: Date, name: date, widget: datetime, format: "YYYY-MM-DDTHH:mm:ssZ", i18n: duplicate }
@@ -77,7 +88,9 @@ collections:
     extension: md
     format: yaml-frontmatter
     slug: "{{year}}-{{month}}-{{day}}"
-    sortable_fields: [date]
+    sortable_fields:
+      fields: [date]
+      default: { field: date, direction: descending }
     fields:
       - { label: Title, name: title, widget: string }
       - { label: Date, name: date, widget: datetime, format: "YYYY-MM-DDTHH:mm:ssZ" }
