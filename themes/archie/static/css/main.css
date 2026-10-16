@@ -1291,3 +1291,22 @@ sup:target a {
 .not-found-search {
   margin: 1.5em 0 0.5em;
 }
+
+/* Skip-to-content link (baseof.html, first thing in <body>; target #main). Off-screen until it gets
+   keyboard focus, then pinned top-left above the sticky header (z-index 10) and the progress bar. */
+.skip-link {
+  position: fixed;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 1000;
+  padding: 0.5em 1em;
+  border: 3px solid var(--maincolor);
+  background-color: #fff;
+  color: #232333;
+  font-weight: bold;
+  text-decoration: none;
+  transform: translateY(calc(-100% - 1rem));
+}
+.skip-link:focus {
+  transform: none;
+}

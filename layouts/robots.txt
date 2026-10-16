@@ -1,0 +1,7 @@
+{{- /* Rendered once, at the site root (enableRobotsTXT in config.toml). Nothing is disallowed: the empty
+       English pages and /admin/ carry <meta name="robots" content="noindex">, which crawlers only see
+       if they may fetch the page. */ -}}
+User-agent: *
+Disallow:
+
+Sitemap: {{ "sitemap.xml" | absURL }}

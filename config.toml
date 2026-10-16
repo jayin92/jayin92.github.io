@@ -6,6 +6,7 @@ copyright = "Jayinnn © CC BY-NC-SA 4.0"
 
 defaultContentLanguage = "zh-tw"
 defaultContentLanguageInSubdir = false
+enableRobotsTXT = true # layouts/robots.txt (points crawlers at the sitemap)
 
 [languages.zh-tw]
 locale = "zh-tw"
@@ -17,6 +18,10 @@ locale = "en"
 label = "English"
 weight = 2
 
+# Only tags: no post uses categories, and the default taxonomy left an empty /categories/ page.
+[taxonomies]
+  tag = "tags"
+
 # Code Highlight — configured under [markup.highlight] below
 
 [pagination]
@@ -27,7 +32,13 @@ weight = 2
 	mode="auto" # color-mode → light,dark or auto
 	useCDN=false # don't use CDNs for fonts and icons, instead serve them locally.
 	subtitle = "A Blog about My Daily Life"
+	description = "A blog of jayinnn's daily life" # home page meta/og description
 	mainSections = ["posts"]
+
+# Author in the JSON-LD (partials/json-ld.html); the http(s) [[params.social]] links become sameAs.
+[params.author]
+  name = "Jie-Ying Lee"
+  url = "https://jayinnn.dev"
 
 # Comments (giscus). Comments render only when repoId and categoryId are set.
 # Get the IDs from https://giscus.app after enabling Discussions + installing the giscus app.
@@ -59,7 +70,7 @@ weight = 2
   icon = "mail"
   url = "mailto:me@jayinnn.dev"
 
-# Main menu Items
+# Main menu Items. Keep the trailing slash: GitHub Pages answers /posts with a 301 to /posts/.
 
 [[menu.main]]
 name = "Home"
@@ -68,18 +79,18 @@ weight = 1
 
 [[menu.main]]
 name = "Posts"
-url = "/posts"
+url = "/posts/"
 weight = 2
 
 
 [[menu.main]]
 name = "About"
-url = "/about"
+url = "/about/"
 weight = 3
 
 [[menu.main]]
 name = "Tags"
-url = "/tags"
+url = "/tags/"
 weight = 4
 
 

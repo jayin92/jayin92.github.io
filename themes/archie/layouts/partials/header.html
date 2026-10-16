@@ -1,32 +1,3 @@
-<!-- KaTeX -->
-{{- if .Params.katex -}}
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.6/dist/katex.min.css" integrity="sha384-81hI3kRV62VEhJBKVz7JsJzaUcP5Ty/E1FFdkLh6yz8uWthgdssaWCD1j8R1r2iU" crossorigin="anonymous">
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.6/dist/katex.min.js" integrity="sha384-8swauRFcjK634lyiWVXOA0GdycMCzfbC+6qXGQroVKYve7SFHawYjryBtaLve4xl" crossorigin="anonymous"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.13.6/dist/contrib/auto-render.min.js" integrity="sha384-vZTG03m+2yp6N6BNi5iM4rW4oIwk5DfcNdFfxkk9ZWpDriOkXX8voJBFrAO7MpVl" crossorigin="anonymous"></script>
-<script>
-    document.addEventListener("DOMContentLoaded", function() {
-        renderMathInElement(document.body, {
-          // customised options
-          // • auto-render specific keys, e.g.:
-          delimiters: [
-			{left: "$$", right: "$$", display: true},
-			{left: "$", right: "$", display: false},
-			{left: "\\(", right: "\\)", display: false},
-			{left: "\\begin{equation}", right: "\\end{equation}", display: true},
-			{left: "\\begin{align}", right: "\\end{align}", display: true},
-			{left: "\\begin{alignat}", right: "\\end{alignat}", display: true},
-			{left: "\\begin{gather}", right: "\\end{gather}", display: true},
-			{left: "\\begin{CD}", right: "\\end{CD}", display: true},
-			{left: "\\begin{cases}", right: "\\end{cases}", display: true},
-			{left: "\\[", right: "\\]", display: true}
-			],
-          // • rendering keys, e.g.:
-          throwOnError : false
-        });
-    });
-</script>
-{{- end -}}
-
 <head>
 	<meta charset="utf-8" />
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -34,48 +5,97 @@
 	{{- $siteTitle := ( .Site.Title ) -}}
 	{{- if .IsHome -}}
 	<title>{{ $siteTitle }} | Home </title>
-	<meta name="description" content="A blog of jayinnn's daily life">
     <meta name="KEYWORDS" content="Home Page">
 	{{- else -}}
 	<title>{{ $title }} - {{ $siteTitle }}</title>
-	<meta name="description" content="{{ .Description }}">
-    <meta name="KEYWORDS" content="{{ .Keywords }}">
+	{{- /* Front matter keywords are mostly an "a, b, c" string, which Hugo splits on whitespace
+	       ("a," "b," "c"): rejoin those with spaces, a YAML list with commas. */ -}}
+	{{- with .Keywords }}
+	{{- $keywords := delimit . " " }}
+	{{- if not (strings.Contains $keywords ",") }}{{ $keywords = delimit . ", " }}{{ end }}
+    <meta name="KEYWORDS" content="{{ strings.TrimRight ", " $keywords }}">
+	{{- end }}
 	{{- end -}}
-
-	
-	
-
+	{{- /* Home: params.description; posts without one: start of the summary (partials/meta-description.html) */ -}}
+	{{- with partial "meta-description.html" . }}
+	<meta name="description" content="{{ . }}">
+	{{- end }}
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
 	<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
 	<link rel="manifest" href="/site.webmanifest">
 	<link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
-	<link rel="canonical" href="{{ .Permalink }}">
-	{{- /* Index/list pages of a language with no published posts are empty shells: keep them out of search engines */ -}}
-	{{ if partial "is-shell.html" . }}<meta name="robots" content="noindex">{{ end }}
-	{{ if .IsTranslated }}
-	{{- range .AllTranslations }}
+	{{- /* No canonical on the 404 page: GitHub Pages serves it for every missing URL. */}}
+	{{ if ne .Kind "404" }}<link rel="canonical" href="{{ .Permalink }}">{{ end }}
+	{{- /* Empty-language shells and the search page stay out of search engines (partials/noindex.html) */ -}}
+	{{ if partial "noindex.html" . }}<meta name="robots" content="noindex">{{ end }}
+	{{- with partial "hreflang-pages.html" . }}
+	{{- range . }}
 	<link rel="alternate" hreflang="{{ .Language.Locale }}" href="{{ .Permalink }}">
 	{{- end }}
-	<link rel="alternate" hreflang="x-default" href="{{ (index .AllTranslations 0).Permalink }}">
-	{{ end }}
+	<link rel="alternate" hreflang="x-default" href="{{ (index . 0).Permalink }}">
+	{{- end }}
 	<meta name="msapplication-TileColor" content="#da532c">
-	<meta name="theme-color" content="#ffffff">
+	{{- /* Browser UI colour = page background: white, dark.css's #202124 in dark mode. A saved manual
+	       choice overrides the media query in the dark-css script below. */ -}}
+	{{- if eq .Site.Params.mode "auto" }}
+	<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+	<meta name="theme-color" content="#202124" media="(prefers-color-scheme: dark)">
+	{{- else }}
+	<meta name="theme-color" content="{{ if eq .Site.Params.mode "dark" }}#202124{{ else }}#ffffff{{ end }}">
+	{{- end }}
 
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 
-	{{ with .Site.Params.og_image }}<meta property="og:image" content="{{ . }}"/>{{ end }}
-	{{ with .OutputFormats.Get "rss" -}}
-	{{ printf `<link rel="%s" type="%s" href="%s" title="%s" />` .Rel .MediaType.Type .Permalink $.Site.Title | safeHTML }}
+	{{- /* Feed autodiscovery: a list page's own feed, everything else (posts, about…) the site feed */ -}}
+	{{- $feedPage := . }}
+	{{- if not (.OutputFormats.Get "rss") }}{{ $feedPage = site.Home }}{{ end }}
+	{{- with $feedPage.OutputFormats.Get "rss" }}
+	{{ printf `<link rel="%s" type="%s" href="%s" title="%s" />` .Rel .MediaType.Type .Permalink (cond (eq $feedPage.Title site.Title) site.Title (printf "%s on %s" $feedPage.Title site.Title)) | safeHTML }}
 	{{ end -}}
-	
-	{{- template "_internal/opengraph.html" . -}}
-	{{- template "_internal/twitter_cards.html" . -}}
+
+	{{- /* Open Graph + Twitter cards; the image is the post's first picture or the site icon (params.og_image overrides the icon) */ -}}
+	{{- partial "social-meta.html" . -}}
+	{{- partial "json-ld.html" . -}}
+	{{- /* KaTeX (front matter katex: true). Inside <head> and before the site CSS, so the site's
+	       rules still win; the scripts are deferred, so they run before DOMContentLoaded. */}}
+	{{- if .Params.katex -}}
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.47/dist/katex.min.css" integrity="sha384-nH0MfJ44wi1dd7w6jinlyBgljjS8EJAh2JBoRad8a3VDw2K69vfaaqm4WnR+gXtA" crossorigin="anonymous">
+	<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.47/dist/katex.min.js" integrity="sha384-CwjPRVHTvLiMBFjEoij+QZViMV5rhTOIp7CJzl24JEqpRDA1sJFHVXXLURktbYYp" crossorigin="anonymous"></script>
+	<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.47/dist/contrib/auto-render.min.js" integrity="sha384-bjyGPfbij8/NDKJhSGZNP/khQVgtHUE5exjm4Ydllo42FwIgYsdLO2lXGmRBf5Mz" crossorigin="anonymous"></script>
+	<script>
+	    document.addEventListener("DOMContentLoaded", function() {
+	        renderMathInElement(document.body, {
+	          // customised options
+	          // • auto-render specific keys, e.g.:
+	          delimiters: [
+				{left: "$$", right: "$$", display: true},
+				{left: "$", right: "$", display: false},
+				{left: "\\(", right: "\\)", display: false},
+				{left: "\\begin{equation}", right: "\\end{equation}", display: true},
+				{left: "\\begin{align}", right: "\\end{align}", display: true},
+				{left: "\\begin{alignat}", right: "\\end{alignat}", display: true},
+				{left: "\\begin{gather}", right: "\\end{gather}", display: true},
+				{left: "\\begin{CD}", right: "\\end{CD}", display: true},
+				{left: "\\begin{cases}", right: "\\end{cases}", display: true},
+				{left: "\\[", right: "\\]", display: true}
+				],
+	          // • rendering keys, e.g.:
+	          throwOnError : false
+	        });
+	    });
+	</script>
+	{{- end -}}
 	{{ if .Site.Params.useCDN | default false -}}
         <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@1,500&display=swap" rel="stylesheet">
         <link href="https://fonts.googleapis.com/css2?family=Fira+Sans&display=swap" rel="stylesheet">
         <link href="https://fonts.googleapis.com/css?family=Roboto+Mono" rel="stylesheet">
 	{{- else -}}
+        {{- /* Roboto Mono 400/700 draw the site title, nav and headings of every page: start them with the
+               CSS rather than after it, so they're usually in before first paint (no swap). Same URLs as
+               css/fonts.css resolves (no query string), with crossorigin, or they'd download twice. */}}
+        <link rel="preload" href="{{ "fonts/roboto-mono-v12-latin-regular.woff2" | absURL }}" as="font" type="font/woff2" crossorigin>
+        <link rel="preload" href="{{ "fonts/roboto-mono-latin-700.woff2" | absURL }}" as="font" type="font/woff2" crossorigin>
         <link href="{{ partial "asset-url.html" "css/fonts.css" }}" rel="stylesheet">
 	{{ end }}
 	<link rel="stylesheet" type="text/css" media="screen" href="{{ partial "asset-url.html" "css/main.css" }}" />
@@ -94,6 +114,11 @@
 		// before the first paint. Switching media on an existing link left it non-render-blocking, which
 		// flashed light on every page (and view transition) for a manual dark choice on a light OS.
 		document.write('<link id="dark-css" rel="stylesheet" type="text/css" href="' + {{ $darkCSS }} + '" media="' + media + '">');
+		// A saved choice also wins over the theme-color media queries (browser toolbar colour).
+		if (media === 'all' || media === 'not all') {
+			var metas = document.querySelectorAll('meta[name="theme-color"]');
+			for (var i = 0; i < metas.length; i++) metas[i].content = media === 'all' ? '#202124' : '#ffffff';
+		}
 	})();
 	</script>
 	<noscript><link id="dark-css" rel="stylesheet" type="text/css" href="{{ $darkCSS }}" {{ if eq .Site.Params.mode "auto" }}media="(prefers-color-scheme: dark)"{{ end }}></noscript>

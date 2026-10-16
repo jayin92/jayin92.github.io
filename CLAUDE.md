@@ -21,8 +21,9 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 - `content/image/` — Images organized in subdirectories, referenced via `{{<figure>}}` shortcode
 - `layouts/` — Site-level overrides (e.g. `_default/search.json`); these take precedence over `themes/archie/layouts/`
 - `themes/archie/` — Modified Archie theme with custom layouts and local fonts
-  - `layouts/partials/head.html` — KaTeX math, Google Analytics, Microsoft Clarity
-  - `layouts/partials/header.html` — Navigation, favicon, font loading
+  - `layouts/partials/header.html` — the `<head>`: meta tags, favicons, KaTeX (`katex: true`), font/CSS links, dark-mode stylesheet bootstrap
+  - `layouts/partials/head.html` — the visible nav `<header>`: site title, menu, language switcher, search, theme toggle
+  - `layouts/partials/analytics.html` — Google Analytics + Microsoft Clarity (end of `<body>`, skipped under `hugo server`)
   - `layouts/partials/footer.html` — Copyright, social icons (Feather)
   - `static/css/` — `main.css`, `dark.css` (auto dark mode), `fonts.css`
 - `archetypes/` — Templates for new content (`default.md`, `diaries.md`)
@@ -32,7 +33,7 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 - Post frontmatter uses YAML (`---` delimiters) with fields: `title`, `date`, `description`, `tags`, `draft`
 - About page (`content/about.md`) uses TOML frontmatter (`+++` delimiters)
 - Images go in `content/image/<post-name>/` and are referenced as `{{<figure src="/image/..." title="...">}}`
-- Math is rendered with KaTeX (use standard LaTeX syntax in markdown)
+- Math is rendered with KaTeX (use standard LaTeX syntax in markdown) on posts with `katex: true`: 0.16.47 from jsDelivr with SRI hashes, in `header.html`. To upgrade, take the sha384 of the exact files jsDelivr serves, and check the 7 math posts still render every formula with no `.katex-error` (0.18+ prefixes KaTeX's internal CSS classes, which matters only to custom selectors).
 - Code blocks: Chroma with CSS classes (`noClasses = false`). Colours: `css/syntax.css` (github, light) and the github-dark block in `dark.css`, whose rules are prefixed with `.highlight` after a token reset so light colours never leak into dark mode — regenerate with `hugo gen chromastyles` and keep that prefix. Language label comes from `data-lang`; `js/code-copy.js` adds the copy button (skips line numbers). Fences go through `_markup/render-codeblock.html`: blocks of 5+ lines get line numbers automatically (override per block with `{linenos=false}` / `{linenos=true}`, highlight lines with `hl_lines=[3]`; `lineNumbersInTable = false`), and languages Chroma lacks are aliased there (```` ```processing ```` → Java rules, "processing" label). It highlights `Inner + "\n"` like Hugo's own renderer — without the newline a `//` comment on the last line isn't recognised. Long lines wrap (`white-space: break-spaces`), continuation lines stay right of the line number.
 - Posts get a table of contents automatically when they have 3+ h2/h3 headings (or `outline: true`); `toc: false` hides it. Right-hand sidebar on screens ≥1200px, collapsible box otherwise (`single.html`, `static/js/toc.js`; breakpoint is duplicated in `main.css`).
 - Non-page posts get a 3px reading progress bar fixed to the top of the viewport (`single.html`, `static/js/reading-progress.js`, `.reading-progress` in `main.css`/`dark.css`). It fills from the top of the page to the end of `.body` (tags/comments don't count) and stays hidden when the post fits on one screen.
@@ -41,6 +42,7 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 ## Fonts
 
 - Monospace contexts (site title, nav, headings, dates/meta, TOC, tags, code): `'Roboto Mono', 'Sarasa Mono TC', 'Noto Sans TC', monospace` — Roboto Mono for Latin (400 + 700), Sarasa Mono TC for Chinese (400 + 700). Prose inside posts (paragraphs, lists, tables, captions): Fira Sans + Noto Sans TC.
+- `header.html` preloads the two Roboto Mono files (site title, nav, headings on every page). If `fonts.css` renames or drops them, update the preloads (same URL, no `?v=`, `crossorigin`), or browsers fetch unused bytes. Don't preload Sarasa (~270 KB each) or Noto Sans TC (1.4 MB).
 - Sarasa Mono TC is subset to the site's characters by `tools/subset_fonts.py` (`pip install fonttools brotli`; caches the source TTFs in gitignored `.font-cache/`). CI re-runs it before every build, non-fatally; characters missing from the subset fall back to Noto Sans TC. Licence: `themes/archie/static/fonts/OFL-Sarasa-Gothic.txt` (OFL 1.1; only "Source" is a reserved name, so the subset keeps its name).
 
 ## Multilingual (zh-tw default, en under `/en/`)
@@ -50,6 +52,8 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 - English translations are currently `draft: true`, so preview them with `hugo server -D`. Remove the draft flag to publish.
 - The English translations of the ETH posts were LLM-generated: keep them `draft: true` until a human-written/reviewed version exists.
 - Nav language switcher (`partials/head.html`) is shown only if the other language has a published post or the current content page has a translation. `partials/site-published.html` / `partials/is-shell.html` implement this; empty English index/list/search pages get `noindex` (`partials/header.html`) and are left out of the sitemap (`layouts/sitemap.xml`). So it turns on by itself once a real English post is published; `hugo server -D` (drafts) always shows it.
+- hreflang alternates (`<head>` and sitemap) come from `partials/hreflang-pages.html`: only translations that aren't noindex, and only when two or more remain, so nothing points at a noindex page. The 404 page gets no canonical or alternates.
+- `partials/noindex.html` (shells + the search page) decides `<meta name="robots" content="noindex">`, sitemap exclusion and hreflang eligibility; `is-shell.html` remains the narrower empty-language test it builds on.
 - UI strings live in `i18n/zh-tw.toml` / `i18n/en.toml` (use `{{ i18n "key" }}`); the subtitle and nav menu stay in English on both languages (top-level `[params]` / `[[menu.main]]`).
 - `config.toml` sets `[markup.goldmark.renderHooks.*] useEmbedded = "never"` because Hugo auto-enables embedded link/image render hooks on multilingual sites. Don't remove it, or zh output changes.
 
@@ -60,6 +64,7 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 - Used by the overridden `figure` shortcode and `_default/_markup/render-image.html`, so posts need no changes.
 - Processed images also get `data-zoom-src` (the largest WebP); `static/js/lightbox.js` opens it in a `<dialog>` on click/Enter. Images inside links and external images are left alone.
 - The header is sticky and hides while scrolling down / reappears on scroll up (`static/js/nav-hide.js`, `.nav-hidden`). It stays visible while search is open and hides on in-page `#` jumps so it never covers the target heading. Its spacing is padding with a negative bottom margin to keep the page start where the old collapsing margins put it.
+- Skip link: the first element in `<body>` (`baseof.html`) is `<a class="skip-link" href="#main">` (i18n `skip_to_content`), off-screen until keyboard focus, then fixed top-left above the header (`.skip-link` at the end of `main.css`/`dark.css`). Every page template's `<main>` needs `id="main"`.
 - Animations (lightbox zoom from the thumbnail, backdrop fade, search dropdown, cross-page View Transitions with a fixed header) all live behind `prefers-reduced-motion: no-preference` in `main.css` / a `reduceMotion` check in `lightbox.js`. Headless Chrome with `--virtual-time-budget` does not advance animation timelines, so test animations in real time.
 - Images are centred: `figure` is a shrink-to-fit centred table (caption is a bottom `table-caption`, left-aligned to the image so the "↳" hangs off its corner; as wide as the text column; don't give figure side padding, a table caption would span it) and untitled standalone Markdown images get `<p class="image-block">` from the render hook. Those imgs are `display:block` + auto margins + `box-sizing: border-box` (the theme's 3px img border otherwise overflows `max-width:100%` by 6px and pushes the image off-centre).
 - `static/eth-cg24/` is a standalone hand-built report and is not processed.
@@ -95,6 +100,16 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 - Search page (`_default/search.html`): every string is i18n (`search_*` keys). The messages search.js prints come from attributes on `[data-search-root]`: `data-text-start`, `data-text-no-results`, `data-text-result` / `data-text-results` (placeholders `{n}` count, `{q}` query) and `data-text-error`. The index's `displayDate` (search page and nav dropdown) uses the site's `date_format`.
 - Tags: the tags page prints `.Page.LinkTitle` (the tag as written, "NYCU"), not `.Name` (the lowercased key, "nycu"). Tag links end in `/` (`/tags/<tag | urlize>/`); without it GitHub Pages answers with a redirect first.
 - Nav (`partials/head.html`): the menu link of the page being shown gets `aria-current="page"` (URLs compared without the trailing slash; not styled). The language switch and the post's "Read in English" link carry `hreflang`/`lang` of the target language.
+
+## SEO & feeds
+
+- Meta description: `partials/meta-description.html` — the page's `description`, the home page's `params.description`, or for a post the first 160 characters of its summary; list pages without one get no tag. Keywords come from front matter `keywords` (an "a, b, c" string, as written).
+- Open Graph/Twitter tags are `partials/social-meta.html` (not Hugo's internal templates). The image (`partials/page-image.html`) is the post's first local `/image/...` picture, converted to a JPEG ≤1200px wide; `summary_large_image` only when it's ≥600px wide. Otherwise, and on list pages, it's the 512px site icon (`params.og_image` overrides that default).
+- JSON-LD (`partials/json-ld.html`): `BlogPosting` on posts, `WebSite` on the home page; author from `[params.author]`, with the http(s) `[[params.social]]` links as `sameAs`. Output through `jsonify | safeJS`; check changes with `json.loads` on the built pages.
+- RSS: `layouts/rss.xml` overrides Hugo's embedded template (v0.167.0) only so the home feed lists posts (mainSections, not `hidden`) instead of every regular page (About, Search). Items carry `.Summary`, not full content (the footnote/reference lists only exist in `single.html`). Every page links a feed for autodiscovery: list pages their own, other pages the site feed.
+- `robots.txt` (`enableRobotsTXT`, `layouts/robots.txt`) allows everything and names the sitemap. Don't `Disallow` noindex pages (English shells, `/admin/`): crawlers would never see the noindex. `layouts/sitemapindex.xml` leaves out a language whose sitemap would be empty (English today).
+- Menu URLs (and other internal links) end in `/`: GitHub Pages answers `/posts` with a 301 to `/posts/`.
+- `theme-color` (browser toolbar) is a light/dark pair of metas in `header.html` matching the page background (`#ffffff`, dark.css `#202124`; keep in sync if those change). A saved manual theme overrides both at page load (dark-css script); the in-page toggle doesn't update them until the next page.
 
 ## Comments
 

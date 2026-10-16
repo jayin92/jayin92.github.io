@@ -1,0 +1,31 @@
+{{- /* The image link previews use for a page. For a post: its first local /image/... picture that
+       exists, as a JPEG at most 1200px wide (some scrapers don't take WebP; JPEGs are auto-oriented
+       first, like partials/responsive-image.html). Otherwise the site icon, or params.og_image.
+       Returns a dict: url, width, height (0 if unknown), post (true when it's the post's own picture),
+       large (a post picture at least 600px wide; smaller ones get the small summary card, as large
+       cards need ~600×315). */ -}}
+{{- $out := dict -}}
+{{- if .IsPage -}}
+  {{- range findRESubmatch `(?:src=["']?|\]\()\s*(/image/[^"'\s)<>]+\.(?i:png|jpe?g|webp))` .RawContent -}}
+    {{- if not $out -}}
+      {{- with resources.Get (strings.TrimPrefix "/" (index . 1)) -}}
+        {{- $img := . -}}
+        {{- if eq $img.MediaType.Type "image/jpeg" }}{{ $img = $img.Filter images.AutoOrient }}{{ end -}}
+        {{- if gt $img.Width 1200 -}}
+          {{- $img = $img.Resize "1200x jpg q85" -}}
+        {{- else -}}
+          {{- $img = $img.Process "jpg q85" -}}
+        {{- end -}}
+        {{- $out = dict "url" $img.Permalink "width" $img.Width "height" $img.Height "post" true "large" (ge $img.Width 600) -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- if not $out -}}
+  {{- with site.Params.og_image -}}
+    {{- $out = dict "url" (absURL .) "width" 0 "height" 0 "post" false "large" false -}}
+  {{- else -}}
+    {{- $out = dict "url" (absURL "android-chrome-512x512.png") "width" 512 "height" 512 "post" false "large" false -}}
+  {{- end -}}
+{{- end -}}
+{{- return $out -}}
