@@ -52,6 +52,7 @@ i18n:
   locales: [zh-tw, en]
   default_locale: zh-tw
   omit_default_locale_from_file_path: true
+  omit_default_locale_from_preview_path: true
   initial_locales: default
 
 collections:
@@ -69,6 +70,10 @@ collections:
       editable: [create]
       hint: "File name and URL (/posts/slug/): lowercase English words joined by hyphens, e.g. eth-exchange. Can't be changed after the first save."
       pattern: ['^[a-z0-9]+(-[a-z0-9]+)*$', 'Use lowercase letters, digits and hyphens, e.g. eth-exchange']
+    # "View on Live Site" in the editor menu. Hugo lowercases URLs (GSAT-apply.md → /posts/gsat-apply/);
+    # English is under /en/ (the zh-tw prefix is dropped by omit_default_locale_from_preview_path).
+    # Drafts aren't on the live site, so their link 404s.
+    preview_path: "/{{locale}}/posts/{{slug | lower}}/"
     # Newest first; "Draft"/"Published" filters and per-year groups in the list's toolbar.
     # Published is `ne: true` so posts without a draft key (published to Hugo) are included.
     sortable_fields:
