@@ -40,6 +40,17 @@ media_libraries:
         width: 2560
         height: 2560
 
+# Bodies open as plain Markdown. Typing in the rich-text editor rewrites the whole body, and in this
+# version that breaks existing posts: `\\` → `\` in display math and code blocks, `\<` → `<`,
+# "``` python" → "```plain" + a stray "python" line, list continuations re-indented into code
+# blocks. The toolbar and Insert menu still work here; Insert pastes the bare shortcode
+# ({{<callout text="">}}) at the cursor to fill in by hand. The switch at the right of the toolbar
+# turns on rich text (with the component forms) for the open entry only. To make rich text the
+# default again, swap the order to [rich_text, raw] or delete this block.
+field_defaults:
+  richtext:
+    modes: [raw, rich_text]
+
 # Date tags in slugs ({{year}}-{{month}}-{{day}} for diaries) use the local date, not UTC, like
 # write-diary.py; with UTC a diary started in Taiwan before 08:00 got yesterday's filename.
 slug:
