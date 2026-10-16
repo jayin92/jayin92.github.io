@@ -123,6 +123,7 @@ collections:
         i18n: duplicate
         hint: Turn on if the post has $…$ or $$…$$ math; KaTeX is only loaded on posts with this on.
       # Default to draft so nothing goes live by accident; per-locale so an English draft can stay hidden.
+      # The default also fills in a missing key: a post with no `draft:` would be saved as a draft.
       - { label: Draft, name: draft, widget: boolean, default: true, i18n: true }
       - { label: Body, name: body, widget: markdown, i18n: true }
 
