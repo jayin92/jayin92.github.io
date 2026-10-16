@@ -357,3 +357,10 @@ sup:target a {
 .reading-progress {
   background-color: var(--darkMaincolor);
 }
+
+/* Skip-to-content link (see main.css) */
+.skip-link {
+  background-color: #202124;
+  color: #e3e3e3;
+  border-color: var(--darkMaincolor);
+}
