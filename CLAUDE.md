@@ -43,6 +43,11 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 - Monospace contexts (site title, nav, headings, dates/meta, TOC, tags, code): `'Roboto Mono', 'Sarasa Mono TC', 'Noto Sans TC', monospace` — Roboto Mono for Latin (400 + 700), Sarasa Mono TC for Chinese (400 + 700). Prose inside posts (paragraphs, lists, tables, captions): Fira Sans + Noto Sans TC.
 - Sarasa Mono TC is subset to the site's characters by `tools/subset_fonts.py` (`pip install fonttools brotli`; caches the source TTFs in gitignored `.font-cache/`). CI re-runs it before every build, non-fatally; characters missing from the subset fall back to Noto Sans TC. Licence: `themes/archie/static/fonts/OFL-Sarasa-Gothic.txt` (OFL 1.1; only "Source" is a reserved name, so the subset keeps its name).
 
+## Dark mode
+
+- `partials/header.html` writes the `dark.css` link from an inline script with its final `media` (saved `localStorage.theme`, else `prefers-color-scheme`), so the first paint is already in the right theme. The nav switch (`partials/head.html`) is synced by the inline script at the end of `_default/baseof.html`, with `.no-transition` on while it sets the initial state so the knob doesn't slide on every dark page load.
+- The switch is a checkbox with `role="switch"`, kept focusable: the header's inline `<style>` hides it with `display:none`, which `label.theme-switch input` in `main.css` overrides with an invisible input under the slider. Wrap every `localStorage` access in try/catch (it throws when site data is blocked).
+
 ## Multilingual (zh-tw default, en under `/en/`)
 
 - Default language is zh-tw served at the root (`defaultContentLanguageInSubdir = false`); English lives under `/en/`.

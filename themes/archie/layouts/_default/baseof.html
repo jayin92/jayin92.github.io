@@ -28,9 +28,14 @@
                 toggle.checked = isDark();
             }
 
+            // localStorage throws when site data is blocked (e.g. Safari with cookies off)
+            function saved() {
+                try { return localStorage.getItem('theme'); } catch (e) { return null; }
+            }
+
             function apply(dark) {
                 link.media = dark ? 'all' : 'not all';
-                localStorage.setItem('theme', dark ? 'dark' : 'light');
+                try { localStorage.setItem('theme', dark ? 'dark' : 'light'); } catch (e) {}
             }
 
             // Crossfade the whole page with a View Transition (a GPU snapshot fade, same cost on any
@@ -47,10 +52,20 @@
             });
 
             window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
-                if (!localStorage.getItem('theme')) sync();
+                if (!saved()) sync();
             });
 
+            // Announced as an on/off switch rather than a checkbox
+            toggle.setAttribute('role', 'switch');
+            // The switch has already been drawn unchecked by now: set the real state with its
+            // transitions off (.no-transition, main.css), or a dark page slides the knob on every load.
+            var sw = toggle.closest('.theme-switch');
+            if (sw) sw.classList.add('no-transition');
             sync();
+            if (sw) {
+                void sw.offsetWidth;
+                sw.classList.remove('no-transition');
+            }
         })();
         </script>
     </body>
