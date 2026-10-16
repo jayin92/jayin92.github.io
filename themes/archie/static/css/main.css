@@ -1216,3 +1216,32 @@ sup:target a {
 .meta time {
   color: inherit;
 }
+
+/* ── Home list headings (index.html) ── */
+/* The home page has one (visually hidden) <h1>, the site title; post titles are <h2>s (they used
+   to be ten <h1>s). These rules keep the old h1 look: size, spacing and the "# " marker. */
+.list-item h2.title {
+  font-size: 1.4rem;
+  margin-top: 1.5em;
+  margin-bottom: 0.67em;
+}
+.list-item h2.title::before {
+  content: '# ';
+}
+@media screen and (max-width: 768px) {
+  .list-item h2.title {
+    font-size: 1.3rem;
+  }
+}
+/* Read by screen readers, not shown */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}

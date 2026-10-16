@@ -1,5 +1,7 @@
 {{ define "main" }}
 <main id="main" class="list">
+	{{- /* One page heading for screen readers and outlines; the post titles below are its h2s */}}
+	<h1 class="visually-hidden">{{ .Site.Title }}</h1>
 	<div class="site-description">
 		{{- with .Site.Params.subtitle }}
 		<p>{{ . | markdownify }}</p>
@@ -9,7 +11,7 @@
 	{{ $paginator := .Paginate (where $pages "Params.hidden" "ne" true) }}
 	{{ range $paginator.Pages }}
 	<section class="list-item">
-		<h1 class="title"><a href="{{ .RelPermalink }}">{{.Title}}</a></h1>
+		<h2 class="title"><a href="{{ .RelPermalink }}">{{.Title}}</a></h2>
 		<div class="item-meta">
 			<time datetime="{{ .Date.Format "2006-01-02" }}">{{ dateFormat (i18n "date_format") .Date }}</time>{{ if .Draft }}<span class="draft-label">DRAFT</span>{{ end }}
 			{{ partial "pills.html" . }}
