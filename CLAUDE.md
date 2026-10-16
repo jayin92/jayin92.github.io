@@ -92,6 +92,7 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 - Home list text under each title: the post's `description`; when that is empty (`description: ""`, as the archetype and CMS leave it) or missing, the first 80 characters of `.Summary` as plain text, with headings, figures/captions and footnote marks removed (`index.html`).
 - Posts end with newer/older links (`partials/post-nav.html`, between the tags and the comments): "← 較新的文章" left, "較舊的文章 →" right, the same directions as the pagination. Collection: `mainSections` minus `hidden: true`, `.ByDate.Reverse`, which orders same-date posts like the archive's `GroupByDate` (the home page's default sort orders those by title instead). Careful: `Pages.Next` returns the *newer* post.
 - `404.html`: localized message, a search box (a plain GET form to `search/?q=`, which search.js reads, so it works without JS) and the 5 latest posts. GitHub Pages serves only the root (zh) 404.html, for every missing URL at any depth, so its links must stay root-relative.
+- Search page (`_default/search.html`): every string is i18n (`search_*` keys). The messages search.js prints come from attributes on `[data-search-root]`: `data-text-start`, `data-text-no-results`, `data-text-result` / `data-text-results` (placeholders `{n}` count, `{q}` query) and `data-text-error`. The index's `displayDate` (search page and nav dropdown) uses the site's `date_format`.
 
 ## Comments
 

@@ -12,7 +12,7 @@ $content := $page.Plain | default "" | replaceRE "\\s+" " " | truncate 500 ""
 -}} {{- $section := $page.Section | default "" -}} {{- $tags :=
 $page.Params.tags | default (slice) -}} {{- $index = $index | append (dict
 "title" $page.Title "permalink" $page.RelPermalink "date" ($page.Date.Format
-"2006-01-02T15:04:05Z07:00") "displayDate" (dateFormat ":date_medium"
+"2006-01-02T15:04:05Z07:00") "displayDate" (dateFormat (i18n "date_format")
 $page.Date) "section" $section "tags" $tags "description" $description "summary"
 $summary "content" $content ) -}} {{- end -}} {{- end -}} {{- $index | jsonify
 -}}
