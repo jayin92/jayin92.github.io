@@ -94,6 +94,7 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 - JSON-LD (`partials/json-ld.html`): `BlogPosting` on posts, `WebSite` on the home page; author from `[params.author]`, with the http(s) `[[params.social]]` links as `sameAs`. Output through `jsonify | safeJS`; check changes with `json.loads` on the built pages.
 - RSS: `layouts/rss.xml` overrides Hugo's embedded template (v0.167.0) only so the home feed lists posts (mainSections, not `hidden`) instead of every regular page (About, Search). Items carry `.Summary`, not full content (the footnote/reference lists only exist in `single.html`). Every page links a feed for autodiscovery: list pages their own, other pages the site feed.
 - `robots.txt` (`enableRobotsTXT`, `layouts/robots.txt`) allows everything and names the sitemap. Don't `Disallow` noindex pages (English shells, `/admin/`): crawlers would never see the noindex. `layouts/sitemapindex.xml` leaves out a language whose sitemap would be empty (English today).
+- Menu URLs (and other internal links) end in `/`: GitHub Pages answers `/posts` with a 301 to `/posts/`.
 
 ## Comments
 

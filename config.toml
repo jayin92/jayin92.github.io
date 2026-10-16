@@ -70,7 +70,7 @@ weight = 2
   icon = "mail"
   url = "mailto:me@jayinnn.dev"
 
-# Main menu Items
+# Main menu Items. Keep the trailing slash: GitHub Pages answers /posts with a 301 to /posts/.
 
 [[menu.main]]
 name = "Home"
@@ -79,18 +79,18 @@ weight = 1
 
 [[menu.main]]
 name = "Posts"
-url = "/posts"
+url = "/posts/"
 weight = 2
 
 
 [[menu.main]]
 name = "About"
-url = "/about"
+url = "/about/"
 weight = 3
 
 [[menu.main]]
 name = "Tags"
-url = "/tags"
+url = "/tags/"
 weight = 4
 
 
