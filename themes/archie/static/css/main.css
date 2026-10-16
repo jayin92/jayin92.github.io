@@ -1253,7 +1253,10 @@ sup:target a {
   .pagination,
   .footer-icons,
   dialog.lightbox,
-  .note-popover {
+  .note-popover,
+  .skip-link,
+  .post-nav,
+  .heading-anchor {
     display: none !important;
   }
   /* just the site name above the post, in the flow (not sticky, never slid away) */
@@ -1276,6 +1279,10 @@ sup:target a {
     font-size: 0.8em;
     color: var(--muted);
     overflow-wrap: anywhere;
+  }
+  /* a link card already shows the host, and its title's ::after is the whole-card click area */
+  .body .linkcard a.linkcard-title[href]::after {
+    content: none;
   }
   /* scroll containers would clip on paper */
   .highlight pre,
@@ -1376,7 +1383,7 @@ sup:target a {
     font-size: 1.3rem;
   }
 }
-/* Read by screen readers, not shown */
+/* Read by screen readers, not shown (the home page's <h1>, the copy button's role="status" message) */
 .visually-hidden {
   position: absolute !important;
   width: 1px !important;
@@ -1385,6 +1392,7 @@ sup:target a {
   padding: 0 !important;
   overflow: hidden !important;
   clip: rect(0, 0, 0, 0) !important;
+  clip-path: inset(50%) !important;
   white-space: nowrap !important;
   border: 0 !important;
 }
@@ -1540,6 +1548,8 @@ sup:target a {
 }
 .body .gallery img {
   width: 100%;
+  /* the lazy-load placeholder min-width of figure img[width] is for a full-column figure */
+  min-width: 0;
   height: auto;
   max-height: none;
   aspect-ratio: var(--ar, 1.5);
@@ -1754,19 +1764,6 @@ label.theme-switch.no-transition .slider::before {
 /* Copy failed: the code is selected for a manual copy; keep the message visible */
 .code-copy.failed {
   opacity: 1;
-}
-/* Read by screen readers, not shown (e.g. the copy button's role="status" message) */
-.visually-hidden {
-  position: absolute !important;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  border: 0;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  white-space: nowrap;
 }
 
 /* ── Heading anchors (static/js/heading-anchors.js) ──
