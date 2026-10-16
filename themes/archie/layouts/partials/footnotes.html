@@ -1,11 +1,20 @@
 {{- /* Notes written with {{< footnote >}} (shortcodes/footnote.html), in Goldmark's footnote markup.
        Must run after .Content has been rendered. */ -}}
 {{- with .Store.Get "footnotes" }}
+{{- if findRE `id="fnref:` $.Content 1 }}
+  {{- warnf "%s: mixes [^1] footnotes with {{< footnote >}}; they're numbered separately, use one kind" $.File.Path }}
+{{- end }}
 <div class="footnotes" role="doc-endnotes">
 <hr>
 <ol>
 {{- range $i, $t := . }}
-<li id="fn-{{ add $i 1 }}"><p>{{ $t }}&#160;<a href="#fnref-{{ add $i 1 }}" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p></li>
+{{- $n := add $i 1 }}
+{{- $back := printf `&#160;<a href="#fnref-%d" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a>` $n }}
+{{- /* Multi-paragraph notes are already <p>…</p>: put the back-link inside the last one, like Goldmark */}}
+<li id="fn-{{ $n }}">
+{{- if hasPrefix $t "<p>" }}{{ replaceRE `</p>\s*$` (printf "%s</p>" $back) $t | safeHTML }}
+{{- else }}<p>{{ $t }}{{ $back | safeHTML }}</p>{{ end -}}
+</li>
 {{- end }}
 </ol>
 </div>
