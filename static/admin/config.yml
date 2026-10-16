@@ -62,7 +62,13 @@ collections:
     extension: md
     format: yaml-frontmatter
     i18n: true
-    slug: "{{slug}}"
+    # Titles are mostly Chinese, so a slug from the title gave files like 交大資工修課心得：測試-王小明.md
+    # (and that URL). New posts ask for an English slug instead: the Slug panel opens by itself and
+    # saving waits for it. Not editable afterwards, since renaming would change a published URL.
+    slug:
+      editable: [create]
+      hint: "File name and URL (/posts/slug/): lowercase English words joined by hyphens, e.g. eth-exchange. Can't be changed after the first save."
+      pattern: ['^[a-z0-9]+(-[a-z0-9]+)*$', 'Use lowercase letters, digits and hyphens, e.g. eth-exchange']
     # Newest first; "Draft"/"Published" filters and per-year groups in the list's toolbar.
     # Published is `ne: true` so posts without a draft key (published to Hugo) are included.
     sortable_fields:
