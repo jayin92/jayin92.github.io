@@ -2,9 +2,12 @@
 :root{
 --maincolor: #00897B;
 --bordercl: #0782bf;
---callouctcolor:dodgerblue;
+/* default callout: dodgerblue's hue, darkened so its white text is 4.8:1 (dodgerblue: 3.2) */
+--callouctcolor: #0070e0;
 --hovercolor: #00897B;
 --darkMaincolor: #80CBC4;
+/* Secondary text (dates, TOC, captions, hints, quotes): 5.3:1 on white, WCAG AA. dark.css sets its own. */
+--muted: #656d76;
 }
 html {
   color: #232333;
@@ -36,6 +39,11 @@ p {
 .body td,
 .body th {
   font-size: 1.0625rem;
+}
+/* No single character (e.g. "心。") alone on a paragraph's last line; ignored where unsupported */
+.body p,
+.body li {
+  text-wrap: pretty;
 }
 
 /* All prose inside a post uses the paragraph font; monospace stays for the site title, nav,
@@ -78,7 +86,7 @@ hr {
 
 blockquote {
   border-left: 3px solid var(--bordercl);
-  color: #737373;
+  color: var(--muted);
   margin: 0;
   padding-left: 1em;
 }
@@ -147,6 +155,16 @@ figure img {
   max-height: 500px;
   width: auto;
 }
+/* Lazy images need a box before they load: width:auto gave an unloaded <img> no size (2px with its
+   border), and posts grew by up to ~4800px as images arrived. The min-width is 1px under the
+   loaded width (the 680px column, or less where the 500px height cap applies; the ratio comes from
+   the width/height attributes), so the attributes' aspect ratio sizes the placeholder, and it never
+   binds once the image is in: loaded images keep exactly the size width:auto gives them. Typed
+   attr() is Chrome 133+; elsewhere the line is dropped and desktop behaves as before. Phones (all
+   browsers): see the 768px block. */
+figure img[width] {
+  min-width: min(679px, 500px * attr(width type(<number>)) / attr(height type(<number>)) - 1px);
+}
 
 
 
@@ -154,7 +172,7 @@ figure img {
 figure h4 {
   font-size: 0.875rem;
   font-weight: normal;
-  color: #6a737d;
+  color: var(--muted);
   margin: 0.6em 0 0;
 }
 figure h4::before {
@@ -272,7 +290,7 @@ pre code {
 .nav-search-result-date {
   display: block;
   font-size: 0.75rem;
-  color: grey;
+  color: var(--muted);
   margin-top: 1px;
 }
 .nav-search-result:not(.nav-search-see-all) {
@@ -331,11 +349,19 @@ h1 {
 
 h2 {
   font-size: 1.3rem;
+  /* like h1 and h3–h6; the browser default (0.83em) put section headings closer to the
+     paragraph before them than to their own text, and less space above h2 than above h3 */
+  margin-top: 1.5em;
 }
 
 h3, h4, h5, h6 {
   font-size: 1.2rem;
   margin-top: 1.5em;
+}
+/* No lone character on the last line of a wrapped title (common with CJK titles on phones).
+   Not `balance`: CJK breaks anywhere, and evening out the lines split words like 心|得 or 教|材. */
+h1, h2, h3, h4, h5, h6 {
+  text-wrap: pretty;
 }
 
 h1::before, h2::before, h3::before, h4::before, h5::before, h6::before {
@@ -398,7 +424,7 @@ footer .footer-meta {
 }
 
 time {
-  color: grey;
+  color: var(--muted);
 }
 
 /* Posts */
@@ -479,6 +505,16 @@ footer svg{
 .body tr:last-child td {
   border-bottom: none;
 }
+/* KaTeX display math (katex: true posts): an equation wider than the column scrolls by itself
+   instead of widening the page on phones. The vertical padding (taken from KaTeX's 1em margin)
+   keeps tall symbols clear of the clip edge; the 2px side padding absorbs KaTeX's 2px spacer that
+   sticks out of an equation number, which would otherwise make every numbered equation scroll. */
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin: 0.5em 0;
+  padding: 0.5em 2px;
+}
 
 /* Code blocks: Chroma output (<div class="highlight"><pre class="chroma"><code data-lang=…>).
    Colours: css/syntax.css (light) / dark.css (dark). Copy button: js/code-copy.js. */
@@ -506,7 +542,8 @@ footer svg{
   font-size: 0.7rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgba(0, 0, 0, 0.4);
+  /* 4.7:1 on the block background (0.4 was 2.8) */
+  color: rgba(0, 0, 0, 0.55);
 }
 /* Blocks without a language (``` alone) get data-lang="fallback": no label for those */
 .highlight pre code[data-lang="fallback"]::before {
@@ -522,7 +559,10 @@ footer svg{
   margin-right: 1em;
   padding: 0;
   text-align: right;
-  color: rgba(0, 0, 0, 0.3);
+}
+/* syntax.css's .chroma .ln loads later (#7f7f7f, 3.8:1), so the colour needs one more class */
+.highlight .chroma .ln {
+  color: rgba(0, 0, 0, 0.55);
 }
 .code-copy {
   position: absolute;
@@ -535,7 +575,7 @@ footer svg{
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: rgba(0, 0, 0, 0.45);
+  color: rgba(0, 0, 0, 0.55);
   font: inherit;
   font-size: 0.72rem;
   cursor: pointer;
@@ -597,6 +637,13 @@ footer svg{
 
   figure img {
     max-height: none;
+  }
+
+  /* No height cap here, so every image is as wide as the column (≤680px): a definite width,
+     cut to the column by max-width, reserves the box exactly */
+  figure img[width] {
+    min-width: 0;
+    width: 680px;
   }
 }
 
@@ -679,7 +726,7 @@ footer svg{
 }
 .search-hint {
   font-size: 0.85em;
-  color: grey;
+  color: var(--muted);
   margin: 0.4em 0 0;
 }
 .search-hint kbd {
@@ -692,7 +739,7 @@ footer svg{
 .search-status {
   margin: 0.75em 0;
   font-size: 0.9em;
-  color: grey;
+  color: var(--muted);
 }
 .search-status-error {
   color: #c00;
@@ -726,7 +773,7 @@ footer svg{
 }
 .search-result-meta {
   font-size: 0.85em;
-  color: grey;
+  color: var(--muted);
   margin: 0 0 0.4em;
 }
 .search-tag-list {
@@ -796,7 +843,8 @@ ul.pills > li::before {
   color: #fff;
 }
 .pills .count {
-  opacity: 0.6;
+  /* 0.7 of the text colour: 5.8:1 on white (0.6 was 4.2) */
+  opacity: 0.7;
   margin-left: 0.45em;
 }
 .tag-pills li {
@@ -836,7 +884,9 @@ ul.pills > li::before {
 a:focus-visible,
 button:focus-visible,
 summary:focus-visible,
-.theme-switch input:focus-visible + .slider {
+.theme-switch input:focus-visible + .slider,
+.highlight pre:focus-visible,
+img[data-zoom-src]:focus-visible {
   outline: 2px solid var(--maincolor);
   outline-offset: 2px;
 }
@@ -939,7 +989,7 @@ html:has(dialog.lightbox[open]) {
 }
 .toc a {
   border-bottom: none;
-  color: grey;
+  color: var(--muted);
   font-size: 0.88rem;
 }
 .toc a:hover,
@@ -1004,7 +1054,7 @@ html:has(dialog.lightbox[open]) {
     list-style: none;
     pointer-events: none;
     font-size: 0.9rem;
-    color: grey;
+    color: var(--muted);
   }
   .toc summary::-webkit-details-marker {
     display: none;
@@ -1059,7 +1109,7 @@ header.nav-hidden {
 }
 .body .cite {
   font-size: 0.9em;
-  color: grey;
+  color: var(--muted);
   white-space: nowrap;
 }
 .body a.footnote-ref:hover,
@@ -1106,7 +1156,7 @@ header.nav-hidden {
 .footnotes li::marker {
   font-family: 'Roboto Mono', monospace;
   font-size: 0.85em;
-  color: grey;
+  color: var(--muted);
 }
 .footnotes li p {
   margin: 0;
@@ -1121,7 +1171,7 @@ header.nav-hidden {
   min-width: 2.2em;
   font-family: 'Roboto Mono', monospace;
   font-size: 0.85em;
-  color: grey;
+  color: var(--muted);
 }
 .ref-body {
   min-width: 0;
@@ -1133,7 +1183,7 @@ header.nav-hidden {
 a.footnote-backref,
 a.ref-backref {
   border-bottom: none;
-  color: grey;
+  color: var(--muted);
   padding: 0 0.2em;
   border-radius: 3px;
 }
@@ -1174,6 +1224,99 @@ sup:target a {
 @media (prefers-reduced-motion: no-preference) {
   .note-popover {
     animation: drop-in 0.12s ease-out;
+  }
+}
+
+/* Print: the post on paper, without the site's controls. main.css is linked without a media
+   attribute for this. dark.css has its own print block that turns the dark theme back into black
+   on white. !important where a screen rule (or dark.css) would otherwise win. */
+@media print {
+  @page {
+    margin: 18mm 16mm;
+  }
+  html {
+    font-size: 10.5pt;
+  }
+  .content {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+  header nav,
+  header::after,
+  .toc,
+  .reading-progress,
+  .code-copy,
+  .translations,
+  .post-tags,
+  .comments,
+  .pagination,
+  .footer-icons,
+  dialog.lightbox,
+  .note-popover {
+    display: none !important;
+  }
+  /* just the site name above the post, in the flow (not sticky, never slid away) */
+  header {
+    position: static;
+    transform: none !important;
+    margin: 0 0 1em;
+    padding: 0;
+  }
+  header .main {
+    font-size: 1.1rem;
+    line-height: 1.5;
+  }
+  a {
+    border-bottom-width: 1px !important;
+  }
+  /* where external links go; image links and in-page links (#fn, #ref) are left alone */
+  .body a[href^="http"]:not(:has(img))::after {
+    content: " (" attr(href) ")";
+    font-size: 0.8em;
+    color: var(--muted);
+    overflow-wrap: anywhere;
+  }
+  /* scroll containers would clip on paper */
+  .highlight pre,
+  .body table,
+  .katex-display {
+    overflow: visible !important;
+  }
+  .highlight pre {
+    border-color: #bbb !important;
+  }
+  .highlight pre code {
+    overflow-wrap: anywhere;
+  }
+  /* the lazy-load placeholder sizes (figure img[width]) are for the 680px screen column */
+  .body img,
+  .body figure img[width] {
+    max-height: 110mm;
+    min-width: 0;
+    width: auto;
+  }
+  /* the default callout is white text on blue: keep its background even when the browser drops
+     backgrounds */
+  .callout {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    break-inside: avoid;
+  }
+  /* keep a heading on the page of the text after it. Not break-after: avoid on the heading: with
+     that, Chrome pushed whole runs of figures to the next page (a 19%-full page in from-hexo-to-hugo) */
+  :is(h1, h2, h3, h4, h5, h6) + * {
+    break-before: avoid;
+  }
+  pre,
+  blockquote,
+  figure,
+  table,
+  .katex-display,
+  .callout {
+    break-inside: avoid;
   }
 }
 

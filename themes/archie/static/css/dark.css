@@ -3,6 +3,10 @@ body {
   color: #e3e3e3;
   background-color: #202124;
 }
+:root {
+  /* secondary text (see main.css): 6.1:1 on #202124, 5.3:1 on the search inputs */
+  --muted: #9aa0a6;
+}
 
 ::-moz-selection {
   background: blue;
@@ -121,6 +125,15 @@ a:hover {
   background-color: var(--darkMaincolor);
   color: #000;
 }
+/* main.css's translucent white date is 1.6:1 on the light teal hover background */
+.nav-search-result-link:hover .nav-search-result-date {
+  color: rgba(0, 0, 0, 0.7);
+}
+/* Chrome's default placeholder grey is 3:1 on the dark inputs */
+.nav-search-input::placeholder,
+.search-input::placeholder {
+  color: var(--muted);
+}
 
 /* Search — dark mode */
 .search-input {
@@ -140,6 +153,9 @@ a:hover {
 .search-result-snippet {
   color: #aaa;
 }
+.search-status-error {
+  color: #ff8a80;
+}
 
 /* Callout types — dark mode */
 .callout-alert  { background-color: #3d1010; color: #ffb3b3; }
@@ -156,7 +172,9 @@ a:hover {
 a:focus-visible,
 button:focus-visible,
 summary:focus-visible,
-.theme-switch input:focus-visible + .slider {
+.theme-switch input:focus-visible + .slider,
+.highlight pre:focus-visible,
+img[data-zoom-src]:focus-visible {
   outline-color: var(--darkMaincolor);
 }
 .toc a:hover,
@@ -288,7 +306,8 @@ header::after {
 }
 .highlight pre code[data-lang]::before,
 .code-copy {
-  color: rgba(255, 255, 255, 0.45);
+  /* 5.2:1 on #161b22 */
+  color: rgba(255, 255, 255, 0.5);
 }
 .code-copy:hover,
 .code-copy:focus-visible {
@@ -296,7 +315,7 @@ header::after {
   background-color: rgba(255, 255, 255, 0.08);
 }
 .highlight .chroma .ln {
-  color: rgba(255, 255, 255, 0.28);
+  color: rgba(255, 255, 255, 0.5);
 }
 
 /* Images and captions (dark) */
@@ -304,7 +323,7 @@ img {
   border-color: rgba(255, 255, 255, 0.08);
 }
 figure h4 {
-  color: #9aa0a6;
+  color: var(--muted);
 }
 
 /* Tables (dark) */
@@ -353,6 +372,27 @@ sup:target a {
   background: #2a2a2a;
   border-color: #444;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* Print with the dark theme on (manual choice or a dark OS): paper stays white, so print black on
+   white instead of #e3e3e3 text and github-dark tokens without their background. Layout is in
+   main.css's print block. */
+@media print {
+  *,
+  *::before,
+  *::after {
+    color: #000 !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+  }
+  .body th,
+  .body td {
+    border-bottom-color: rgba(0, 0, 0, 0.1) !important;
+  }
+  .body th,
+  .footnotes hr {
+    border-color: rgba(0, 0, 0, 0.2) !important;
+  }
 }
 .reading-progress {
   background-color: var(--darkMaincolor);
