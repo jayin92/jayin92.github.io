@@ -16,6 +16,8 @@ code_copy = "複製"
 code_copied = "已複製"
 code_copy_failed = "複製失敗"
 heading_link = "本節連結：{title}"
+image_zoom = "放大圖片"
+image_zoom_alt = "放大圖片：{alt}"
 
 [entries_tagged]
 other = "標籤：{{ .Tag }}"

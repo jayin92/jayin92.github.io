@@ -16,6 +16,8 @@ code_copy = "Copy"
 code_copied = "Copied"
 code_copy_failed = "Copy failed"
 heading_link = "Link to this section: {title}"
+image_zoom = "Enlarge image"
+image_zoom_alt = "Enlarge image: {alt}"
 
 [entries_tagged]
 other = "Entries tagged - \"{{ .Tag }}\""
