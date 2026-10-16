@@ -124,7 +124,7 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 ## Page templates
 
 - Every page template has its own `<main id="main">` (index, list, term, terms, single, search, 404). `#main` is the skip-link target, so don't wrap the `main` block in baseof.html in another `<main>`.
-- Dates are `<time datetime="YYYY-MM-DD">` (home list, archive/tag lists, post meta). The global `time { color: grey }` is for the home list; `.meta time` inherits, so the post's "發佈於 …" line and the archive keep one colour.
+- Dates are `<time datetime="YYYY-MM-DD">` (home list, archive/tag lists, post meta). The global `time { color: var(--muted) }` is for the home list; `.meta time` inherits, so the post's "發佈於 …" line and the archive keep one colour.
 - One `<h1>` per page. On the home page it's the site title, hidden with `.visually-hidden` (screen-reader-only utility in main.css), and the post titles are `<h2 class="title">`; `.list-item h2.title` keeps the old h1 size, spacing and "# " marker.
 - Home list text under each title: the post's `description`; when that is empty (`description: ""`, as the archetype and CMS leave it) or missing, the first 80 characters of `.Summary` as plain text, with headings, figures/captions and footnote marks removed (`index.html`).
 - Posts end with newer/older links (`partials/post-nav.html`, between the tags and the comments): "← 較新的文章" left, "較舊的文章 →" right, the same directions as the pagination. Collection: `mainSections` minus `hidden: true`, `.ByDate.Reverse`, which orders same-date posts like the archive's `GroupByDate` (the home page's default sort orders those by title instead). Careful: `Pages.Next` returns the *newer* post.

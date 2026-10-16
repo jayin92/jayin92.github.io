@@ -400,7 +400,7 @@ sup:target a {
 
 /* ── Newer/older post links (partials/post-nav.html) — dark mode ── */
 .post-nav-label {
-  color: #999;
+  color: var(--muted);
 }
 .post-nav-title {
   border-bottom-color: var(--darkMaincolor);
@@ -455,7 +455,7 @@ sup:target a {
   color: #aaa;
 }
 .body .linkcard-meta {
-  color: #999;
+  color: var(--muted);
 }
 
 /* ── Code copy feedback (static/js/code-copy.js) — dark ── */
