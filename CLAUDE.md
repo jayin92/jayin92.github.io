@@ -131,7 +131,7 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 - RSS: `layouts/rss.xml` overrides Hugo's embedded template (v0.167.0) only so the home feed lists posts (mainSections, not `hidden`) instead of every regular page (About, Search). Items carry `.Summary`, not full content (the footnote/reference lists only exist in `single.html`). Every page links a feed for autodiscovery: list pages their own, other pages the site feed.
 - `robots.txt` (`enableRobotsTXT`, `layouts/robots.txt`) allows everything and names the sitemap. Don't `Disallow` noindex pages (English shells, `/admin/`): crawlers would never see the noindex. `layouts/sitemapindex.xml` leaves out a language whose sitemap would be empty (English today).
 - Menu URLs (and other internal links) end in `/`: GitHub Pages answers `/posts` with a 301 to `/posts/`.
-- `theme-color` (browser toolbar) is a light/dark pair of metas in `header.html` matching the page background (`#ffffff`, dark.css `#202124`; keep in sync if those change). A saved manual theme overrides both at page load (dark-css script); the in-page toggle doesn't update them until the next page.
+- `theme-color` (browser toolbar) is a light/dark pair of metas in `header.html` matching the page background (`#ffffff`, dark.css `#202124`; keep in sync if those change). A saved manual theme overrides both at page load (dark-css script in `header.html`), and the toggle's `apply()` in `baseof.html` updates them the same way.
 
 ## Alerts & authoring shortcodes
 

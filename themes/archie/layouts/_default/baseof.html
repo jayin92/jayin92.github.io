@@ -38,6 +38,9 @@
             function apply(dark) {
                 link.media = dark ? 'all' : 'not all';
                 try { localStorage.setItem('theme', dark ? 'dark' : 'light'); } catch (e) {}
+                // The browser toolbar colour follows too (header.html sets it the same way at load)
+                var metas = document.querySelectorAll('meta[name="theme-color"]');
+                for (var i = 0; i < metas.length; i++) metas[i].content = dark ? '#202124' : '#ffffff';
             }
 
             // Crossfade the whole page with a View Transition (a GPU snapshot fade, same cost on any
