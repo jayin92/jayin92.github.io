@@ -12,11 +12,19 @@
         return d && !d.hidden;
     }
 
+    // Keyboard focus on a header link/button: the bar must stay on screen, or the focus ring is
+    // invisible. (:focus-visible, so a mouse click on the theme switch doesn't pin the bar.)
+    function keyboardFocusInside() {
+        var el = document.activeElement;
+        if (!el || el === document.body || !header.contains(el)) return false;
+        try { return el.matches(':focus-visible'); } catch (e) { return true; }
+    }
+
     function update() {
         var y = window.scrollY;
         var dy = y - lastY;
         header.classList.toggle('nav-pinned', y > 0);
-        if (y <= header.offsetHeight || searchOpen()) {
+        if (y <= header.offsetHeight || searchOpen() || keyboardFocusInside()) {
             header.classList.remove('nav-hidden');
         } else if (dy > 4) {
             header.classList.add('nav-hidden');
@@ -32,6 +40,11 @@
         queued = true;
         requestAnimationFrame(function () { queued = false; update(); });
     }, { passive: true });
+
+    // Tab / Shift+Tab into the hidden bar: bring it back
+    header.addEventListener('focusin', function () {
+        header.classList.remove('nav-hidden');
+    });
 
     // In-page jumps (table of contents, footnotes): keep the bar out of the way so it doesn't
     // cover the heading being jumped to, even when the jump goes upwards.
