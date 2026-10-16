@@ -12,6 +12,9 @@ toc = "Contents"
 toggle_dark = "Toggle dark mode"
 date_format = "Jan 2, 2006"
 date_short = "Jan 2"
+code_copy = "Copy"
+code_copied = "Copied"
+code_copy_failed = "Copy failed"
 
 [entries_tagged]
 other = "Entries tagged - \"{{ .Tag }}\""

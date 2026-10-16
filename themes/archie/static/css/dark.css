@@ -357,3 +357,8 @@ sup:target a {
 .reading-progress {
   background-color: var(--darkMaincolor);
 }
+
+/* ── Code copy feedback (static/js/code-copy.js) — dark ── */
+.code-copy.copied {
+  color: var(--darkMaincolor);
+}

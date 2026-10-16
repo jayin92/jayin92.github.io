@@ -1229,3 +1229,25 @@ label.theme-switch.no-transition .slider::before {
     transition: none;
   }
 }
+
+/* ── Code copy feedback (static/js/code-copy.js) ── */
+.code-copy.copied {
+  color: var(--maincolor);
+}
+/* Copy failed: the code is selected for a manual copy; keep the message visible */
+.code-copy.failed {
+  opacity: 1;
+}
+/* Read by screen readers, not shown (e.g. the copy button's role="status" message) */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
