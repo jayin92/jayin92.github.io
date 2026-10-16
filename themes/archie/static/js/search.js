@@ -333,15 +333,24 @@
         var initialTokens = tokenizeQuery(initialQuery);
         renderResults(rankEntries(searchEntries, initialTokens), initialQuery, initialTokens);
 
-        input.addEventListener("input", function (event) {
+        function scheduleSearch() {
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(function () {
-                var query = event.target.value.trim();
+                var query = input.value.trim();
                 var tokens = tokenizeQuery(query);
                 updateQueryParam(query);
                 renderResults(rankEntries(searchEntries, tokens), query, tokens);
             }, 200);
+        }
+
+        // Wait for an IME to commit: half-typed Zhuyin/Pinyin never matches and would put the
+        // partial text in the URL.
+        input.addEventListener("input", function (event) {
+            if (!event.isComposing) {
+                scheduleSearch();
+            }
         });
+        input.addEventListener("compositionend", scheduleSearch);
     }
 
     if (!indexUrl) {

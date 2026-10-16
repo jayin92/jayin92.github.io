@@ -53,6 +53,12 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 - UI strings live in `i18n/zh-tw.toml` / `i18n/en.toml` (use `{{ i18n "key" }}`); the subtitle and nav menu stay in English on both languages (top-level `[params]` / `[[menu.main]]`).
 - `config.toml` sets `[markup.goldmark.renderHooks.*] useEmbedded = "never"` because Hugo auto-enables embedded link/image render hooks on multilingual sites. Don't remove it, or zh output changes.
 
+## Search
+
+- Nav dropdown: `static/js/navbar-search.js` (markup in `partials/head.html`) matches title/tags/description in `search/index.json`; Enter and "see all" go to this language's search page (`data-search-page`, `/search/` or `/en/search/`). Full page: `_default/search.html` + `static/js/search.js`; the index is built by `partials/search-index.html` via `layouts/_default/search.json`.
+- Both inputs wait for IME composition (Zhuyin/Pinyin) to finish: no search runs until `compositionend`, and the Enter that picks a candidate (`isComposing`, or keyCode 229 in Safari) is not a submit.
+- The nav search fetches the index from an absolute URL (`absLangURL`), so it returns nothing when the dev server is opened via another host than its baseURL (e.g. `127.0.0.1` instead of `localhost`).
+
 ## Images
 
 - `content/image` is also mounted as `assets/image` (`[module]` mounts in `config.toml`; declaring any mount replaces Hugo's defaults, so all are listed). Originals are still published at their old URLs.

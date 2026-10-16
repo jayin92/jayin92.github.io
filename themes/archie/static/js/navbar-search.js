@@ -7,6 +7,8 @@
     var input = document.getElementById('nav-search-input');
     var resultsEl = document.getElementById('nav-search-results');
     var indexUrl = container.getAttribute('data-search-index');
+    // This language's full search page (/search/ or /en/search/)
+    var searchPage = container.dataset.searchPage || '/search/';
 
     var cachedIndex = null;
     var debounceTimer;
@@ -83,7 +85,7 @@
         var seeAll = document.createElement('li');
         seeAll.className = 'nav-search-see-all';
         var seeAllLink = document.createElement('a');
-        seeAllLink.href = (container.dataset.searchPage || '/search/') + '?q=' + encodeURIComponent(query);
+        seeAllLink.href = searchPage + '?q=' + encodeURIComponent(query);
         seeAllLink.textContent = entries.length
             ? (container.dataset.seeAll || 'See all results for "{q}" \u2192').replace('{q}', query)
             : (container.dataset.noQuick || 'No quick results \u2014 search full index \u2192');
@@ -109,7 +111,7 @@
         if (dropdown.hidden) open(); else close();
     });
 
-    input.addEventListener('input', function () {
+    function scheduleSearch() {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(function () {
             var query = input.value.trim();
@@ -118,13 +120,21 @@
                 renderResults(searchEntries(query), query);
             });
         }, 200);
+    }
+
+    // Wait for an IME to commit: half-typed Zhuyin/Pinyin never matches and only flashes
+    // "no results".
+    input.addEventListener('input', function (e) {
+        if (!e.isComposing) scheduleSearch();
     });
+    input.addEventListener('compositionend', scheduleSearch);
 
     input.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter') {
-            var query = input.value.trim();
-            if (query) window.location.href = '/search/?q=' + encodeURIComponent(query);
-        }
+        // The Enter that picks a candidate in a Zhuyin/Pinyin IME is not a submit: Chrome flags it
+        // isComposing, Safari only gives it keyCode 229.
+        if (e.key !== 'Enter' || e.isComposing || e.keyCode === 229) return;
+        var query = input.value.trim();
+        if (query) window.location.href = searchPage + '?q=' + encodeURIComponent(query);
     });
 
     document.addEventListener('keydown', function (e) {
