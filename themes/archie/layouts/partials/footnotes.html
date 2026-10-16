@@ -1,0 +1,12 @@
+{{- /* Notes written with {{< footnote >}} (shortcodes/footnote.html), in Goldmark's footnote markup.
+       Must run after .Content has been rendered. */ -}}
+{{- with .Store.Get "footnotes" }}
+<div class="footnotes" role="doc-endnotes">
+<hr>
+<ol>
+{{- range $i, $t := . }}
+<li id="fn-{{ add $i 1 }}"><p>{{ $t }}&#160;<a href="#fnref-{{ add $i 1 }}" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p></li>
+{{- end }}
+</ol>
+</div>
+{{- end -}}

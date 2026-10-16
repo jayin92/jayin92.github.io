@@ -18,15 +18,35 @@
         @import url('/css/dark.css') (prefers-color-scheme: dark);
         /* Same column as a post page */
         body { max-width: 800px; margin: 0 auto; padding: 1rem 1.5rem; }
-        /* On the site these rules sit under .body (the post content); the preview has no such
-           wrapper, so apply them to the Body field instead */
-        [data-key-path='body'] li,
-        [data-key-path='body'] td,
-        [data-key-path='body'] th,
-        [data-key-path='body'] figcaption { font-family: 'Fira Sans', 'Noto Sans TC', sans-serif; }
-        [data-key-path='body'] li { line-height: 1.7; }
       `, { raw: true });
+
+      // Preview laid out like a post page (single.html): title, date, body, tags. Without this the
+      // default preview prints every field label as an <h4>, which the theme styles as "#### Label".
+      (function () {
+        var h = CMS.React.createElement;
+        var js = function (v) { return v && v.toJS ? v.toJS() : v; };
+        var PostPreview = function (props) {
+          var get = function (k) { return js(props.entry.getIn(['data', k])); };
+          var date = get('date');
+          var tags = get('tags') || [];
+          return h('main', null, h('article', null,
+            h('div', { className: 'title' },
+              h('h1', { className: 'title' }, get('title') || 'Untitled'),
+              h('div', { className: 'meta' },
+                date ? String(date instanceof Date ? date.toISOString() : date).slice(0, 10) : '',
+                get('draft') ? h('span', { className: 'draft-label' }, 'DRAFT') : null),
+              get('description') ? h('div', { className: 'meta' }, get('description')) : null),
+            h('section', { className: 'body' }, props.widgetFor('body')),
+            tags.length ? h('div', { className: 'post-tags' }, h('nav', { className: 'nav tags' },
+              h('ul', { className: 'tags' }, tags.filter(Boolean).map(function (t) {
+                return h('li', { key: t }, h('a', null, t));
+              })))) : null));
+        };
+        CMS.registerPreviewTemplate('posts', PostPreview);
+        CMS.registerPreviewTemplate('diaries', PostPreview);
+      })();
     </script>
-    <script src="/admin/editor-components.js"></script>
+    <!-- Bump ?v= when editing editor-components.js: static JS is cached for 4 hours. -->
+    <script src="/admin/editor-components.js?v=2"></script>
   </body>
 </html>

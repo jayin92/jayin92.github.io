@@ -17,6 +17,9 @@
       '<strong>' + esc(title) + '</strong>' + (body ? '<br>' + body : '') + '</div>';
   };
 
+  // text{{< footnote >}}note{{< /footnote >}} on one line (inline: no [\s\S])
+  var footnoteRe = /\{\{<\s*footnote\s*>\}\}((?:(?!\{\{<\s*\/footnote)[^\n])*)\{\{<\s*\/footnote\s*>\}\}/;
+
   var components = [
     {
       id: 'figure',
@@ -66,6 +69,26 @@
       },
       toPreview: function (v) {
         return '<span style="color:#00897B">[' + esc(v.keys) + (v.loc ? ', ' + esc(v.loc) : '') + ']</span>';
+      },
+    },
+    {
+      // Theme shortcode (layouts/shortcodes/footnote.html): text{{< footnote >}}the note{{< /footnote >}},
+      // numbered automatically and listed at the end of the post. One line of inline Markdown.
+      id: 'footnote',
+      label: 'Footnote',
+      icon: 'superscript',
+      fields: [
+        { name: 'text', label: 'Footnote text', widget: 'string', hint: 'Inline Markdown (bold, links, cite) is fine' },
+        { name: 'raw', widget: 'hidden', required: false },
+      ],
+      pattern: footnoteRe,
+      fromBlock: function (m) { return { text: m[1].trim(), raw: m[0] }; },
+      toBlock: function (v) {
+        if (v.raw && v.raw.match(footnoteRe)[1].trim() === (v.text || '')) return v.raw;
+        return '{{< footnote >}}' + (v.text || '') + '{{< /footnote >}}';
+      },
+      toPreview: function (v) {
+        return '<sup title="' + esc(v.text) + '" style="color:#00897B;font-family:monospace">[note]</sup>';
       },
     },
     {

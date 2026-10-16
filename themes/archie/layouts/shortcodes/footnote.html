@@ -1,0 +1,14 @@
+{{- /* Footnote written in place: text{{< footnote >}}the note, **Markdown** ok{{< /footnote >}}.
+       Same output as Goldmark's [^1] footnotes (so notes.js and the .footnotes styles apply),
+       numbered in order of appearance; partials/footnotes.html lists them at the end of the post.
+       Its own numbering, so don't mix it with [^1] footnotes in one post. Keyed by position so
+       rendering the content twice doesn't number a note twice. */ -}}
+{{- $pos := printf "%v" .Position -}}
+{{- $n := index (.Page.Store.Get "footnoteNum" | default dict) $pos -}}
+{{- if not $n -}}
+  {{- .Page.Store.Add "footnotes" (slice (.InnerDeindent | strings.TrimSpace | .Page.RenderString)) -}}
+  {{- $n = len (.Page.Store.Get "footnotes") -}}
+  {{- .Page.Store.SetInMap "footnoteNum" $pos $n -}}
+{{- end -}}
+<sup id="fnref-{{ $n }}"><a href="#fn-{{ $n }}" class="footnote-ref" role="doc-noteref">{{ $n }}</a></sup>
+{{- /**/ -}}
