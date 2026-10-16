@@ -91,6 +91,11 @@
         <link href="https://fonts.googleapis.com/css2?family=Fira+Sans&display=swap" rel="stylesheet">
         <link href="https://fonts.googleapis.com/css?family=Roboto+Mono" rel="stylesheet">
 	{{- else -}}
+        {{- /* Roboto Mono 400/700 draw the site title, nav and headings of every page: start them with the
+               CSS rather than after it, so they're usually in before first paint (no swap). Same URLs as
+               css/fonts.css resolves (no query string), with crossorigin, or they'd download twice. */}}
+        <link rel="preload" href="{{ "fonts/roboto-mono-v12-latin-regular.woff2" | absURL }}" as="font" type="font/woff2" crossorigin>
+        <link rel="preload" href="{{ "fonts/roboto-mono-latin-700.woff2" | absURL }}" as="font" type="font/woff2" crossorigin>
         <link href="{{ partial "asset-url.html" "css/fonts.css" }}" rel="stylesheet">
 	{{ end }}
 	<link rel="stylesheet" type="text/css" media="screen" href="{{ partial "asset-url.html" "css/main.css" }}" />

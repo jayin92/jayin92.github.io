@@ -42,6 +42,7 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 ## Fonts
 
 - Monospace contexts (site title, nav, headings, dates/meta, TOC, tags, code): `'Roboto Mono', 'Sarasa Mono TC', 'Noto Sans TC', monospace` — Roboto Mono for Latin (400 + 700), Sarasa Mono TC for Chinese (400 + 700). Prose inside posts (paragraphs, lists, tables, captions): Fira Sans + Noto Sans TC.
+- `header.html` preloads the two Roboto Mono files (site title, nav, headings on every page). If `fonts.css` renames or drops them, update the preloads (same URL, no `?v=`, `crossorigin`), or browsers fetch unused bytes. Don't preload Sarasa (~270 KB each) or Noto Sans TC (1.4 MB).
 - Sarasa Mono TC is subset to the site's characters by `tools/subset_fonts.py` (`pip install fonttools brotli`; caches the source TTFs in gitignored `.font-cache/`). CI re-runs it before every build, non-fatally; characters missing from the subset fall back to Noto Sans TC. Licence: `themes/archie/static/fonts/OFL-Sarasa-Gothic.txt` (OFL 1.1; only "Source" is a reserved name, so the subset keeps its name).
 
 ## Multilingual (zh-tw default, en under `/en/`)
