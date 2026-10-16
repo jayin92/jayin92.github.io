@@ -115,6 +115,28 @@ collections:
       - { label: Draft, name: draft, widget: boolean, default: true, i18n: true }
       - { label: Body, name: body, widget: markdown, i18n: true }
 
+  # Single pages. about.md / about.en.md use TOML front matter (+++), which is kept on save;
+  # keys not listed here (date, aliases) are kept too.
+  - name: pages
+    label: Pages
+    i18n: true
+    files:
+      - name: about
+        label: About
+        file: /content/about.{{locale}}.md
+        format: toml-frontmatter
+        i18n: true
+        preview_path: /{{locale}}/about/
+        fields:
+          - { label: Title, name: title, widget: string, i18n: true }
+          - { label: Description, name: description, widget: string, required: false, i18n: true }
+          # A date-only datetime field writes a native TOML date (date = 2021-05-06); as an unlisted key
+          # it would come back quoted as a string.
+          - { label: Date, name: date, widget: datetime, type: date, required: false, i18n: duplicate }
+          # about.md has no draft key: default false keeps it published when saved.
+          - { label: Draft, name: draft, widget: boolean, default: false, i18n: true }
+          - { label: Body, name: body, widget: markdown, i18n: true }
+
   # Diaries are not published on the site (content/diaries/_index.md sets render: never).
   - name: diaries
     label: Diaries
