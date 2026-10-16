@@ -481,6 +481,16 @@ footer svg{
 .body tr:last-child td {
   border-bottom: none;
 }
+/* KaTeX display math (katex: true posts): an equation wider than the column scrolls by itself
+   instead of widening the page on phones. The vertical padding (taken from KaTeX's 1em margin)
+   keeps tall symbols clear of the clip edge; the 2px side padding absorbs KaTeX's 2px spacer that
+   sticks out of an equation number, which would otherwise make every numbered equation scroll. */
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin: 0.5em 0;
+  padding: 0.5em 2px;
+}
 
 /* Code blocks: Chroma output (<div class="highlight"><pre class="chroma"><code data-lang=…>).
    Colours: css/syntax.css (light) / dark.css (dark). Copy button: js/code-copy.js. */
