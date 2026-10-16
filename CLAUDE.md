@@ -41,6 +41,7 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 ## Fonts
 
 - Monospace contexts (site title, nav, headings, dates/meta, TOC, tags, code): `'Roboto Mono', 'Sarasa Mono TC', 'Noto Sans TC', monospace` — Roboto Mono for Latin (400 + 700), Sarasa Mono TC for Chinese (400 + 700). Prose inside posts (paragraphs, lists, tables, captions): Fira Sans + Noto Sans TC.
+- Headings and post paragraphs/list items use `text-wrap: pretty`, so a lone character (e.g. "心。") doesn't end up alone on the last line. Not `balance`: CJK can break anywhere, and evened-out title lines split words (心|得, 教|材).
 - Sarasa Mono TC is subset to the site's characters by `tools/subset_fonts.py` (`pip install fonttools brotli`; caches the source TTFs in gitignored `.font-cache/`). CI re-runs it before every build, non-fatally; characters missing from the subset fall back to Noto Sans TC. Licence: `themes/archie/static/fonts/OFL-Sarasa-Gothic.txt` (OFL 1.1; only "Source" is a reserved name, so the subset keeps its name).
 
 ## Colours

@@ -39,6 +39,11 @@ p {
 .body th {
   font-size: 1.0625rem;
 }
+/* No single character (e.g. "心。") alone on a paragraph's last line; ignored where unsupported */
+.body p,
+.body li {
+  text-wrap: pretty;
+}
 
 /* All prose inside a post uses the paragraph font; monospace stays for the site title, nav,
    headings, dates/meta and code. Before, lists, tables and captions inherited the monospace root font. */
@@ -341,6 +346,11 @@ h2 {
 h3, h4, h5, h6 {
   font-size: 1.2rem;
   margin-top: 1.5em;
+}
+/* No lone character on the last line of a wrapped title (common with CJK titles on phones).
+   Not `balance`: CJK breaks anywhere, and evening out the lines split words like 心|得 or 教|材. */
+h1, h2, h3, h4, h5, h6 {
+  text-wrap: pretty;
 }
 
 h1::before, h2::before, h3::before, h4::before, h5::before, h6::before {
