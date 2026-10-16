@@ -1202,3 +1202,10 @@ sup:target a {
     transition: opacity 0.2s ease;
   }
 }
+
+/* ── Archive dates (partials/post-list.html) ── */
+/* Keep a date in one piece: on phones "05-18" broke at its hyphen, leaving "05-" at the end of a
+   line and "18" on the next. The date (and a DRAFT label) now moves down as a unit. */
+.posts .meta {
+  white-space: nowrap;
+}
