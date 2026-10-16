@@ -1286,3 +1286,8 @@ sup:target a {
     max-width: 100%;
   }
 }
+
+/* ── 404 page (404.html): search box (reuses .search-input) and latest posts ── */
+.not-found-search {
+  margin: 1.5em 0 0.5em;
+}

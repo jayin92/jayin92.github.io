@@ -15,6 +15,10 @@ date_short = "01-02"
 post_nav = "文章導覽"
 newer_post = "較新的文章"
 older_post = "較舊的文章"
+not_found_title = "404 — 找不到頁面"
+not_found_text = "這個頁面不存在：網址可能打錯了，或是文章已經搬家了。"
+recent_posts = "最近的文章"
+back_home = "回到首頁"
 
 [entries_tagged]
 other = "標籤：{{ .Tag }}"
