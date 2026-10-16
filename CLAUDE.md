@@ -87,6 +87,7 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 ## Page templates
 
 - Every page template has its own `<main id="main">` (index, list, term, terms, single, search, 404). `#main` is the skip-link target, so don't wrap the `main` block in baseof.html in another `<main>`.
+- Dates are `<time datetime="YYYY-MM-DD">` (home list, archive/tag lists, post meta). The global `time { color: grey }` is for the home list; `.meta time` inherits, so the post's "發佈於 …" line and the archive keep one colour.
 
 ## Comments
 

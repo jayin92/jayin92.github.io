@@ -11,7 +11,7 @@
 	<section class="list-item">
 		<h1 class="title"><a href="{{ .RelPermalink }}">{{.Title}}</a></h1>
 		<div class="item-meta">
-			<time>{{ dateFormat (i18n "date_format") .Date }}</time>{{ if .Draft }}<span class="draft-label">DRAFT</span>{{ end }}
+			<time datetime="{{ .Date.Format "2006-01-02" }}">{{ dateFormat (i18n "date_format") .Date }}</time>{{ if .Draft }}<span class="draft-label">DRAFT</span>{{ end }}
 			{{ partial "pills.html" . }}
 		</div>
 		<div class="description">

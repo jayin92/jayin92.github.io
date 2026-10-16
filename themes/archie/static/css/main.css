@@ -1209,3 +1209,10 @@ sup:target a {
 .posts .meta {
   white-space: nowrap;
 }
+
+/* ── Dates as <time datetime> (single.html meta, partials/post-list.html) ── */
+/* The global `time { color: grey }` is meant for the home list. In a post's "發佈於 <date>" line and
+   the archive, the date keeps the colour of the text around it, as before it was a <time>. */
+.meta time {
+  color: inherit;
+}

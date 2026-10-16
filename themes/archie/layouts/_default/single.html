@@ -7,7 +7,7 @@
 	<article>
 		<div class="title">
 			<h1 class="title">{{ .Title }}</h1>
-			<div class="meta">{{ i18n "posted_on" }} {{ dateFormat (i18n "date_format") .Date }}{{ if .Draft }} <span class="draft-label">DRAFT</span> {{ end }}</div>
+			<div class="meta">{{ i18n "posted_on" }} <time datetime="{{ .Date.Format "2006-01-02" }}">{{ dateFormat (i18n "date_format") .Date }}</time>{{ if .Draft }} <span class="draft-label">DRAFT</span> {{ end }}</div>
 			{{ if .IsTranslated }}
 			<div class="meta translations">
 				{{ range .Translations }}
