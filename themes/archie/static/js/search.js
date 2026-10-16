@@ -14,6 +14,16 @@
         return;
     }
 
+    // Status strings come from data-text-* attributes on the root (i18n, _default/search.html), with
+    // the English text as fallback. Placeholders: {n} count, {q} query.
+    function text(name, fallback, values) {
+        var template = root.getAttribute("data-" + name) || fallback;
+
+        return template.replace(/\{(\w+)\}/g, function (placeholder, key) {
+            return values && Object.prototype.hasOwnProperty.call(values, key) ? values[key] : placeholder;
+        });
+    }
+
     var combiningMarkPattern = createRegex("\\p{M}+", "gu", /[\u0300-\u036f]+/g);
     var nonSearchCharacterPattern = createRegex(
         "[^\\p{L}\\p{N}\\s]+",
@@ -166,16 +176,18 @@
         results.replaceChildren();
 
         if (!tokens.length) {
-            renderEmptyState("Start typing to search titles, tags, descriptions, and content.", "search-status-empty");
+            renderEmptyState(text("text-start", "Start typing to search titles, tags, descriptions, and content."), "search-status-empty");
             return;
         }
 
         if (!entries.length) {
-            renderEmptyState("No matching entries found.", "search-status-empty");
+            renderEmptyState(text("text-no-results", "No matching entries found."), "search-status-empty");
             return;
         }
 
-        status.textContent = entries.length + (entries.length === 1 ? " result" : " results") + " for \"" + query + "\"";
+        status.textContent = entries.length === 1
+            ? text("text-result", "{n} result for \"{q}\"", { n: 1, q: query })
+            : text("text-results", "{n} results for \"{q}\"", { n: entries.length, q: query });
         status.className = "search-status";
 
         entries.forEach(function (entry) {
@@ -190,11 +202,8 @@
             title.appendChild(link);
             article.appendChild(title);
 
+            // Only the date: every result is a post, and "… in posts" had no translation.
             meta.textContent = entry.displayDate;
-
-            if (entry.section) {
-                meta.textContent += " in " + entry.section;
-            }
 
             article.appendChild(meta);
 
@@ -370,6 +379,6 @@
             bootstrap(Array.isArray(entries) ? entries : []);
         })
         .catch(function () {
-            renderEmptyState("The search index could not be loaded for this page.", "search-status-error");
+            renderEmptyState(text("text-error", "The search index could not be loaded for this page."), "search-status-error");
         });
 }());
