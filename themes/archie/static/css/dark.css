@@ -367,3 +367,12 @@ sup:target a {
 .heading-anchor {
   color: var(--darkMaincolor);
 }
+
+/* ── Nav search keyboard selection (static/js/navbar-search.js) — dark ── */
+.nav-search-results a:focus-visible {
+  background-color: var(--darkMaincolor);
+  color: #000;
+}
+.nav-search-results a:focus-visible .nav-search-result-date {
+  color: rgba(0, 0, 0, 0.65);
+}

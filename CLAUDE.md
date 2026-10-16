@@ -64,6 +64,7 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 
 - Nav dropdown: `static/js/navbar-search.js` (markup in `partials/head.html`) matches title/tags/description in `search/index.json`; Enter and "see all" go to this language's search page (`data-search-page`, `/search/` or `/en/search/`). Full page: `_default/search.html` + `static/js/search.js`; the index is built by `partials/search-index.html` via `layouts/_default/search.json`.
 - `search.js` takes its status strings from `data-text-*` attributes on `[data-search-root]` (i18n, set by `_default/search.html`; English fallback when one is missing): `data-text-start`, `data-text-no-results`, `data-text-result` / `data-text-results` (`{n}` count, `{q}` query), `data-text-error`. A result's meta line is just its date.
+- Keyboard: `/` opens the nav search from anywhere outside a text field (ignored with Ctrl/⌘/Alt, during IME composition and while a dialog is open; on the search page `/` focuses that page's field instead, `search.js`). ↓/↑ move through the results (focus styled like hover), Esc or tabbing out closes it.
 - Both inputs wait for IME composition (Zhuyin/Pinyin) to finish: no search runs until `compositionend`, and the Enter that picks a candidate (`isComposing`, or keyCode 229 in Safari) is not a submit.
 - The nav search fetches the index from an absolute URL (`absLangURL`), so it returns nothing when the dev server is opened via another host than its baseURL (e.g. `127.0.0.1` instead of `localhost`).
 

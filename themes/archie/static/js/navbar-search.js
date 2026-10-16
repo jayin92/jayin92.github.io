@@ -129,12 +129,41 @@
     });
     input.addEventListener('compositionend', scheduleSearch);
 
+    function resultLinks() {
+        return Array.prototype.slice.call(resultsEl.querySelectorAll('a'));
+    }
+
     input.addEventListener('keydown', function (e) {
+        if (e.isComposing || e.keyCode === 229) return;
+        // Down arrow: into the results (then up/down moves through them, see below)
+        if (e.key === 'ArrowDown') {
+            var first = resultLinks()[0];
+            if (first) {
+                e.preventDefault();
+                first.focus();
+            }
+            return;
+        }
         // The Enter that picks a candidate in a Zhuyin/Pinyin IME is not a submit: Chrome flags it
-        // isComposing, Safari only gives it keyCode 229.
-        if (e.key !== 'Enter' || e.isComposing || e.keyCode === 229) return;
+        // isComposing, Safari only gives it keyCode 229 (both skipped above).
+        if (e.key !== 'Enter') return;
         var query = input.value.trim();
         if (query) window.location.href = searchPage + '?q=' + encodeURIComponent(query);
+    });
+
+    resultsEl.addEventListener('keydown', function (e) {
+        if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+        var links = resultLinks();
+        var i = links.indexOf(document.activeElement);
+        if (i === -1) return;
+        e.preventDefault();
+        if (e.key === 'ArrowDown') {
+            if (i < links.length - 1) links[i + 1].focus();
+        } else if (i > 0) {
+            links[i - 1].focus();
+        } else {
+            input.focus();
+        }
     });
 
     document.addEventListener('keydown', function (e) {
@@ -147,4 +176,30 @@
     document.addEventListener('click', function (e) {
         if (!container.contains(e.target) && !dropdown.hidden) close();
     });
+
+    // Tabbing out of the open search closes it (relatedTarget is null when the window loses focus)
+    container.addEventListener('focusout', function (e) {
+        if (!dropdown.hidden && e.relatedTarget && !container.contains(e.relatedTarget)) close();
+    });
+
+    toggle.setAttribute('aria-controls', dropdown.id);
+    if (!input.hasAttribute('aria-label')) input.setAttribute('aria-label', toggle.getAttribute('aria-label') || '');
+
+    // "/" opens the search from anywhere outside a text field, as on GitHub or MDN. Not on the
+    // search page, whose own "/" focuses its big field (search.js).
+    if (!document.querySelector('[data-search-root]')) {
+        toggle.setAttribute('aria-keyshortcuts', '/');
+        if (toggle.title) toggle.title += ' (/)';
+        document.addEventListener('keydown', function (e) {
+            if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey || e.isComposing || e.defaultPrevented) return;
+            // Typing in a field: leave "/" alone. A focused checkbox (the theme switch after a click)
+            // or button isn't a field.
+            var t = e.target;
+            if (t && (t.isContentEditable || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' ||
+                (t.tagName === 'INPUT' && !/^(checkbox|radio|button|submit|reset|range|color|file|image)$/i.test(t.type)))) return;
+            if (document.querySelector('dialog[open]')) return;
+            e.preventDefault();
+            if (dropdown.hidden) open(); else input.focus();
+        });
+    }
 }());

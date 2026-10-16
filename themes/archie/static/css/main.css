@@ -1286,3 +1286,15 @@ label.theme-switch.no-transition .slider::before {
 .body h6 {
   scroll-margin-top: 1rem;
 }
+
+/* ── Nav search keyboard selection (static/js/navbar-search.js) ──
+   Arrow keys move focus through the results: mark it like the hover state (an outline would be
+   clipped by the scrolling list). */
+.nav-search-results a:focus-visible {
+  outline: none;
+  background-color: var(--hovercolor);
+  color: #fff;
+}
+.nav-search-results a:focus-visible .nav-search-result-date {
+  color: rgba(255, 255, 255, 0.75);
+}
