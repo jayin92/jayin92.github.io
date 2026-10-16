@@ -1,0 +1,12 @@
+{{- /* The page's language versions to list as hreflang alternates (<head> and sitemap.xml): every
+       translation that isn't an empty-language shell (partials/is-shell.html; those are noindex),
+       or nothing when fewer than two remain. Drafts aren't built, so a post whose translation is
+       still a draft gets none until it's published. 404 pages never get alternates. */ -}}
+{{- $pages := slice -}}
+{{- if ne .Kind "404" -}}
+  {{- range .AllTranslations -}}
+    {{- if not (partial "is-shell.html" .) }}{{ $pages = $pages | append . }}{{ end -}}
+  {{- end -}}
+{{- end -}}
+{{- if lt (len $pages) 2 }}{{ $pages = slice }}{{ end -}}
+{{- return $pages -}}
