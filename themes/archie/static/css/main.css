@@ -508,7 +508,8 @@ footer svg{
   font-size: 0.7rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgba(0, 0, 0, 0.4);
+  /* 4.7:1 on the block background (0.4 was 2.8) */
+  color: rgba(0, 0, 0, 0.55);
 }
 /* Blocks without a language (``` alone) get data-lang="fallback": no label for those */
 .highlight pre code[data-lang="fallback"]::before {
@@ -524,7 +525,10 @@ footer svg{
   margin-right: 1em;
   padding: 0;
   text-align: right;
-  color: rgba(0, 0, 0, 0.3);
+}
+/* syntax.css's .chroma .ln loads later (#7f7f7f, 3.8:1), so the colour needs one more class */
+.highlight .chroma .ln {
+  color: rgba(0, 0, 0, 0.55);
 }
 .code-copy {
   position: absolute;
@@ -537,7 +541,7 @@ footer svg{
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: rgba(0, 0, 0, 0.45);
+  color: rgba(0, 0, 0, 0.55);
   font: inherit;
   font-size: 0.72rem;
   cursor: pointer;

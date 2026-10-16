@@ -304,7 +304,8 @@ header::after {
 }
 .highlight pre code[data-lang]::before,
 .code-copy {
-  color: rgba(255, 255, 255, 0.45);
+  /* 5.2:1 on #161b22 */
+  color: rgba(255, 255, 255, 0.5);
 }
 .code-copy:hover,
 .code-copy:focus-visible {
@@ -312,7 +313,7 @@ header::after {
   background-color: rgba(255, 255, 255, 0.08);
 }
 .highlight .chroma .ln {
-  color: rgba(255, 255, 255, 0.28);
+  color: rgba(255, 255, 255, 0.5);
 }
 
 /* Images and captions (dark) */
