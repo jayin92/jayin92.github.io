@@ -58,6 +58,19 @@
   // Text for a "quoted" attribute or Markdown title: one line, quotes as &quot; (the shortcodes decode it)
   var quoted = function (s) { return String(s == null ? '' : s).replace(/\s+/g, ' ').trim().replace(/"/g, '&quot;'); };
 
+  // {{< compare before="…" after="…" before-label="…" after-label="…" start="…" caption="…" >}} on its
+  // own line (the m flag makes it a block component). Attribute names may contain "-".
+  var compareRe = /^\{\{<\s*compare((?:\s+[a-zA-Z-]+="[^"]*")+)\s*>\}\}$/m;
+  var compareAttrs = function (s) {
+    var out = {};
+    String(s || '').replace(/([a-zA-Z-]+)="([^"]*)"/g, function (_, k, v) { out[k] = v; });
+    return {
+      before: out.before || '', after: out.after || '',
+      beforeLabel: unquote(out['before-label']), afterLabel: unquote(out['after-label']),
+      start: out.start ? Number(out.start) : undefined, caption: unquote(out.caption),
+    };
+  };
+
   var components = [
     {
       // Theme shortcode (layouts/shortcodes/gallery.html). Listed before figure, whose pattern would
@@ -100,6 +113,56 @@
             ' style="display:block;width:100%;height:160px;max-height:none;object-fit:cover;border-radius:6px">' +
             (i.title ? '<figcaption style="display:block"><h4>' + esc(i.title) + '</h4></figcaption>' : '') + '</figure>';
         }).join('') + (v.caption ? '<figcaption style="display:block;flex-basis:100%"><h4>' + esc(v.caption) + '</h4></figcaption>' : '') + '</div>';
+      },
+    },
+    {
+      // Theme shortcode (layouts/shortcodes/compare.html): before/after images with a draggable divider.
+      id: 'compare',
+      label: 'Before / after slider',
+      icon: 'compare',
+      fields: [
+        { name: 'before', label: 'Before (left)', widget: 'image' },
+        { name: 'beforeLabel', label: 'Before label', widget: 'string', required: false, hint: 'Empty: 之前 / Before' },
+        { name: 'after', label: 'After (right)', widget: 'image', hint: 'Same aspect ratio as the before image' },
+        { name: 'afterLabel', label: 'After label', widget: 'string', required: false, hint: 'Empty: 之後 / After' },
+        { name: 'caption', label: 'Caption', widget: 'string', required: false },
+        { name: 'start', label: 'Divider starts at (%)', widget: 'number', value_type: 'int', min: 0, max: 100, required: false, hint: 'Default 50' },
+        { name: 'raw', widget: 'hidden', required: false },
+      ],
+      pattern: compareRe,
+      fromBlock: function (m) {
+        var v = compareAttrs(m[1]);
+        v.raw = m[0];
+        return v;
+      },
+      toBlock: function (v) {
+        var keys = ['before', 'after', 'beforeLabel', 'afterLabel', 'caption'];
+        var num = function (n) { return n === undefined || n === null || n === '' ? '' : String(Number(n)); };
+        if (v.raw) {
+          var m = String(v.raw).match(compareRe);
+          var o = m && compareAttrs(m[1]);
+          if (o && keys.every(function (k) { return (o[k] || '') === (v[k] || ''); }) && num(o.start) === num(v.start)) return v.raw;
+        }
+        var s = '{{< compare before="' + (v.before || '') + '" after="' + (v.after || '') + '"';
+        if (v.beforeLabel) s += ' before-label="' + quoted(v.beforeLabel) + '"';
+        if (v.afterLabel) s += ' after-label="' + quoted(v.afterLabel) + '"';
+        if (num(v.start) && Number(v.start) !== 50) s += ' start="' + num(v.start) + '"';
+        if (v.caption) s += ' caption="' + quoted(v.caption) + '"';
+        return s + ' >}}';
+      },
+      toPreview: function (v) {
+        if (!v.before || !v.after) return box('Before / after', 'needs two images');
+        var pos = (v.start === undefined || v.start === null || v.start === '' ? 50 : Number(v.start)) + '%';
+        var label = function (text, side) {
+          return '<span style="position:absolute;top:.6rem;' + side + ':.6rem;padding:.1em .5em;border-radius:4px;' +
+            'background:rgba(0,0,0,.55);color:#fff;font:12px/1.6 monospace">' + esc(text) + '</span>';
+        };
+        return '<figure style="display:table;margin:1.5em auto;max-width:100%"><div style="position:relative;overflow:hidden;border-radius:6px">' +
+          '<img src="' + esc(v.before) + '" alt="" style="display:block;max-width:100%;max-height:500px;margin:0">' +
+          '<img src="' + esc(v.after) + '" alt="" style="position:absolute;inset:0;width:100%;height:100%;max-height:none;margin:0;object-fit:cover;clip-path:inset(0 0 0 ' + pos + ')">' +
+          '<div style="position:absolute;top:0;bottom:0;left:' + pos + ';width:2px;margin-left:-1px;background:#fff"></div>' +
+          label(v.beforeLabel || '之前', 'left') + label(v.afterLabel || '之後', 'right') + '</div>' +
+          (v.caption ? '<figcaption><h4>' + esc(v.caption) + '</h4></figcaption>' : '') + '</figure>';
       },
     },
     {

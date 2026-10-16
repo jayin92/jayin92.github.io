@@ -27,3 +27,11 @@ other = "Important"
 other = "Warning"
 [alert_caution]
 other = "Caution"
+
+# Before/after slider labels and its screen-reader name (shortcodes/compare.html)
+[compare_before]
+other = "Before"
+[compare_after]
+other = "After"
+[compare_slider]
+other = "Divider between “{{ .Before }}” and “{{ .After }}”"

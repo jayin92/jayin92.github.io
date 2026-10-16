@@ -1309,3 +1309,116 @@ sup:target a {
     --row: 120px;
   }
 }
+
+/* ── Compare shortcode (shortcodes/compare.html, static/js/compare.js) ──
+   Two images stacked in one frame: the after image is clipped from the left at --pos, so the
+   before image shows left of the divider. The figure keeps the usual figure layout (shrink-to-fit,
+   centred, max 500px tall). The range input is invisible: compare.js handles the pointer, the
+   input is there for the keyboard and screen readers. */
+.compare-frame {
+  position: relative;
+  overflow: hidden;
+  border-radius: 6px;
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.compare-frame img {
+  -webkit-user-drag: none;
+}
+.compare-after {
+  position: absolute;
+  inset: 0;
+  clip-path: inset(0 0 0 var(--pos, 50%));
+}
+.body .compare-after img {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: cover;
+}
+.compare-frame::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--pos, 50%);
+  width: 2px;
+  margin-left: -1px;
+  background-color: #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
+  pointer-events: none;
+}
+.compare-handle {
+  display: none;
+  position: absolute;
+  top: 50%;
+  left: var(--pos, 50%);
+  width: 2.2rem;
+  height: 2.2rem;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background-color: #fff;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+}
+.compare-handle::before,
+.compare-handle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 0.38rem;
+  height: 0.38rem;
+  border: solid var(--maincolor);
+  border-width: 0 0 2px 2px;
+}
+.compare-handle::before {
+  left: 0.55rem;
+  transform: translateY(-50%) rotate(45deg);
+}
+.compare-handle::after {
+  right: 0.55rem;
+  transform: translateY(-50%) rotate(-135deg);
+}
+/* Only look draggable once compare.js runs */
+.compare-ready .compare-handle {
+  display: block;
+}
+.compare-ready .compare-frame {
+  cursor: ew-resize;
+}
+.compare-label {
+  position: absolute;
+  top: 0.6rem;
+  max-width: 42%;
+  overflow: hidden;
+  padding: 0.1em 0.5em;
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-family: 'Roboto Mono', 'Sarasa Mono TC', 'Noto Sans TC', monospace;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+.compare-label-before {
+  left: 0.6rem;
+}
+.compare-label-after {
+  right: 0.6rem;
+}
+.compare-range {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.compare-frame:has(.compare-range:focus-visible) {
+  outline: 2px solid var(--maincolor);
+  outline-offset: 2px;
+}

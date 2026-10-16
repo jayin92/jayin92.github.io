@@ -27,3 +27,11 @@ other = "重要"
 other = "警告"
 [alert_caution]
 other = "小心"
+
+# Before/after slider labels and its screen-reader name (shortcodes/compare.html)
+[compare_before]
+other = "之前"
+[compare_after]
+other = "之後"
+[compare_slider]
+other = "比較「{{ .Before }}」與「{{ .After }}」的分界位置"
