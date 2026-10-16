@@ -84,6 +84,10 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 - `static/js/notes.js` shows the footnote/reference in a hover popover (hover-capable devices only); loaded only on pages with footnotes or citations.
 - `[markup.goldmark.renderer] unsafe = true` keeps raw HTML in Markdown, so HTML-emitting shortcodes (cite, figure) also work inside another shortcode's Markdown body (`details`). Side effect: HTML comments in posts reach the RSS feeds (`--minify` strips them from the HTML pages).
 
+## Page templates
+
+- Every page template has its own `<main id="main">` (index, list, term, terms, single, search, 404). `#main` is the skip-link target, so don't wrap the `main` block in baseof.html in another `<main>`.
+
 ## Comments
 
 - giscus (GitHub Discussions), via `themes/archie/layouts/partials/comments.html`, included at the bottom of `single.html`.

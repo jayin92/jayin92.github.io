@@ -1,5 +1,5 @@
 {{ define "main" }}
-<main>
+<main id="main">
 	{{- if ne .Type "page" }}
 	<div class="reading-progress" aria-hidden="true"></div>
 	<script defer src="{{ partial "asset-url.html" "js/reading-progress.js" }}"></script>
