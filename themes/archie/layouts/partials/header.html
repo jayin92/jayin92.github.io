@@ -36,7 +36,14 @@
 	<link rel="alternate" hreflang="x-default" href="{{ (index . 0).Permalink }}">
 	{{- end }}
 	<meta name="msapplication-TileColor" content="#da532c">
-	<meta name="theme-color" content="#ffffff">
+	{{- /* Browser UI colour = page background: white, dark.css's #202124 in dark mode. A saved manual
+	       choice overrides the media query in the dark-css script below. */ -}}
+	{{- if eq .Site.Params.mode "auto" }}
+	<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+	<meta name="theme-color" content="#202124" media="(prefers-color-scheme: dark)">
+	{{- else }}
+	<meta name="theme-color" content="{{ if eq .Site.Params.mode "dark" }}#202124{{ else }}#ffffff{{ end }}">
+	{{- end }}
 
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 
@@ -102,6 +109,11 @@
 		// before the first paint. Switching media on an existing link left it non-render-blocking, which
 		// flashed light on every page (and view transition) for a manual dark choice on a light OS.
 		document.write('<link id="dark-css" rel="stylesheet" type="text/css" href="' + {{ $darkCSS }} + '" media="' + media + '">');
+		// A saved choice also wins over the theme-color media queries (browser toolbar colour).
+		if (media === 'all' || media === 'not all') {
+			var metas = document.querySelectorAll('meta[name="theme-color"]');
+			for (var i = 0; i < metas.length; i++) metas[i].content = media === 'all' ? '#202124' : '#ffffff';
+		}
 	})();
 	</script>
 	<noscript><link id="dark-css" rel="stylesheet" type="text/css" href="{{ $darkCSS }}" {{ if eq .Site.Params.mode "auto" }}media="(prefers-color-scheme: dark)"{{ end }}></noscript>
