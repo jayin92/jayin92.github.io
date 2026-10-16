@@ -16,11 +16,14 @@
 			<time datetime="{{ .Date.Format "2006-01-02" }}">{{ dateFormat (i18n "date_format") .Date }}</time>{{ if .Draft }}<span class="draft-label">DRAFT</span>{{ end }}
 			{{ partial "pills.html" . }}
 		</div>
+		{{- /* The description, or (when it's missing or "", as the archetype leaves it) the start of
+		       the summary as plain text, minus headings, figures/captions and footnote marks. Cut by
+		       characters: without hasCJKLanguage, .Summary runs on for paragraphs. */}}
 		<div class="description">
-			{{ if isset .Params "description" }}
-			{{ .Description }}
+			{{ with .Description }}
+			{{ . }}
 			{{ else }}
-			{{ .Summary }}&hellip;
+			{{ .Summary | replaceRE `(?s)<figure\b.*?</figure>|<h[1-6]\b.*?</h[1-6]>|<sup\b.*?</sup>` " " | plainify | htmlUnescape | replaceRE `\s+` " " | strings.TrimSpace | truncate 80 "…" }}
 			{{ end }}
 		</div>
 	</section>
