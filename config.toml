@@ -18,6 +18,10 @@ locale = "en"
 label = "English"
 weight = 2
 
+# Only tags: no post uses categories, and the default taxonomy left an empty /categories/ page.
+[taxonomies]
+  tag = "tags"
+
 # Code Highlight — configured under [markup.highlight] below
 
 [pagination]
