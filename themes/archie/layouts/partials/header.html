@@ -27,8 +27,8 @@
 	<link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
 	{{- /* No canonical on the 404 page: GitHub Pages serves it for every missing URL. */}}
 	{{ if ne .Kind "404" }}<link rel="canonical" href="{{ .Permalink }}">{{ end }}
-	{{- /* Index/list pages of a language with no published posts are empty shells: keep them out of search engines */ -}}
-	{{ if partial "is-shell.html" . }}<meta name="robots" content="noindex">{{ end }}
+	{{- /* Empty-language shells and the search page stay out of search engines (partials/noindex.html) */ -}}
+	{{ if partial "noindex.html" . }}<meta name="robots" content="noindex">{{ end }}
 	{{- with partial "hreflang-pages.html" . }}
 	{{- range . }}
 	<link rel="alternate" hreflang="{{ .Language.Locale }}" href="{{ .Permalink }}">

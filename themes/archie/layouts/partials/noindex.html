@@ -1,0 +1,4 @@
+{{- /* True for pages kept out of search engines: empty-language shells (partials/is-shell.html) and the
+       search page (layout: search), whose content is the search box and ?q= results. They get
+       <meta name="robots" content="noindex">, stay out of the sitemap and aren't hreflang targets. */ -}}
+{{- return (or (partial "is-shell.html" .) (eq .Layout "search")) -}}
