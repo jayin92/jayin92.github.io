@@ -1202,3 +1202,65 @@ sup:target a {
     transition: opacity 0.2s ease;
   }
 }
+
+/* ── Alerts: > [!NOTE] … (_markup/render-blockquote.html) ──
+   A tinted box with a coloured left rule and a monospace title. Note uses the plain blockquote's
+   blue (--bordercl), tip the theme teal; the other three follow GitHub's alert colours. */
+.alert {
+  --alert-color: #0782bf;
+  margin: 1.2em 0;
+  padding: 0.7em 1em;
+  border-left: 3px solid var(--alert-color);
+  border-radius: 0 6px 6px 0;
+  background-color: color-mix(in srgb, var(--alert-color) 7%, transparent);
+}
+.alert-tip { --alert-color: #00897b; }
+.alert-important { --alert-color: #8250df; }
+.alert-warning { --alert-color: #9a6700; }
+.alert-caution { --alert-color: #cf222e; }
+.body .alert-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin: 0;
+  font-family: 'Roboto Mono', 'Sarasa Mono TC', 'Noto Sans TC', monospace;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--alert-color);
+}
+.alert-icon {
+  flex: none;
+}
+.alert > .alert-title + * {
+  margin-top: 0.35em;
+}
+.alert > :last-child {
+  margin-bottom: 0;
+}
+/* Folded alerts ([!TIP]- / [!TIP]+) are <details>: a chevron at the end of the title */
+.alert > summary {
+  cursor: pointer;
+  list-style: none;
+}
+.alert > summary::-webkit-details-marker {
+  display: none;
+}
+.alert > summary::after {
+  content: '';
+  flex: none;
+  width: 0.4em;
+  height: 0.4em;
+  margin: 0 0.2em 0 auto;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+}
+.alert[open] > summary::after {
+  transform: translateY(-0.15em) rotate(45deg);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .alert > summary::after {
+    transition: transform 0.15s ease;
+  }
+}

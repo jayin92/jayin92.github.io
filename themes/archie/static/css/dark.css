@@ -357,3 +357,13 @@ sup:target a {
 .reading-progress {
   background-color: var(--darkMaincolor);
 }
+
+/* ── Alerts (dark): _markup/render-blockquote.html ── */
+.alert {
+  --alert-color: #5a9bcf;
+  background-color: color-mix(in srgb, var(--alert-color) 11%, transparent);
+}
+.alert-tip { --alert-color: var(--darkMaincolor); }
+.alert-important { --alert-color: #b392f0; }
+.alert-warning { --alert-color: #d29922; }
+.alert-caution { --alert-color: #ff7b72; }

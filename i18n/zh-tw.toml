@@ -15,3 +15,15 @@ date_short = "01-02"
 
 [entries_tagged]
 other = "標籤：{{ .Tag }}"
+
+# Alert titles: > [!NOTE] … (_markup/render-blockquote.html)
+[alert_note]
+other = "備註"
+[alert_tip]
+other = "提示"
+[alert_important]
+other = "重要"
+[alert_warning]
+other = "警告"
+[alert_caution]
+other = "小心"

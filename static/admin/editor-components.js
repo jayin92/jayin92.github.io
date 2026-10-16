@@ -20,6 +20,22 @@
   // text{{< footnote >}}note{{< /footnote >}} on one line (inline: no [\s\S])
   var footnoteRe = /\{\{<\s*footnote\s*>\}\}((?:(?!\{\{<\s*\/footnote)[^\n])*)\{\{<\s*\/footnote\s*>\}\}/;
 
+  // GitHub-style alert: "> [!TYPE]" (+ optional -/+ fold sign and title) and the quote lines after
+  // it. The m flag makes it a block component, so the CMS keeps the whole alert as written instead
+  // of editing it as a blockquote (which would escape the "["). Only on a quote's first line, like Hugo.
+  var alertRe = /^(?<!^>[^\n]*\n)> ?\[!([A-Za-z]+)\]([+-]?)(?:[ \t]+([^\n]*?))?[ \t]*((?:\n>[^\n]*)*)$/m;
+  var alertTypes = { NOTE: 'Note', TIP: 'Tip', IMPORTANT: 'Important', WARNING: 'Warning', CAUTION: 'Caution' };
+  var alertColors = { NOTE: '#0782bf', TIP: '#00897b', IMPORTANT: '#8250df', WARNING: '#9a6700', CAUTION: '#cf222e' };
+  var parseAlert = function (m) {
+    return {
+      type: m[1].toUpperCase(),
+      fold: m[2] || '',
+      title: m[3] || '',
+      // drop the "> " (or ">") quote marker from every line
+      content: m[4] ? m[4].slice(1).split('\n').map(function (l) { return l.replace(/^> ?/, ''); }).join('\n') : '',
+    };
+  };
+
   var components = [
     {
       id: 'figure',
@@ -124,6 +140,56 @@
         var head = { tip: '🔎 Tip', warning: '⚠️ Warning', alert: '🚨 Alert', custom: (v.emoji || '') + ' ' + (v.title || '') }[v.type];
         return '<div style="background:dodgerblue;color:#fff;padding:1em;border-radius:4px">' +
           (head ? '<u>' + esc(head) + '</u><br>' : '💡 ') + esc(v.text) + '</div>';
+      },
+    },
+    {
+      // Markdown alert (layouts/_default/_markup/render-blockquote.html):
+      //   > [!WARNING] optional title
+      //   > text
+      // [!TIP]- folds it (closed), [!TIP]+ folds it but starts open.
+      id: 'alert',
+      label: 'Alert (note / tip / warning)',
+      icon: 'info',
+      fields: [
+        { name: 'type', label: 'Type', widget: 'select', default: 'NOTE',
+          options: [{ label: 'Note 備註', value: 'NOTE' }, { label: 'Tip 提示', value: 'TIP' },
+            { label: 'Important 重要', value: 'IMPORTANT' }, { label: 'Warning 警告', value: 'WARNING' },
+            { label: 'Caution 小心', value: 'CAUTION' }] },
+        { name: 'title', label: 'Title', widget: 'string', required: false, hint: 'Leave empty for the default (備註, 提示…)' },
+        { name: 'fold', label: 'Collapsible', widget: 'select', required: false, default: '',
+          options: [{ label: 'No', value: '' }, { label: 'Yes, closed', value: '-' }, { label: 'Yes, open', value: '+' }] },
+        { name: 'content', label: 'Text (Markdown)', widget: 'text', required: false },
+        // The alert exactly as written; reused while nothing changed, so ">" without a space etc. stay as they were.
+        { name: 'raw', widget: 'hidden', required: false },
+      ],
+      pattern: alertRe,
+      fromBlock: function (m) {
+        var v = parseAlert(m);
+        v.raw = m[0];
+        return v;
+      },
+      toBlock: function (v) {
+        var type = String(v.type || 'NOTE').toUpperCase();
+        var fold = v.fold === '-' || v.fold === '+' ? v.fold : '';
+        var title = String(v.title || '');
+        var content = String(v.content || '');
+        if (v.raw) {
+          var m = String(v.raw).match(alertRe);
+          var o = m && parseAlert(m);
+          if (o && o.type === type && o.fold === fold && o.title === title && o.content === content) return v.raw;
+        }
+        title = title.replace(/\s+/g, ' ').trim(); // it has to stay on the [!TYPE] line
+        content = content.replace(/\s+$/, '');
+        var lines = content ? content.split('\n').map(function (l) { return l ? '> ' + l : '>'; }) : [];
+        return ['> [!' + type + ']' + fold + (title ? ' ' + title : '')].concat(lines).join('\n');
+      },
+      toPreview: function (v) {
+        var type = String(v.type || 'NOTE').toUpperCase();
+        var color = alertColors[type] || alertColors.NOTE;
+        return '<div style="border-left:3px solid ' + color + ';background:' + color + '12;border-radius:0 6px 6px 0;padding:.7em 1em;margin:1.2em 0">' +
+          '<div style="color:' + color + ';font:700 14px/1.5 monospace">' + (v.fold ? (v.fold === '+' ? '▾ ' : '▸ ') : '') +
+          esc(v.title || alertTypes[type] || type) + '</div>' +
+          '<div style="white-space:pre-wrap;margin-top:.35em">' + esc(v.content) + '</div></div>';
       },
     },
     {

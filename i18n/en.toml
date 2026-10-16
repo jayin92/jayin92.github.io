@@ -15,3 +15,15 @@ date_short = "Jan 2"
 
 [entries_tagged]
 other = "Entries tagged - \"{{ .Tag }}\""
+
+# Alert titles: > [!NOTE] … (_markup/render-blockquote.html)
+[alert_note]
+other = "Note"
+[alert_tip]
+other = "Tip"
+[alert_important]
+other = "Important"
+[alert_warning]
+other = "Warning"
+[alert_caution]
+other = "Caution"
