@@ -1,0 +1,55 @@
+{{- /* Blockquotes. GitHub/Obsidian-style alerts become a titled box:
+         > [!NOTE]               備註 / Note (also TIP, IMPORTANT, WARNING, CAUTION; any case)
+         > [!TIP] 自訂標題        own title instead of the default (inline Markdown ok)
+         > [!WARNING]- 標題       folded: a <details> that starts closed; [!WARNING]+ starts open
+       Obsidian's other types ([!info], [!danger], …) take the closest of the five styles and are
+       titled with the type unless a title is given. Default titles: alert_* in i18n/.
+       Every other blockquote is written exactly as Goldmark writes it (keep it byte-identical). */ -}}
+{{- if eq .Type "alert" -}}
+  {{- $type := .AlertType -}}
+  {{- $styles := dict
+      "note" "note" "info" "note" "todo" "note" "abstract" "note" "summary" "note" "tldr" "note"
+      "question" "note" "help" "note" "faq" "note" "example" "note" "quote" "note" "cite" "note"
+      "tip" "tip" "hint" "tip" "success" "tip" "check" "tip" "done" "tip"
+      "important" "important"
+      "warning" "warning" "attention" "warning"
+      "caution" "caution" "danger" "caution" "error" "caution" "bug" "caution"
+      "failure" "caution" "fail" "caution" "missing" "caution" -}}
+  {{- $style := index $styles $type | default "note" -}}
+  {{- $title := .AlertTitle | safeHTML -}}
+  {{- if not $title -}}
+    {{- if in (slice "note" "tip" "important" "warning" "caution") $type -}}
+      {{- $title = i18n (printf "alert_%s" $type) -}}
+    {{- else -}}
+      {{- $title = strings.FirstUpper $type -}}
+    {{- end -}}
+  {{- end -}}
+  {{- /* Feather-style line icons (Feather: MIT, Lucide: ISC), drawn in currentColor */ -}}
+  {{- $svg := `<svg class="alert-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">%s</svg>` -}}
+  {{- $icons := dict
+      "note" `<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>`
+      "tip" `<path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/>`
+      "important" `<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v2"/><path d="M12 13h.01"/>`
+      "warning" `<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/>`
+      "caution" `<path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86z"/><path d="M12 8v4"/><path d="M12 16h.01"/>` -}}
+  {{- $head := printf "%s%s" (printf $svg (index $icons $style)) $title | safeHTML -}}
+  {{- if .AlertSign -}}
+<details class="alert alert-{{ $style }}"{{ if eq .AlertSign "+" }} open{{ end }}>
+<summary class="alert-title">{{ $head }}</summary>
+{{ .Text }}
+</details>
+  {{- else -}}
+<div class="alert alert-{{ $style }}" role="note">
+<p class="alert-title">{{ $head }}</p>
+{{ .Text }}
+</div>
+  {{- end -}}
+  {{- "\n" -}}
+{{- else if .Attributes -}}
+  {{- /* Only reachable if block attributes are turned on in config ({.class} after a quote) */ -}}
+  {{- $attrs := "" -}}
+  {{- range $k, $v := .Attributes }}{{ $attrs = printf `%s %s="%s"` $attrs $k (htmlEscape $v) }}{{ end -}}
+  {{- printf "<blockquote%s>%s</blockquote>\n" $attrs .Text | safeHTML -}}
+{{- else -}}
+  {{- printf "<blockquote>\n%s</blockquote>\n" .Text | safeHTML -}}
+{{- end -}}

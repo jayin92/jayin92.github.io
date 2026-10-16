@@ -1,0 +1,58 @@
+{{- /* Before/after image comparison with a draggable divider (static/js/compare.js, loaded by
+       single.html only on pages that use it):
+         {{< compare before="/image/nori.webp" after="/image/mitsuba.webp"
+             before-label="Nori" after-label="Mitsuba" caption="Clearcoat" start="50" >}}
+       before (left) and after (right) are required; the labels default to 之前/之後 (Before/After,
+       i18n compare_*), an empty label hides it; start is where the divider begins, in % (default 50).
+       Both images should have the same aspect ratio (it warns if they differ by over 2%).
+       Works with /image/ paths (WebP srcset) and plain URLs like /eth-cg24/…; no lightbox here. */ -}}
+{{- $before := .Get "before" -}}
+{{- $after := .Get "after" -}}
+{{- if not (and $before $after) -}}
+  {{- warnf "%s: {{< compare >}} needs both before=\"…\" and after=\"…\"" .Position -}}
+{{- else -}}
+  {{- $labels := slice -}}
+  {{- $imgs := slice -}}
+  {{- $dims := slice -}}
+  {{- range $side := slice "before" "after" -}}
+    {{- $src := $.Get $side -}}
+    {{- $label := i18n (printf "compare_%s" $side) -}}
+    {{- if isset $.Params (printf "%s-label" $side) }}{{ $label = $.Get (printf "%s-label" $side) | htmlUnescape }}{{ end -}}
+    {{- $labels = $labels | append $label -}}
+    {{- if and (hasPrefix $src "/image/") (not (resources.Get (strings.TrimPrefix "/" $src))) -}}
+      {{- warnf "%s: {{< compare >}} image %q not found in content/image/" $.Position $src -}}
+    {{- end -}}
+    {{- $img := partial "responsive-image.html" (dict "src" $src "alt" ($label | default $side)) -}}
+    {{- /* Not zoomable: a click on the image moves the divider */ -}}
+    {{- $img = replaceRE ` data-zoom-src="[^"]*"` "" $img -}}
+    {{- $imgs = $imgs | append $img -}}
+    {{- $w := findRESubmatch `\swidth="(\d+)"` $img 1 -}}
+    {{- $h := findRESubmatch `\sheight="(\d+)"` $img 1 -}}
+    {{- if and $w $h -}}
+      {{- $dims = $dims | append (div (float (index $w 0 1)) (float (index $h 0 1))) -}}
+    {{- end -}}
+  {{- end -}}
+  {{- if eq (len $dims) 2 -}}
+    {{- $a := index $dims 0 }}{{ $b := index $dims 1 -}}
+    {{- if gt (math.Abs (sub (div $a $b) 1)) 0.02 -}}
+      {{- warnf "%s: {{< compare >}} images have different aspect ratios (%.3f vs %.3f); the after image is cropped to fit" .Position $a $b -}}
+    {{- end -}}
+  {{- end -}}
+  {{- $start := .Get "start" | default 50 | float -}}
+  {{- $start = math.Max 0 (math.Min 100 $start) -}}
+  {{- $name := i18n "compare_slider" (dict "Before" (index $labels 0 | default (i18n "compare_before")) "After" (index $labels 1 | default (i18n "compare_after"))) -}}
+<figure class="compare" style="--pos: {{ $start }}%">
+<div class="compare-frame">
+{{ index $imgs 0 | safeHTML }}
+<div class="compare-after">{{ index $imgs 1 | safeHTML }}</div>
+{{ with index $labels 0 }}<span class="compare-label compare-label-before" aria-hidden="true">{{ . }}</span>
+{{ end -}}
+{{ with index $labels 1 }}<span class="compare-label compare-label-after" aria-hidden="true">{{ . }}</span>
+{{ end -}}
+<span class="compare-handle" aria-hidden="true"></span>
+<input class="compare-range" type="range" min="0" max="100" step="1" value="{{ $start }}" aria-label="{{ $name }}">
+</div>
+{{ with .Get "caption" }}<figcaption><h4>{{ . | markdownify }}</h4></figcaption>
+{{ end -}}
+</figure>
+{{- end -}}

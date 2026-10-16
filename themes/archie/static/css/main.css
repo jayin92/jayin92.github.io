@@ -1310,3 +1310,269 @@ sup:target a {
 .skip-link:focus {
   transform: none;
 }
+
+/* ── Alerts: > [!NOTE] … (_markup/render-blockquote.html) ──
+   A tinted box with a coloured left rule and a monospace title. Note uses the plain blockquote's
+   blue (--bordercl), tip the theme teal; the other three follow GitHub's alert colours. */
+.alert {
+  --alert-color: #0782bf;
+  margin: 1.2em 0;
+  padding: 0.7em 1em;
+  border-left: 3px solid var(--alert-color);
+  border-radius: 0 6px 6px 0;
+  background-color: color-mix(in srgb, var(--alert-color) 7%, transparent);
+}
+.alert-tip { --alert-color: #00897b; }
+.alert-important { --alert-color: #8250df; }
+.alert-warning { --alert-color: #9a6700; }
+.alert-caution { --alert-color: #cf222e; }
+.body .alert-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin: 0;
+  font-family: 'Roboto Mono', 'Sarasa Mono TC', 'Noto Sans TC', monospace;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--alert-color);
+}
+.alert-icon {
+  flex: none;
+}
+.alert > .alert-title + * {
+  margin-top: 0.35em;
+}
+.alert > :last-child {
+  margin-bottom: 0;
+}
+/* Folded alerts ([!TIP]- / [!TIP]+) are <details>: a chevron at the end of the title */
+.alert > summary {
+  cursor: pointer;
+  list-style: none;
+}
+.alert > summary::-webkit-details-marker {
+  display: none;
+}
+.alert > summary::after {
+  content: '';
+  flex: none;
+  width: 0.4em;
+  height: 0.4em;
+  margin: 0 0.2em 0 auto;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+}
+.alert[open] > summary::after {
+  transform: translateY(-0.15em) rotate(45deg);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .alert > summary::after {
+    transition: transform 0.15s ease;
+  }
+}
+
+/* ── Gallery shortcode (shortcodes/gallery.html) ──
+   Justified rows: each figure's flex-grow is its image's aspect ratio (--ar, set by the shortcode)
+   and its flex-basis that ratio times --row, so the images in a row grow to the same height and
+   fill the column without cropping. --row is the height a row starts from (lower → more images per
+   row). Growth stops at twice that height, so a lone image on the last row doesn't blow up to the
+   full column; such a row is centred. No colours of its own: captions use the figure styles. */
+.body figure.gallery {
+  --row: 200px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin: 1.5em 0;
+}
+.body .gallery > figure {
+  display: block;
+  flex: var(--ar, 1.5) 1 calc(var(--ar, 1.5) * var(--row));
+  max-width: calc(var(--ar, 1.5) * var(--row) * 2);
+  min-width: 0;
+  margin: 0;
+}
+.body .gallery img {
+  width: 100%;
+  height: auto;
+  max-height: none;
+  aspect-ratio: var(--ar, 1.5);
+  object-fit: cover;
+}
+.body .gallery figcaption {
+  display: block;
+}
+.body .gallery figure h4 {
+  margin-top: 0.35em;
+}
+/* The caption of the whole gallery takes its own line */
+.body .gallery > figcaption {
+  flex-basis: 100%;
+}
+@media screen and (max-width: 480px) {
+  .body figure.gallery {
+    --row: 120px;
+  }
+}
+
+/* ── Compare shortcode (shortcodes/compare.html, static/js/compare.js) ──
+   Two images stacked in one frame: the after image is clipped from the left at --pos, so the
+   before image shows left of the divider. The figure keeps the usual figure layout (shrink-to-fit,
+   centred, max 500px tall). The range input is invisible: compare.js handles the pointer, the
+   input is there for the keyboard and screen readers. */
+.compare-frame {
+  position: relative;
+  overflow: hidden;
+  border-radius: 6px;
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.compare-frame img {
+  -webkit-user-drag: none;
+}
+.compare-after {
+  position: absolute;
+  inset: 0;
+  clip-path: inset(0 0 0 var(--pos, 50%));
+}
+.body .compare-after img {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: cover;
+}
+.compare-frame::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--pos, 50%);
+  width: 2px;
+  margin-left: -1px;
+  background-color: #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
+  pointer-events: none;
+}
+.compare-handle {
+  display: none;
+  position: absolute;
+  top: 50%;
+  left: var(--pos, 50%);
+  width: 2.2rem;
+  height: 2.2rem;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background-color: #fff;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+}
+.compare-handle::before,
+.compare-handle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 0.38rem;
+  height: 0.38rem;
+  border: solid var(--maincolor);
+  border-width: 0 0 2px 2px;
+}
+.compare-handle::before {
+  left: 0.55rem;
+  transform: translateY(-50%) rotate(45deg);
+}
+.compare-handle::after {
+  right: 0.55rem;
+  transform: translateY(-50%) rotate(-135deg);
+}
+/* Only look draggable once compare.js runs */
+.compare-ready .compare-handle {
+  display: block;
+}
+.compare-ready .compare-frame {
+  cursor: ew-resize;
+}
+.compare-label {
+  position: absolute;
+  top: 0.6rem;
+  max-width: 42%;
+  overflow: hidden;
+  padding: 0.1em 0.5em;
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-family: 'Roboto Mono', 'Sarasa Mono TC', 'Noto Sans TC', monospace;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+.compare-label-before {
+  left: 0.6rem;
+}
+.compare-label-after {
+  right: 0.6rem;
+}
+.compare-range {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.compare-frame:has(.compare-range:focus-visible) {
+  outline: 2px solid var(--maincolor);
+  outline-offset: 2px;
+}
+
+/* ── Link card shortcode (shortcodes/linkcard.html) ──
+   The whole card is clickable: the title link's ::after covers it, so hovering the card gives the
+   title the theme's usual link hover. */
+.linkcard {
+  position: relative;
+  margin: 1.2em 0;
+  padding: 0.7em 1em;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-left: 3px solid var(--maincolor);
+  border-radius: 6px;
+}
+.linkcard:hover {
+  border-color: var(--maincolor);
+}
+.linkcard:has(.linkcard-title:focus-visible) {
+  outline: 2px solid var(--maincolor);
+  outline-offset: 2px;
+}
+.linkcard-title {
+  font-family: 'Roboto Mono', 'Sarasa Mono TC', 'Noto Sans TC', monospace;
+  font-weight: 700;
+  line-height: 1.5;
+}
+.linkcard-title::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+.body .linkcard-desc {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  margin: 0.3em 0 0;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: #555;
+}
+.body .linkcard-meta {
+  margin: 0.3em 0 0;
+  font-family: 'Roboto Mono', 'Sarasa Mono TC', 'Noto Sans TC', monospace;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: grey;
+}

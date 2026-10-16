@@ -33,3 +33,23 @@ back_home = "Back to home"
 
 [entries_tagged]
 other = "Entries tagged - \"{{ .Tag }}\""
+
+# Alert titles: > [!NOTE] … (_markup/render-blockquote.html)
+[alert_note]
+other = "Note"
+[alert_tip]
+other = "Tip"
+[alert_important]
+other = "Important"
+[alert_warning]
+other = "Warning"
+[alert_caution]
+other = "Caution"
+
+# Before/after slider labels and its screen-reader name (shortcodes/compare.html)
+[compare_before]
+other = "Before"
+[compare_after]
+other = "After"
+[compare_slider]
+other = "Divider between “{{ .Before }}” and “{{ .After }}”"

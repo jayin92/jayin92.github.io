@@ -20,7 +20,200 @@
   // text{{< footnote >}}note{{< /footnote >}} on one line (inline: no [\s\S])
   var footnoteRe = /\{\{<\s*footnote\s*>\}\}((?:(?!\{\{<\s*\/footnote)[^\n])*)\{\{<\s*\/footnote\s*>\}\}/;
 
+  // GitHub-style alert: "> [!TYPE]" (+ optional -/+ fold sign and title) and the quote lines after
+  // it. The m flag makes it a block component, so the CMS keeps the whole alert as written instead
+  // of editing it as a blockquote (which would escape the "["). Only on a quote's first line, like Hugo.
+  var alertRe = /^(?<!^>[^\n]*\n)> ?\[!([A-Za-z]+)\]([+-]?)(?:[ \t]+([^\n]*?))?[ \t]*((?:\n>[^\n]*)*)$/m;
+  var alertTypes = { NOTE: 'Note', TIP: 'Tip', IMPORTANT: 'Important', WARNING: 'Warning', CAUTION: 'Caution' };
+  var alertColors = { NOTE: '#0782bf', TIP: '#00897b', IMPORTANT: '#8250df', WARNING: '#9a6700', CAUTION: '#cf222e' };
+  var parseAlert = function (m) {
+    return {
+      type: m[1].toUpperCase(),
+      fold: m[2] || '',
+      title: m[3] || '',
+      // drop the "> " (or ">") quote marker from every line
+      content: m[4] ? m[4].slice(1).split('\n').map(function (l) { return l.replace(/^> ?/, ''); }).join('\n') : '',
+    };
+  };
+
+  // {{< gallery >}} … {{< /gallery >}}: its images are Markdown images or figure shortcodes, in order.
+  var galleryRe = /\{\{<\s*gallery((?:\s+[a-zA-Z]+="[^"]*")*)\s*>\}\}([\s\S]*?)\{\{<\s*\/gallery\s*>\}\}/;
+  var galleryItemRe = /!\[([^\]]*)\]\(\s*<?([^\s>)]+)>?(?:\s+"([^"]*)")?\s*\)|\{\{<\s*figure((?:\s+[a-zA-Z]+="[^"]*")+)\s*\/?>\}\}/g;
+  var unquote = function (s) { return String(s || '').replace(/&quot;/g, '"'); };
+  var parseGallery = function (inner) {
+    var out = [];
+    String(inner || '').replace(galleryItemRe, function (_, alt, src, title, fig) {
+      var a = fig ? attrs(fig) : { src: src, title: title, alt: alt };
+      out.push({ src: a.src || '', title: unquote(a.title), alt: a.alt || '' });
+    });
+    return out;
+  };
+  var sameImages = function (a, b) {
+    var key = function (list) {
+      return JSON.stringify((list || []).filter(function (i) { return i && i.src; })
+        .map(function (i) { return [i.src, i.title || '', i.alt || '']; }));
+    };
+    return key(a) === key(b);
+  };
+  // Text for a "quoted" attribute or Markdown title: one line, quotes as &quot; (the shortcodes decode it)
+  var quoted = function (s) { return String(s == null ? '' : s).replace(/\s+/g, ' ').trim().replace(/"/g, '&quot;'); };
+
+  // {{< compare before="…" after="…" before-label="…" after-label="…" start="…" caption="…" >}} on its
+  // own line (the m flag makes it a block component). Attribute names may contain "-".
+  var compareRe = /^\{\{<\s*compare((?:\s+[a-zA-Z-]+="[^"]*")+)\s*>\}\}$/m;
+  // {{< linkcard "post" >}} or {{< linkcard page="…"|url="…" title="…" description="…" >}} on its own line
+  var linkcardRe = /^\{\{<\s*linkcard(?:\s+"([^"]*)"|((?:\s+[a-zA-Z]+="[^"]*")+))\s*>\}\}$/m;
+  var linkcardValues = function (m) {
+    var a = m[2] ? attrs(m[2]) : { page: m[1] };
+    return { page: a.page || '', url: a.url || '', title: unquote(a.title), description: unquote(a.description) };
+  };
+  var compareAttrs = function (s) {
+    var out = {};
+    String(s || '').replace(/([a-zA-Z-]+)="([^"]*)"/g, function (_, k, v) { out[k] = v; });
+    return {
+      before: out.before || '', after: out.after || '',
+      beforeLabel: unquote(out['before-label']), afterLabel: unquote(out['after-label']),
+      start: out.start ? Number(out.start) : undefined, caption: unquote(out.caption),
+    };
+  };
+
   var components = [
+    {
+      // Theme shortcode (layouts/shortcodes/gallery.html). Listed before figure, whose pattern would
+      // otherwise also match figure shortcodes inside a gallery.
+      id: 'gallery',
+      label: 'Gallery',
+      icon: 'photo_library',
+      fields: [
+        { name: 'images', label: 'Images', label_singular: 'Image', widget: 'list',
+          fields: [
+            { name: 'src', label: 'Image', widget: 'image' },
+            { name: 'title', label: 'Caption', widget: 'string', required: false },
+            { name: 'alt', label: 'Alt text', widget: 'string', required: false, hint: 'Defaults to the caption' },
+          ] },
+        { name: 'caption', label: 'Caption for the whole gallery', widget: 'string', required: false },
+        // The gallery exactly as written; reused while nothing changed (keeps figure shortcodes as they were).
+        { name: 'raw', widget: 'hidden', required: false },
+      ],
+      pattern: galleryRe,
+      fromBlock: function (m) {
+        return { images: parseGallery(m[2]), caption: unquote(attrs(m[1]).caption), raw: m[0] };
+      },
+      toBlock: function (v) {
+        if (v.raw) {
+          var m = String(v.raw).match(galleryRe);
+          if (m && sameImages(parseGallery(m[2]), v.images) && unquote(attrs(m[1]).caption) === (v.caption || '')) return v.raw;
+        }
+        var lines = (v.images || []).filter(function (i) { return i && i.src; }).map(function (i) {
+          var alt = String(i.alt || '').replace(/\s+/g, ' ').trim().replace(/[[\]]/g, '');
+          return '![' + alt + '](' + String(i.src).replace(/ /g, '%20') + (i.title ? ' "' + quoted(i.title) + '"' : '') + ')';
+        });
+        return '{{< gallery' + (v.caption ? ' caption="' + quoted(v.caption) + '"' : '') + ' >}}\n' +
+          (lines.length ? lines.join('\n') + '\n' : '') + '{{< /gallery >}}';
+      },
+      toPreview: function (v) {
+        var imgs = (v.images || []).filter(function (i) { return i && i.src; });
+        if (!imgs.length) return box('Gallery', 'no images yet');
+        return '<div style="display:flex;flex-wrap:wrap;gap:6px;margin:1.5em 0">' + imgs.map(function (i) {
+          return '<figure style="display:block;flex:1 1 160px;margin:0"><img src="' + esc(i.src) + '" alt="' + esc(i.alt || i.title) + '"' +
+            ' style="display:block;width:100%;height:160px;max-height:none;object-fit:cover;border-radius:6px">' +
+            (i.title ? '<figcaption style="display:block"><h4>' + esc(i.title) + '</h4></figcaption>' : '') + '</figure>';
+        }).join('') + (v.caption ? '<figcaption style="display:block;flex-basis:100%"><h4>' + esc(v.caption) + '</h4></figcaption>' : '') + '</div>';
+      },
+    },
+    {
+      // Theme shortcode (layouts/shortcodes/compare.html): before/after images with a draggable divider.
+      id: 'compare',
+      label: 'Before / after slider',
+      icon: 'compare',
+      fields: [
+        { name: 'before', label: 'Before (left)', widget: 'image' },
+        { name: 'beforeLabel', label: 'Before label', widget: 'string', required: false, hint: 'Empty: 之前 / Before' },
+        { name: 'after', label: 'After (right)', widget: 'image', hint: 'Same aspect ratio as the before image' },
+        { name: 'afterLabel', label: 'After label', widget: 'string', required: false, hint: 'Empty: 之後 / After' },
+        { name: 'caption', label: 'Caption', widget: 'string', required: false },
+        { name: 'start', label: 'Divider starts at (%)', widget: 'number', value_type: 'int', min: 0, max: 100, required: false, hint: 'Default 50' },
+        { name: 'raw', widget: 'hidden', required: false },
+      ],
+      pattern: compareRe,
+      fromBlock: function (m) {
+        var v = compareAttrs(m[1]);
+        v.raw = m[0];
+        return v;
+      },
+      toBlock: function (v) {
+        var keys = ['before', 'after', 'beforeLabel', 'afterLabel', 'caption'];
+        var num = function (n) { return n === undefined || n === null || n === '' ? '' : String(Number(n)); };
+        if (v.raw) {
+          var m = String(v.raw).match(compareRe);
+          var o = m && compareAttrs(m[1]);
+          if (o && keys.every(function (k) { return (o[k] || '') === (v[k] || ''); }) && num(o.start) === num(v.start)) return v.raw;
+        }
+        var s = '{{< compare before="' + (v.before || '') + '" after="' + (v.after || '') + '"';
+        if (v.beforeLabel) s += ' before-label="' + quoted(v.beforeLabel) + '"';
+        if (v.afterLabel) s += ' after-label="' + quoted(v.afterLabel) + '"';
+        if (num(v.start) && Number(v.start) !== 50) s += ' start="' + num(v.start) + '"';
+        if (v.caption) s += ' caption="' + quoted(v.caption) + '"';
+        return s + ' >}}';
+      },
+      toPreview: function (v) {
+        if (!v.before || !v.after) return box('Before / after', 'needs two images');
+        var pos = (v.start === undefined || v.start === null || v.start === '' ? 50 : Number(v.start)) + '%';
+        var label = function (text, side) {
+          return '<span style="position:absolute;top:.6rem;' + side + ':.6rem;padding:.1em .5em;border-radius:4px;' +
+            'background:rgba(0,0,0,.55);color:#fff;font:12px/1.6 monospace">' + esc(text) + '</span>';
+        };
+        return '<figure style="display:table;margin:1.5em auto;max-width:100%"><div style="position:relative;overflow:hidden;border-radius:6px">' +
+          '<img src="' + esc(v.before) + '" alt="" style="display:block;max-width:100%;max-height:500px;margin:0">' +
+          '<img src="' + esc(v.after) + '" alt="" style="position:absolute;inset:0;width:100%;height:100%;max-height:none;margin:0;object-fit:cover;clip-path:inset(0 0 0 ' + pos + ')">' +
+          '<div style="position:absolute;top:0;bottom:0;left:' + pos + ';width:2px;margin-left:-1px;background:#fff"></div>' +
+          label(v.beforeLabel || '之前', 'left') + label(v.afterLabel || '之後', 'right') + '</div>' +
+          (v.caption ? '<figcaption><h4>' + esc(v.caption) + '</h4></figcaption>' : '') + '</figure>';
+      },
+    },
+    {
+      // Theme shortcode (layouts/shortcodes/linkcard.html): a card linking to another post (title,
+      // description and date come from the post) or to any URL (title required).
+      id: 'linkcard',
+      label: 'Link card',
+      icon: 'link',
+      fields: [
+        { name: 'page', label: 'Post', widget: 'string', required: false, hint: 'File name of a post, e.g. eth or nycu-cs-eth-exchange. Leave empty to link a URL instead.' },
+        { name: 'url', label: 'URL (instead of a post)', widget: 'string', required: false },
+        { name: 'title', label: 'Title', widget: 'string', required: false, hint: 'Posts: leave empty to use the post title. URLs: required.' },
+        { name: 'description', label: 'Description', widget: 'string', required: false, hint: 'Posts: leave empty to use the post description.' },
+        { name: 'raw', widget: 'hidden', required: false },
+      ],
+      pattern: linkcardRe,
+      fromBlock: function (m) {
+        var v = linkcardValues(m);
+        v.raw = m[0];
+        return v;
+      },
+      toBlock: function (v) {
+        var keys = ['page', 'url', 'title', 'description'];
+        if (v.raw) {
+          var m = String(v.raw).match(linkcardRe);
+          var o = m && linkcardValues(m);
+          if (o && keys.every(function (k) { return o[k] === (v[k] || ''); })) return v.raw;
+        }
+        var page = String(v.page || '').trim();
+        if (page && !v.url && !v.title && !v.description) return '{{< linkcard "' + page.replace(/"/g, '') + '" >}}';
+        var s = '{{< linkcard';
+        if (page) s += ' page="' + page.replace(/"/g, '') + '"';
+        if (v.url) s += ' url="' + String(v.url).trim().replace(/"/g, '%22') + '"';
+        if (v.title) s += ' title="' + quoted(v.title) + '"';
+        if (v.description) s += ' description="' + quoted(v.description) + '"';
+        return s + ' >}}';
+      },
+      toPreview: function (v) {
+        var target = v.page ? '/posts/' + v.page.replace(/^\/?(posts\/)?|\/$/g, '') + '/' : v.url;
+        return '<div style="margin:1.2em 0;padding:.7em 1em;border:1px solid rgba(0,0,0,.12);border-left:3px solid #00897b;border-radius:6px">' +
+          '<div style="font:700 15px/1.5 monospace">' + esc(v.title || (v.page ? '(title of ' + v.page + ')' : '(no title)')) + '</div>' +
+          (v.description ? '<div style="font-size:14px;color:#777">' + esc(v.description) + '</div>' : '') +
+          '<div style="font:12px/1.5 monospace;color:grey">→ ' + esc(target || '(no post or URL yet)') + '</div></div>';
+      },
+    },
     {
       id: 'figure',
       label: 'Figure',
@@ -124,6 +317,56 @@
         var head = { tip: '🔎 Tip', warning: '⚠️ Warning', alert: '🚨 Alert', custom: (v.emoji || '') + ' ' + (v.title || '') }[v.type];
         return '<div style="background:dodgerblue;color:#fff;padding:1em;border-radius:4px">' +
           (head ? '<u>' + esc(head) + '</u><br>' : '💡 ') + esc(v.text) + '</div>';
+      },
+    },
+    {
+      // Markdown alert (layouts/_default/_markup/render-blockquote.html):
+      //   > [!WARNING] optional title
+      //   > text
+      // [!TIP]- folds it (closed), [!TIP]+ folds it but starts open.
+      id: 'alert',
+      label: 'Alert (note / tip / warning)',
+      icon: 'info',
+      fields: [
+        { name: 'type', label: 'Type', widget: 'select', default: 'NOTE',
+          options: [{ label: 'Note 備註', value: 'NOTE' }, { label: 'Tip 提示', value: 'TIP' },
+            { label: 'Important 重要', value: 'IMPORTANT' }, { label: 'Warning 警告', value: 'WARNING' },
+            { label: 'Caution 小心', value: 'CAUTION' }] },
+        { name: 'title', label: 'Title', widget: 'string', required: false, hint: 'Leave empty for the default (備註, 提示…)' },
+        { name: 'fold', label: 'Collapsible', widget: 'select', required: false, default: '',
+          options: [{ label: 'No', value: '' }, { label: 'Yes, closed', value: '-' }, { label: 'Yes, open', value: '+' }] },
+        { name: 'content', label: 'Text (Markdown)', widget: 'text', required: false },
+        // The alert exactly as written; reused while nothing changed, so ">" without a space etc. stay as they were.
+        { name: 'raw', widget: 'hidden', required: false },
+      ],
+      pattern: alertRe,
+      fromBlock: function (m) {
+        var v = parseAlert(m);
+        v.raw = m[0];
+        return v;
+      },
+      toBlock: function (v) {
+        var type = String(v.type || 'NOTE').toUpperCase();
+        var fold = v.fold === '-' || v.fold === '+' ? v.fold : '';
+        var title = String(v.title || '');
+        var content = String(v.content || '');
+        if (v.raw) {
+          var m = String(v.raw).match(alertRe);
+          var o = m && parseAlert(m);
+          if (o && o.type === type && o.fold === fold && o.title === title && o.content === content) return v.raw;
+        }
+        title = title.replace(/\s+/g, ' ').trim(); // it has to stay on the [!TYPE] line
+        content = content.replace(/\s+$/, '');
+        var lines = content ? content.split('\n').map(function (l) { return l ? '> ' + l : '>'; }) : [];
+        return ['> [!' + type + ']' + fold + (title ? ' ' + title : '')].concat(lines).join('\n');
+      },
+      toPreview: function (v) {
+        var type = String(v.type || 'NOTE').toUpperCase();
+        var color = alertColors[type] || alertColors.NOTE;
+        return '<div style="border-left:3px solid ' + color + ';background:' + color + '12;border-radius:0 6px 6px 0;padding:.7em 1em;margin:1.2em 0">' +
+          '<div style="color:' + color + ';font:700 14px/1.5 monospace">' + (v.fold ? (v.fold === '+' ? '▾ ' : '▸ ') : '') +
+          esc(v.title || alertTypes[type] || type) + '</div>' +
+          '<div style="white-space:pre-wrap;margin-top:.35em">' + esc(v.content) + '</div></div>';
       },
     },
     {

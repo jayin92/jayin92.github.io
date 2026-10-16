@@ -33,3 +33,23 @@ back_home = "回到首頁"
 
 [entries_tagged]
 other = "標籤：{{ .Tag }}"
+
+# Alert titles: > [!NOTE] … (_markup/render-blockquote.html)
+[alert_note]
+other = "備註"
+[alert_tip]
+other = "提示"
+[alert_important]
+other = "重要"
+[alert_warning]
+other = "警告"
+[alert_caution]
+other = "小心"
+
+# Before/after slider labels and its screen-reader name (shortcodes/compare.html)
+[compare_before]
+other = "之前"
+[compare_after]
+other = "之後"
+[compare_slider]
+other = "比較「{{ .Before }}」與「{{ .After }}」的分界位置"
