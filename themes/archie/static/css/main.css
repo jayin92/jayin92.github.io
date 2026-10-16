@@ -155,6 +155,16 @@ figure img {
   max-height: 500px;
   width: auto;
 }
+/* Lazy images need a box before they load: width:auto gave an unloaded <img> no size (2px with its
+   border), and posts grew by up to ~4800px as images arrived. The min-width is 1px under the
+   loaded width (the 680px column, or less where the 500px height cap applies; the ratio comes from
+   the width/height attributes), so the attributes' aspect ratio sizes the placeholder, and it never
+   binds once the image is in: loaded images keep exactly the size width:auto gives them. Typed
+   attr() is Chrome 133+; elsewhere the line is dropped and desktop behaves as before. Phones (all
+   browsers): see the 768px block. */
+figure img[width] {
+  min-width: min(679px, 500px * attr(width type(<number>)) / attr(height type(<number>)) - 1px);
+}
 
 
 
@@ -627,6 +637,13 @@ footer svg{
 
   figure img {
     max-height: none;
+  }
+
+  /* No height cap here, so every image is as wide as the column (≤680px): a definite width,
+     cut to the column by max-width, reserves the box exactly */
+  figure img[width] {
+    min-width: 0;
+    width: 680px;
   }
 }
 
