@@ -37,6 +37,7 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 - Posts get a table of contents automatically when they have 3+ h2/h3 headings (or `outline: true`); `toc: false` hides it. Right-hand sidebar on screens ≥1200px, collapsible box otherwise (`single.html`, `static/js/toc.js`; breakpoint is duplicated in `main.css`).
 - Non-page posts get a 3px reading progress bar fixed to the top of the viewport (`single.html`, `static/js/reading-progress.js`, `.reading-progress` in `main.css`/`dark.css`). It fills from the top of the page to the end of `.body` (tags/comments don't count) and stays hidden when the post fits on one screen.
 - Local images under `/image/...` are processed by Hugo (see Images below); keep using the same `/image/...` paths.
+- Print: `main.css` is linked without a `media` attribute (it was `screen`, so printouts were unstyled) and ends with an `@media print` block: nav/search/toggle, TOC, comments, progress bar, copy buttons and tags hidden; external link URLs printed after the link; tables/code/KaTeX unscrolled; headings kept with the next block via `:is(h1, …, h6) + * { break-before: avoid }` (`break-after: avoid` on the heading made Chrome push runs of figures to the next page). The dark theme also applies in print (manual choice or dark OS), so `dark.css` has a print block that forces black on white. Check with Chrome's print-to-PDF in light, OS dark and `localStorage.theme = "dark"`.
 
 ## Fonts
 

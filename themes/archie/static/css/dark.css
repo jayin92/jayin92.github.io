@@ -373,6 +373,27 @@ sup:target a {
   border-color: #444;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
+
+/* Print with the dark theme on (manual choice or a dark OS): paper stays white, so print black on
+   white instead of #e3e3e3 text and github-dark tokens without their background. Layout is in
+   main.css's print block. */
+@media print {
+  *,
+  *::before,
+  *::after {
+    color: #000 !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+  }
+  .body th,
+  .body td {
+    border-bottom-color: rgba(0, 0, 0, 0.1) !important;
+  }
+  .body th,
+  .footnotes hr {
+    border-color: rgba(0, 0, 0, 0.2) !important;
+  }
+}
 .reading-progress {
   background-color: var(--darkMaincolor);
 }

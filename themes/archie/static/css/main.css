@@ -1239,6 +1239,99 @@ sup:target a {
   }
 }
 
+/* Print: the post on paper, without the site's controls. main.css is linked without a media
+   attribute for this. dark.css has its own print block that turns the dark theme back into black
+   on white. !important where a screen rule (or dark.css) would otherwise win. */
+@media print {
+  @page {
+    margin: 18mm 16mm;
+  }
+  html {
+    font-size: 10.5pt;
+  }
+  .content {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+  header nav,
+  header::after,
+  .toc,
+  .reading-progress,
+  .code-copy,
+  .translations,
+  .post-tags,
+  .comments,
+  .pagination,
+  .footer-icons,
+  dialog.lightbox,
+  .note-popover {
+    display: none !important;
+  }
+  /* just the site name above the post, in the flow (not sticky, never slid away) */
+  header {
+    position: static;
+    transform: none !important;
+    margin: 0 0 1em;
+    padding: 0;
+  }
+  header .main {
+    font-size: 1.1rem;
+    line-height: 1.5;
+  }
+  a {
+    border-bottom-width: 1px !important;
+  }
+  /* where external links go; image links and in-page links (#fn, #ref) are left alone */
+  .body a[href^="http"]:not(:has(img))::after {
+    content: " (" attr(href) ")";
+    font-size: 0.8em;
+    color: var(--muted);
+    overflow-wrap: anywhere;
+  }
+  /* scroll containers would clip on paper */
+  .highlight pre,
+  .body table,
+  .katex-display {
+    overflow: visible !important;
+  }
+  .highlight pre {
+    border-color: #bbb !important;
+  }
+  .highlight pre code {
+    overflow-wrap: anywhere;
+  }
+  /* the lazy-load placeholder sizes (figure img[width]) are for the 680px screen column */
+  .body img,
+  .body figure img[width] {
+    max-height: 110mm;
+    min-width: 0;
+    width: auto;
+  }
+  /* the default callout is white text on blue: keep its background even when the browser drops
+     backgrounds */
+  .callout {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    break-inside: avoid;
+  }
+  /* keep a heading on the page of the text after it. Not break-after: avoid on the heading: with
+     that, Chrome pushed whole runs of figures to the next page (a 19%-full page in from-hexo-to-hugo) */
+  :is(h1, h2, h3, h4, h5, h6) + * {
+    break-before: avoid;
+  }
+  pre,
+  blockquote,
+  figure,
+  table,
+  .katex-display,
+  .callout {
+    break-inside: avoid;
+  }
+}
+
 /* Reading progress bar (static/js/reading-progress.js). Fixed to the viewport, above the
    sticky header, so it stays visible while the header is hidden. */
 .reading-progress {
