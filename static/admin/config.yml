@@ -40,6 +40,11 @@ media_libraries:
         width: 2560
         height: 2560
 
+# Date tags in slugs ({{year}}-{{month}}-{{day}} for diaries) use the local date, not UTC, like
+# write-diary.py; with UTC a diary started in Taiwan before 08:00 got yesterday's filename.
+slug:
+  timezone: local
+
 # Hugo translations are sibling files: eth.md (zh-tw) + eth.en.md.
 # New entries start zh-tw only, so no empty English file is created by accident.
 i18n:
@@ -73,7 +78,7 @@ collections:
     summary: "{{title}} · {{date | date('YYYY-MM-DD')}}{{draft | ternary(' · DRAFT', '')}}"
     fields:
       - { label: Title, name: title, widget: string, i18n: true }
-      - { label: Date, name: date, widget: datetime, format: "YYYY-MM-DDTHH:mm:ssZ", i18n: duplicate }
+      - { label: Date, name: date, widget: datetime, format: "YYYY-MM-DDTHH:mm:ssZ", default: "{{now}}", i18n: duplicate }
       - { label: Description, name: description, widget: string, required: false, i18n: true }
       - { label: Tags, name: tags, widget: list, required: false, i18n: true }
       # Default to draft so nothing goes live by accident; per-locale so an English draft can stay hidden.
@@ -93,7 +98,7 @@ collections:
       default: { field: date, direction: descending }
     fields:
       - { label: Title, name: title, widget: string }
-      - { label: Date, name: date, widget: datetime, format: "YYYY-MM-DDTHH:mm:ssZ" }
+      - { label: Date, name: date, widget: datetime, format: "YYYY-MM-DDTHH:mm:ssZ", default: "{{now}}" }
       - { label: Tags, name: tags, widget: list, default: [Diary] }
       - { label: Draft, name: draft, widget: boolean, default: false }
       - { label: Body, name: body, widget: markdown }
