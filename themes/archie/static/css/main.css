@@ -2,7 +2,8 @@
 :root{
 --maincolor: #00897B;
 --bordercl: #0782bf;
---callouctcolor:dodgerblue;
+/* default callout: dodgerblue's hue, darkened so its white text is 4.8:1 (dodgerblue: 3.2) */
+--callouctcolor: #0070e0;
 --hovercolor: #00897B;
 --darkMaincolor: #80CBC4;
 /* Secondary text (dates, TOC, captions, hints, quotes): 5.3:1 on white, WCAG AA. dark.css sets its own. */
