@@ -21,8 +21,9 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 - `content/image/` — Images organized in subdirectories, referenced via `{{<figure>}}` shortcode
 - `layouts/` — Site-level overrides (e.g. `_default/search.json`); these take precedence over `themes/archie/layouts/`
 - `themes/archie/` — Modified Archie theme with custom layouts and local fonts
-  - `layouts/partials/head.html` — KaTeX math, Google Analytics, Microsoft Clarity
-  - `layouts/partials/header.html` — Navigation, favicon, font loading
+  - `layouts/partials/header.html` — the `<head>`: meta tags, favicons, KaTeX (`katex: true`), font/CSS links, dark-mode stylesheet bootstrap
+  - `layouts/partials/head.html` — the visible nav `<header>`: site title, menu, language switcher, search, theme toggle
+  - `layouts/partials/analytics.html` — Google Analytics + Microsoft Clarity (end of `<body>`, skipped under `hugo server`)
   - `layouts/partials/footer.html` — Copyright, social icons (Feather)
   - `static/css/` — `main.css`, `dark.css` (auto dark mode), `fonts.css`
 - `archetypes/` — Templates for new content (`default.md`, `diaries.md`)
