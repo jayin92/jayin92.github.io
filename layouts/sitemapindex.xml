@@ -1,0 +1,20 @@
+{{- /* Site-level override of Hugo's embedded sitemapindex.xml (v0.167.0). Only change: a language whose
+       sitemap would be empty (no published content, only shells; see layouts/sitemap.xml) is left out,
+       so the index doesn't point at an empty <urlset>. */ -}}
+{{ printf "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>" | safeHTML }}
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+	{{ range . }}
+		{{- $listed := false }}
+		{{- range where .Pages "Sitemap.Disable" "ne" true }}
+			{{- if and .Permalink (not (partial "is-shell.html" .)) }}{{ $listed = true }}{{ break }}{{ end }}
+		{{- end }}
+		{{- if $listed }}
+		<sitemap>
+			<loc>{{ .SitemapAbsURL }}</loc>
+			{{ if not .Lastmod.IsZero }}
+				<lastmod>{{ .Lastmod.Format "2006-01-02T15:04:05-07:00" | safeHTML }}</lastmod>
+			{{ end }}
+		</sitemap>
+		{{- end }}
+	{{ end }}
+</sitemapindex>

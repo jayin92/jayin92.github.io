@@ -92,6 +92,7 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 - Open Graph/Twitter tags are `partials/social-meta.html` (not Hugo's internal templates). The image (`partials/page-image.html`) is the post's first local `/image/...` picture, converted to a JPEG ≤1200px wide; `summary_large_image` only when it's ≥600px wide. Otherwise, and on list pages, it's the 512px site icon (`params.og_image` overrides that default).
 - JSON-LD (`partials/json-ld.html`): `BlogPosting` on posts, `WebSite` on the home page; author from `[params.author]`, with the http(s) `[[params.social]]` links as `sameAs`. Output through `jsonify | safeJS`; check changes with `json.loads` on the built pages.
 - RSS: `layouts/rss.xml` overrides Hugo's embedded template (v0.167.0) only so the home feed lists posts (mainSections, not `hidden`) instead of every regular page (About, Search). Items carry `.Summary`, not full content (the footnote/reference lists only exist in `single.html`). Every page links a feed for autodiscovery: list pages their own, other pages the site feed.
+- `robots.txt` (`enableRobotsTXT`, `layouts/robots.txt`) allows everything and names the sitemap. Don't `Disallow` noindex pages (English shells, `/admin/`): crawlers would never see the noindex. `layouts/sitemapindex.xml` leaves out a language whose sitemap would be empty (English today).
 
 ## Comments
 
