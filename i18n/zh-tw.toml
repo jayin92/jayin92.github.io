@@ -12,6 +12,9 @@ toc = "目錄"
 toggle_dark = "切換深色模式"
 date_format = "2006-01-02"
 date_short = "01-02"
+post_nav = "文章導覽"
+newer_post = "較新的文章"
+older_post = "較舊的文章"
 
 [entries_tagged]
 other = "標籤：{{ .Tag }}"

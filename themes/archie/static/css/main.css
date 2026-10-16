@@ -1245,3 +1245,44 @@ sup:target a {
   white-space: nowrap !important;
   border: 0 !important;
 }
+
+/* ── Newer/older post links (partials/post-nav.html, in single.html) ── */
+/* "← 較新的文章" on the left, "較舊的文章 →" on the right (the same directions as the pagination);
+   each is one block link: a small grey label over the title. Stacked on phones. */
+.post-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1em 2em;
+  margin-top: 2.5em;
+}
+.post-nav a {
+  display: block;
+  max-width: 48%;
+  border-bottom: none;
+  line-height: 1.5;
+}
+.post-nav-older {
+  margin-left: auto;
+  text-align: right;
+}
+.post-nav-label {
+  display: block;
+  margin-bottom: 0.15em;
+  font-size: 0.8rem;
+  color: grey;
+}
+.post-nav-title {
+  border-bottom: 3px solid var(--maincolor);
+}
+.post-nav a:hover .post-nav-label {
+  color: inherit;
+}
+@media screen and (max-width: 600px) {
+  .post-nav {
+    flex-direction: column;
+  }
+  .post-nav a {
+    max-width: 100%;
+  }
+}

@@ -12,6 +12,9 @@ toc = "Contents"
 toggle_dark = "Toggle dark mode"
 date_format = "Jan 2, 2006"
 date_short = "Jan 2"
+post_nav = "Post navigation"
+newer_post = "Newer post"
+older_post = "Older post"
 
 [entries_tagged]
 other = "Entries tagged - \"{{ .Tag }}\""

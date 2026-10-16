@@ -1,0 +1,21 @@
+{{- /* Newer / older post links at the end of a post. Posts of mainSections without hidden ones (as
+       on the home page), in the archive's order: ByDate.Reverse orders posts with the same date
+       the way GroupByDate does in partials/post-list.html, so following "older" from the newest
+       post walks the archive top to bottom. Arrows match the pagination: ← newer, older →.
+       Context: the page. */ -}}
+{{- if in site.Params.mainSections .Type }}
+{{- $pages := (where (where site.RegularPages "Type" "in" site.Params.mainSections) "Params.hidden" "ne" true).ByDate.Reverse }}
+{{- /* Pages.Next is the entry *before* this one in the list (newer), Pages.Prev the one after */}}
+{{- $newer := $pages.Next . }}
+{{- $older := $pages.Prev . }}
+{{- if or $newer $older }}
+<nav class="post-nav" aria-label="{{ i18n "post_nav" }}">
+	{{- with $newer }}
+	<a class="post-nav-newer" href="{{ .RelPermalink }}"><span class="post-nav-label"><span aria-hidden="true">← </span>{{ i18n "newer_post" }}</span> <span class="post-nav-title">{{ .Title }}</span></a>
+	{{- end }}
+	{{- with $older }}
+	<a class="post-nav-older" href="{{ .RelPermalink }}"><span class="post-nav-label">{{ i18n "older_post" }}<span aria-hidden="true"> →</span></span> <span class="post-nav-title">{{ .Title }}</span></a>
+	{{- end }}
+</nav>
+{{- end }}
+{{- end -}}
