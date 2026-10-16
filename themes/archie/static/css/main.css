@@ -1264,3 +1264,48 @@ sup:target a {
     transition: transform 0.15s ease;
   }
 }
+
+/* ── Gallery shortcode (shortcodes/gallery.html) ──
+   Justified rows: each figure's flex-grow is its image's aspect ratio (--ar, set by the shortcode)
+   and its flex-basis that ratio times --row, so the images in a row grow to the same height and
+   fill the column without cropping. --row is the height a row starts from (lower → more images per
+   row). Growth stops at twice that height, so a lone image on the last row doesn't blow up to the
+   full column; such a row is centred. No colours of its own: captions use the figure styles. */
+.body figure.gallery {
+  --row: 200px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin: 1.5em 0;
+}
+.body .gallery > figure {
+  display: block;
+  flex: var(--ar, 1.5) 1 calc(var(--ar, 1.5) * var(--row));
+  max-width: calc(var(--ar, 1.5) * var(--row) * 2);
+  min-width: 0;
+  margin: 0;
+}
+.body .gallery img {
+  width: 100%;
+  height: auto;
+  max-height: none;
+  aspect-ratio: var(--ar, 1.5);
+  object-fit: cover;
+}
+.body .gallery figcaption {
+  display: block;
+}
+.body .gallery figure h4 {
+  margin-top: 0.35em;
+}
+/* The caption of the whole gallery takes its own line */
+.body .gallery > figcaption {
+  flex-basis: 100%;
+}
+@media screen and (max-width: 480px) {
+  .body figure.gallery {
+    --row: 120px;
+  }
+}

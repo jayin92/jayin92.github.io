@@ -36,7 +36,72 @@
     };
   };
 
+  // {{< gallery >}} … {{< /gallery >}}: its images are Markdown images or figure shortcodes, in order.
+  var galleryRe = /\{\{<\s*gallery((?:\s+[a-zA-Z]+="[^"]*")*)\s*>\}\}([\s\S]*?)\{\{<\s*\/gallery\s*>\}\}/;
+  var galleryItemRe = /!\[([^\]]*)\]\(\s*<?([^\s>)]+)>?(?:\s+"([^"]*)")?\s*\)|\{\{<\s*figure((?:\s+[a-zA-Z]+="[^"]*")+)\s*\/?>\}\}/g;
+  var unquote = function (s) { return String(s || '').replace(/&quot;/g, '"'); };
+  var parseGallery = function (inner) {
+    var out = [];
+    String(inner || '').replace(galleryItemRe, function (_, alt, src, title, fig) {
+      var a = fig ? attrs(fig) : { src: src, title: title, alt: alt };
+      out.push({ src: a.src || '', title: unquote(a.title), alt: a.alt || '' });
+    });
+    return out;
+  };
+  var sameImages = function (a, b) {
+    var key = function (list) {
+      return JSON.stringify((list || []).filter(function (i) { return i && i.src; })
+        .map(function (i) { return [i.src, i.title || '', i.alt || '']; }));
+    };
+    return key(a) === key(b);
+  };
+  // Text for a "quoted" attribute or Markdown title: one line, quotes as &quot; (the shortcodes decode it)
+  var quoted = function (s) { return String(s == null ? '' : s).replace(/\s+/g, ' ').trim().replace(/"/g, '&quot;'); };
+
   var components = [
+    {
+      // Theme shortcode (layouts/shortcodes/gallery.html). Listed before figure, whose pattern would
+      // otherwise also match figure shortcodes inside a gallery.
+      id: 'gallery',
+      label: 'Gallery',
+      icon: 'photo_library',
+      fields: [
+        { name: 'images', label: 'Images', label_singular: 'Image', widget: 'list',
+          fields: [
+            { name: 'src', label: 'Image', widget: 'image' },
+            { name: 'title', label: 'Caption', widget: 'string', required: false },
+            { name: 'alt', label: 'Alt text', widget: 'string', required: false, hint: 'Defaults to the caption' },
+          ] },
+        { name: 'caption', label: 'Caption for the whole gallery', widget: 'string', required: false },
+        // The gallery exactly as written; reused while nothing changed (keeps figure shortcodes as they were).
+        { name: 'raw', widget: 'hidden', required: false },
+      ],
+      pattern: galleryRe,
+      fromBlock: function (m) {
+        return { images: parseGallery(m[2]), caption: unquote(attrs(m[1]).caption), raw: m[0] };
+      },
+      toBlock: function (v) {
+        if (v.raw) {
+          var m = String(v.raw).match(galleryRe);
+          if (m && sameImages(parseGallery(m[2]), v.images) && unquote(attrs(m[1]).caption) === (v.caption || '')) return v.raw;
+        }
+        var lines = (v.images || []).filter(function (i) { return i && i.src; }).map(function (i) {
+          var alt = String(i.alt || '').replace(/\s+/g, ' ').trim().replace(/[[\]]/g, '');
+          return '![' + alt + '](' + String(i.src).replace(/ /g, '%20') + (i.title ? ' "' + quoted(i.title) + '"' : '') + ')';
+        });
+        return '{{< gallery' + (v.caption ? ' caption="' + quoted(v.caption) + '"' : '') + ' >}}\n' +
+          (lines.length ? lines.join('\n') + '\n' : '') + '{{< /gallery >}}';
+      },
+      toPreview: function (v) {
+        var imgs = (v.images || []).filter(function (i) { return i && i.src; });
+        if (!imgs.length) return box('Gallery', 'no images yet');
+        return '<div style="display:flex;flex-wrap:wrap;gap:6px;margin:1.5em 0">' + imgs.map(function (i) {
+          return '<figure style="display:block;flex:1 1 160px;margin:0"><img src="' + esc(i.src) + '" alt="' + esc(i.alt || i.title) + '"' +
+            ' style="display:block;width:100%;height:160px;max-height:none;object-fit:cover;border-radius:6px">' +
+            (i.title ? '<figcaption style="display:block"><h4>' + esc(i.title) + '</h4></figcaption>' : '') + '</figure>';
+        }).join('') + (v.caption ? '<figcaption style="display:block;flex-basis:100%"><h4>' + esc(v.caption) + '</h4></figcaption>' : '') + '</div>';
+      },
+    },
     {
       id: 'figure',
       label: 'Figure',

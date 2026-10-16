@@ -1,0 +1,54 @@
+{{- /* Photo gallery: images side by side in justified rows. Every image in a row gets the same
+       height and none are cropped (each item's flex-basis and flex-grow follow its aspect ratio).
+         {{< gallery caption="optional caption for the whole set" >}}
+         ![alt text](/image/a.jpg "caption")
+         ![](/image/b.jpg)
+         {{< figure src="/image/c.jpg" title="caption" >}}
+         {{< /gallery >}}
+       One image per line: Markdown images (what the CMS writes) or figure shortcodes. They go through
+       partials/responsive-image.html, so they get the WebP srcset and open in the lightbox.
+       Anything else inside is dropped with a WARN. */ -}}
+{{- $imgRe := `!\[([^\]]*)\]\(\s*<?([^\s>)]+)>?(?:\s+"([^"]*)")?\s*\)` -}}
+{{- $itemRe := printf `(?s)%s|<figure[\s>].*?</figure>` $imgRe -}}
+{{- /* The images are shown at about half the column width, not the full width the partial assumes */ -}}
+{{- $sizes := `sizes="(min-width: 728px) 340px, 50vw"` -}}
+{{- $items := slice -}}
+{{- range findRE $itemRe .Inner -}}
+  {{- $html := . -}}
+  {{- if hasPrefix . "!" -}}
+    {{- $m := index (findRESubmatch $imgRe . 1) 0 -}}
+    {{- $src := index $m 2 -}}
+    {{- $title := index $m 3 | htmlUnescape -}}
+    {{- if and (hasPrefix $src "/image/") (not (resources.Get (strings.TrimPrefix "/" $src))) -}}
+      {{- warnf "%s: {{< gallery >}} image %q not found in content/image/" $.Position $src -}}
+    {{- end -}}
+    {{- $img := partial "responsive-image.html" (dict "src" $src "alt" (index $m 1 | htmlUnescape | default $title)) -}}
+    {{- $html = printf "<figure>%s" $img -}}
+    {{- with $title }}{{ $html = printf "%s<figcaption><h4>%s</h4></figcaption>" $html (htmlEscape .) }}{{ end -}}
+    {{- $html = printf "%s</figure>" $html -}}
+  {{- end -}}
+  {{- /* Aspect ratio from the size the partial emits (after auto-rotation); external images have
+         none, so they get 3:2 and are cropped to fit the row */ -}}
+  {{- $ar := 1.5 -}}
+  {{- $w := findRESubmatch `\swidth="(\d+)"` $html 1 -}}
+  {{- $h := findRESubmatch `\sheight="(\d+)"` $html 1 -}}
+  {{- if and $w $h -}}
+    {{- $ar = div (float (index $w 0 1)) (float (index $h 0 1)) -}}
+  {{- end -}}
+  {{- $html = replaceRE `sizes="[^"]*"` $sizes $html -}}
+  {{- $html = replaceRE `^<figure` (printf `<figure style="--ar: %.4f"` $ar) $html -}}
+  {{- $items = $items | append $html -}}
+{{- end -}}
+{{- with replaceRE $itemRe "" .Inner | strings.TrimSpace -}}
+  {{- warnf "%s: {{< gallery >}} ignores what isn't an image (one Markdown image or figure shortcode per line): %q" $.Position (truncate 80 .) -}}
+{{- end -}}
+{{- if not $items -}}
+  {{- warnf "%s: {{< gallery >}} has no images" .Position -}}
+{{- else -}}
+<figure class="gallery">
+{{ range $items }}{{ . | safeHTML }}
+{{ end -}}
+{{ with .Get "caption" }}<figcaption><h4>{{ . | markdownify }}</h4></figcaption>
+{{ end -}}
+</figure>
+{{- end -}}
