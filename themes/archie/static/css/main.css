@@ -333,6 +333,9 @@ h1 {
 
 h2 {
   font-size: 1.3rem;
+  /* like h1 and h3–h6; the browser default (0.83em) put section headings closer to the
+     paragraph before them than to their own text, and less space above h2 than above h3 */
+  margin-top: 1.5em;
 }
 
 h3, h4, h5, h6 {
