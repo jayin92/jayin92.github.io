@@ -1,10 +1,14 @@
 // Click (or Enter/Space) on a processed post image to view its largest version full screen.
 // Images get data-zoom-src from layouts/partials/responsive-image.html.
 // The image zooms from its spot in the page (FLIP) unless the user prefers reduced motion.
+// Labels come from data-* on this script's tag (i18n, _default/baseof.html).
 (function () {
+    var data = (document.currentScript && document.currentScript.dataset) || {};
     var images = document.querySelectorAll('.body img[data-zoom-src]');
     if (!images.length || typeof HTMLDialogElement === 'undefined') return;
 
+    var ZOOM = data.zoom || 'Enlarge image';
+    var ZOOM_ALT = data.zoomAlt || 'Enlarge image: {alt}';
     var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     var dialog = document.createElement('dialog');
     dialog.className = 'lightbox';
@@ -43,6 +47,7 @@
         var hiRes = img.getAttribute('data-zoom-src');
         big.src = img.currentSrc || img.src;
         big.alt = img.alt;
+        dialog.setAttribute('aria-label', img.alt || ZOOM);
         dialog.showModal();
         if (big.src.indexOf(hiRes) === -1) {
             var pre = new Image();
@@ -84,6 +89,10 @@
         if (img.closest('a')) return; // linked images keep their link
         img.tabIndex = 0;
         img.setAttribute('role', 'button');
+        // As a button the image is named by its alt alone, and many have none (e.g. ![](…)):
+        // say what the button does.
+        img.setAttribute('aria-label', img.alt ? ZOOM_ALT.replace('{alt}', function () { return img.alt; }) : ZOOM);
+        img.setAttribute('aria-haspopup', 'dialog');
         img.addEventListener('click', function () { open(img); });
         img.addEventListener('keydown', function (e) {
             if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(img); }

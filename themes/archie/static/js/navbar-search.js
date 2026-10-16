@@ -7,6 +7,8 @@
     var input = document.getElementById('nav-search-input');
     var resultsEl = document.getElementById('nav-search-results');
     var indexUrl = container.getAttribute('data-search-index');
+    // This language's full search page (/search/ or /en/search/)
+    var searchPage = container.dataset.searchPage || '/search/';
 
     var cachedIndex = null;
     var debounceTimer;
@@ -83,7 +85,7 @@
         var seeAll = document.createElement('li');
         seeAll.className = 'nav-search-see-all';
         var seeAllLink = document.createElement('a');
-        seeAllLink.href = (container.dataset.searchPage || '/search/') + '?q=' + encodeURIComponent(query);
+        seeAllLink.href = searchPage + '?q=' + encodeURIComponent(query);
         seeAllLink.textContent = entries.length
             ? (container.dataset.seeAll || 'See all results for "{q}" \u2192').replace('{q}', query)
             : (container.dataset.noQuick || 'No quick results \u2014 search full index \u2192');
@@ -109,7 +111,7 @@
         if (dropdown.hidden) open(); else close();
     });
 
-    input.addEventListener('input', function () {
+    function scheduleSearch() {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(function () {
             var query = input.value.trim();
@@ -118,12 +120,49 @@
                 renderResults(searchEntries(query), query);
             });
         }, 200);
+    }
+
+    // Wait for an IME to commit: half-typed Zhuyin/Pinyin never matches and only flashes
+    // "no results".
+    input.addEventListener('input', function (e) {
+        if (!e.isComposing) scheduleSearch();
     });
+    input.addEventListener('compositionend', scheduleSearch);
+
+    function resultLinks() {
+        return Array.prototype.slice.call(resultsEl.querySelectorAll('a'));
+    }
 
     input.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter') {
-            var query = input.value.trim();
-            if (query) window.location.href = '/search/?q=' + encodeURIComponent(query);
+        if (e.isComposing || e.keyCode === 229) return;
+        // Down arrow: into the results (then up/down moves through them, see below)
+        if (e.key === 'ArrowDown') {
+            var first = resultLinks()[0];
+            if (first) {
+                e.preventDefault();
+                first.focus();
+            }
+            return;
+        }
+        // The Enter that picks a candidate in a Zhuyin/Pinyin IME is not a submit: Chrome flags it
+        // isComposing, Safari only gives it keyCode 229 (both skipped above).
+        if (e.key !== 'Enter') return;
+        var query = input.value.trim();
+        if (query) window.location.href = searchPage + '?q=' + encodeURIComponent(query);
+    });
+
+    resultsEl.addEventListener('keydown', function (e) {
+        if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+        var links = resultLinks();
+        var i = links.indexOf(document.activeElement);
+        if (i === -1) return;
+        e.preventDefault();
+        if (e.key === 'ArrowDown') {
+            if (i < links.length - 1) links[i + 1].focus();
+        } else if (i > 0) {
+            links[i - 1].focus();
+        } else {
+            input.focus();
         }
     });
 
@@ -137,4 +176,30 @@
     document.addEventListener('click', function (e) {
         if (!container.contains(e.target) && !dropdown.hidden) close();
     });
+
+    // Tabbing out of the open search closes it (relatedTarget is null when the window loses focus)
+    container.addEventListener('focusout', function (e) {
+        if (!dropdown.hidden && e.relatedTarget && !container.contains(e.relatedTarget)) close();
+    });
+
+    toggle.setAttribute('aria-controls', dropdown.id);
+    if (!input.hasAttribute('aria-label')) input.setAttribute('aria-label', toggle.getAttribute('aria-label') || '');
+
+    // "/" opens the search from anywhere outside a text field, as on GitHub or MDN. Not on the
+    // search page, whose own "/" focuses its big field (search.js).
+    if (!document.querySelector('[data-search-root]')) {
+        toggle.setAttribute('aria-keyshortcuts', '/');
+        if (toggle.title) toggle.title += ' (/)';
+        document.addEventListener('keydown', function (e) {
+            if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey || e.isComposing || e.defaultPrevented) return;
+            // Typing in a field: leave "/" alone. A focused checkbox (the theme switch after a click)
+            // or button isn't a field.
+            var t = e.target;
+            if (t && (t.isContentEditable || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' ||
+                (t.tagName === 'INPUT' && !/^(checkbox|radio|button|submit|reset|range|color|file|image)$/i.test(t.type)))) return;
+            if (document.querySelector('dialog[open]')) return;
+            e.preventDefault();
+            if (dropdown.hidden) open(); else input.focus();
+        });
+    }
 }());

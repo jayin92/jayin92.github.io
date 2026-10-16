@@ -30,6 +30,12 @@ not_found_title = "404 — 找不到頁面"
 not_found_text = "這個頁面不存在：網址可能打錯了，或是文章已經搬家了。"
 recent_posts = "最近的文章"
 back_home = "回到首頁"
+code_copy = "複製"
+code_copied = "已複製"
+code_copy_failed = "複製失敗"
+heading_link = "本節連結：{title}"
+image_zoom = "放大圖片"
+image_zoom_alt = "放大圖片：{alt}"
 
 [entries_tagged]
 other = "標籤：{{ .Tag }}"

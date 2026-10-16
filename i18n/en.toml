@@ -30,6 +30,12 @@ not_found_title = "404 — Page Not Found"
 not_found_text = "The page you're looking for doesn't exist: the link may be mistyped, or the post may have moved."
 recent_posts = "Latest posts"
 back_home = "Back to home"
+code_copy = "Copy"
+code_copied = "Copied"
+code_copy_failed = "Copy failed"
+heading_link = "Link to this section: {title}"
+image_zoom = "Enlarge image"
+image_zoom_alt = "Enlarge image: {alt}"
 
 [entries_tagged]
 other = "Entries tagged - \"{{ .Tag }}\""

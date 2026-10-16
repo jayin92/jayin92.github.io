@@ -417,3 +417,22 @@ sup:target a {
 .body .linkcard-meta {
   color: #999;
 }
+
+/* ── Code copy feedback (static/js/code-copy.js) — dark ── */
+.code-copy.copied {
+  color: var(--darkMaincolor);
+}
+
+/* ── Heading anchors (static/js/heading-anchors.js) — dark ── */
+.heading-anchor {
+  color: var(--darkMaincolor);
+}
+
+/* ── Nav search keyboard selection (static/js/navbar-search.js) — dark ── */
+.nav-search-results a:focus-visible {
+  background-color: var(--darkMaincolor);
+  color: #000;
+}
+.nav-search-results a:focus-visible .nav-search-result-date {
+  color: rgba(0, 0, 0, 0.65);
+}

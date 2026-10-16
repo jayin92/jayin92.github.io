@@ -1576,3 +1576,99 @@ sup:target a {
   line-height: 1.5;
   color: grey;
 }
+
+/* ── Theme toggle (markup: partials/head.html; script: _default/baseof.html) ──
+   The theme's inline <style> in partials/header.html hides the checkbox with display:none, which
+   takes the switch out of the tab order and the accessibility tree. Keep it in place but invisible,
+   under the slider (label.theme-switch outranks that rule), so it can be focused and its
+   :focus-visible ring on .slider works. */
+label.theme-switch input {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+}
+/* Set by the script while it syncs the switch to the saved/OS theme on load, so a dark page doesn't
+   slide the knob across on every load */
+label.theme-switch.no-transition .slider,
+label.theme-switch.no-transition .slider::before {
+  transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  label.theme-switch .slider,
+  label.theme-switch .slider::before {
+    transition: none;
+  }
+}
+
+/* ── Code copy feedback (static/js/code-copy.js) ── */
+.code-copy.copied {
+  color: var(--maincolor);
+}
+/* Copy failed: the code is selected for a manual copy; keep the message visible */
+.code-copy.failed {
+  opacity: 1;
+}
+/* Read by screen readers, not shown (e.g. the copy button's role="status" message) */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ── Heading anchors (static/js/heading-anchors.js) ──
+   A "#" after each heading in .body, shown while the heading is hovered or the link focused. */
+.heading-anchor {
+  margin-left: 0.35em;
+  padding: 0 0.15em;
+  border-bottom: none;
+  color: var(--maincolor);
+  font-weight: normal;
+  opacity: 0;
+}
+.heading-anchor::before {
+  content: '#';
+}
+/* :where() keeps this at the specificity of the :hover rule below, so that one wins */
+:where(.body h1, .body h2, .body h3, .body h4, .body h5, .body h6):hover > .heading-anchor,
+.heading-anchor:focus-visible {
+  opacity: 0.6;
+}
+.heading-anchor:hover {
+  opacity: 1;
+}
+/* No hover on touch screens: leave it out rather than leave an invisible tap target */
+@media (hover: none) {
+  .heading-anchor {
+    display: none;
+  }
+}
+/* h2/h3 already have this (TOC): every heading a link can jump to stops just below the top */
+.body h1,
+.body h4,
+.body h5,
+.body h6 {
+  scroll-margin-top: 1rem;
+}
+
+/* ── Nav search keyboard selection (static/js/navbar-search.js) ──
+   Arrow keys move focus through the results: mark it like the hover state (an outline would be
+   clipped by the scrolling list). */
+.nav-search-results a:focus-visible {
+  outline: none;
+  background-color: var(--hovercolor);
+  color: #fff;
+}
+.nav-search-results a:focus-visible .nav-search-result-date {
+  color: rgba(255, 255, 255, 0.75);
+}
