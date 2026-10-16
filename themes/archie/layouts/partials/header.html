@@ -40,8 +40,11 @@
 
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 
-	{{ with .OutputFormats.Get "rss" -}}
-	{{ printf `<link rel="%s" type="%s" href="%s" title="%s" />` .Rel .MediaType.Type .Permalink $.Site.Title | safeHTML }}
+	{{- /* Feed autodiscovery: a list page's own feed, everything else (posts, about…) the site feed */ -}}
+	{{- $feedPage := . }}
+	{{- if not (.OutputFormats.Get "rss") }}{{ $feedPage = site.Home }}{{ end }}
+	{{- with $feedPage.OutputFormats.Get "rss" }}
+	{{ printf `<link rel="%s" type="%s" href="%s" title="%s" />` .Rel .MediaType.Type .Permalink (cond (eq $feedPage.Title site.Title) site.Title (printf "%s on %s" $feedPage.Title site.Title)) | safeHTML }}
 	{{ end -}}
 
 	{{- /* Open Graph + Twitter cards; the image is the post's first picture or the site icon (params.og_image overrides the icon) */ -}}
