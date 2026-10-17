@@ -1267,6 +1267,7 @@ sup:target a {
   .note-popover,
   .skip-link,
   .post-nav,
+  .back-to-top,
   .heading-anchor {
     display: none !important;
   }
@@ -1923,4 +1924,74 @@ dialog.lightbox.zoomed {
   line-height: 1.6;
   font-variant-numeric: tabular-nums;
   pointer-events: none;
+}
+
+/* ── Back to top (static/js/back-to-top.js, posts only) ──
+   Bottom-right, styled like the note popover. Hidden with visibility too, so it is out of the tab
+   order and the accessibility tree until it shows. Over the text (phones, narrow windows) the script
+   shows it only while scrolling up or at the end of the page. */
+.back-to-top {
+  position: fixed;
+  right: 1rem;
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  background-color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  color: #232333;
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+}
+.back-to-top.visible {
+  opacity: 1;
+  visibility: visible;
+}
+@media (pointer: coarse) {
+  .back-to-top {
+    width: 44px;
+    height: 44px;
+  }
+}
+@media (hover: hover) {
+  .back-to-top:hover {
+    border-color: var(--hovercolor);
+    background-color: var(--hovercolor);
+    color: #fff;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .back-to-top {
+    transform: translateY(8px);
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0s linear 0.2s;
+  }
+  .back-to-top.visible {
+    transform: none;
+    transition-delay: 0s;
+  }
+}
+/* Beside the 680px column, from 1200px: at the foot of the table of contents' rail (same left edge as
+   .toc), and the sticky table of contents ends above it. Without :has() a long one may reach it. */
+@media (min-width: 1200px) {
+  .back-to-top {
+    right: auto;
+    left: calc(50% + 340px + 2.5rem);
+    bottom: 2rem;
+  }
+  main:has(.back-to-top) .toc details {
+    max-height: calc(100vh - 7.5rem);
+  }
+}
+/* Where the button puts the focus (it scrolls there itself): a landing point, not a control, so
+   no ring (Chrome drew a blue box around the whole title); the next Tab rings the first link after it */
+.title h1[tabindex="-1"]:focus {
+  outline: none;
 }

@@ -13,6 +13,10 @@
         <script defer src="{{ partial "asset-url.html" "js/nav-hide.js" }}"></script>
         <script defer src="{{ partial "asset-url.html" "js/code-copy.js" }}" data-copy="{{ i18n "code_copy" }}" data-copied="{{ i18n "code_copied" }}" data-failed="{{ i18n "code_copy_failed" }}"></script>
         <script defer src="{{ partial "asset-url.html" "js/heading-anchors.js" }}" data-label="{{ i18n "heading_link" }}"></script>
+        {{- /* Posts, i.e. where single.html shows the reading progress bar */}}
+        {{- if and .IsPage (ne .Type "page") }}
+        <script defer src="{{ partial "asset-url.html" "js/back-to-top.js" }}" data-label="{{ i18n "back_to_top" }}"></script>
+        {{- end }}
         {{- partial "analytics.html" . -}}
         <script>
         // Theme button (partials/head.html): light / dark / follow the system. The choice lives in

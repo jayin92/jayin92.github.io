@@ -42,6 +42,7 @@ image_prev = "Previous image"
 image_next = "Next image"
 image_position = "Image {n} of {total}"
 image_position_alt = "Image {n} of {total}: {alt}"
+back_to_top = "Back to top"
 
 [entries_tagged]
 other = "Entries tagged - \"{{ .Tag }}\""

@@ -483,3 +483,18 @@ sup:target a {
 .nav-search-toggle:hover {
   color: var(--darkMaincolor);
 }
+
+/* ── Back to top (static/js/back-to-top.js) — dark, like the note popover ── */
+.back-to-top {
+  border-color: #444;
+  background-color: #2a2a2a;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  color: #e3e3e3;
+}
+@media (hover: hover) {
+  .back-to-top:hover {
+    border-color: var(--darkMaincolor);
+    background-color: var(--darkMaincolor);
+    color: #000;
+  }
+}
