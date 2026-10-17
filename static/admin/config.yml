@@ -78,6 +78,13 @@ i18n:
   omit_default_locale_from_preview_path: true
   initial_locales: default
 
+# Leave empty optional fields out of the front matter instead of writing description: '', tags: []
+# or an empty date (a post saved with an empty Description loses its `description: ""` line, which
+# Hugo treats the same). Keys this file doesn't list (aliases, references…) are still kept, and
+# false isn't "empty": an optional boolean such as katex is still written.
+output:
+  omit_empty_optional_fields: true
+
 collections:
   - name: posts
     label: Posts
