@@ -23,22 +23,30 @@ CACHE = ROOT / ".font-cache" / f"sarasa-{VERSION}"
 OUT = ROOT / "themes/archie/static/fonts"
 WEIGHTS = {"Regular": 400, "Bold": 700}
 
+# Everything the site can show: posts (drafts and .en.md too), UI strings, every template, the
+# theme's scripts, data files and the CMS (its UI uses fonts.css). Only text files are read.
 SOURCES = [
     ("content", "**/*.md"),
     ("i18n", "*.toml"),
-    ("layouts", "**/*.html"),
-    ("themes/archie/layouts", "**/*.html"),
+    ("layouts", "**/*"),
+    ("themes/archie/layouts", "**/*"),
+    ("themes/archie/static/js", "**/*.js"),
+    ("data", "**/*"),
+    ("static/admin", "**/*"),
     (".", "config.toml"),
 ]
+TEXT_SUFFIXES = {".md", ".html", ".xml", ".json", ".txt", ".toml", ".yaml", ".yml", ".js"}
 
 
 def site_characters():
     chars = set(chr(c) for c in range(0x20, 0x7F))           # printable ASCII
     chars.update(chr(c) for c in range(0x3000, 0x3040))      # CJK symbols & punctuation
-    chars.update(chr(c) for c in range(0xFF00, 0xFFF0))      # full-width forms
+    chars.update(chr(c) for c in range(0xFF01, 0xFF5F))      # full-width ASCII forms: ，：；？！（）…
+    chars.update(chr(c) for c in range(0xFFE0, 0xFFE7))      # ￠￡￢￣￤￥￦ (not the half-width kana/hangul)
     for base, pattern in SOURCES:
         for path in (ROOT / base).glob(pattern):
-            chars.update(path.read_text(encoding="utf-8", errors="ignore"))
+            if path.is_file() and path.suffix in TEXT_SUFFIXES:
+                chars.update(path.read_text(encoding="utf-8", errors="ignore"))
     return "".join(sorted(c for c in chars if c.isprintable() or c == " "))
 
 
