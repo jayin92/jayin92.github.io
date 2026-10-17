@@ -6,6 +6,10 @@ copyright = "Jayinnn © CC BY-NC-SA 4.0"
 
 # Front matter dates without a UTC offset ("2019-08-20") are Taiwan time, not UTC
 timeZone = "Asia/Taipei"
+# Count Chinese characters as words, so automatic summaries (RSS, search, the meta description
+# fallback) end after a paragraph or so instead of running on for pages; 120 → RSS median ~220 chars.
+hasCJKLanguage = true
+summaryLength = 120
 
 defaultContentLanguage = "zh-tw"
 defaultContentLanguageInSubdir = false
