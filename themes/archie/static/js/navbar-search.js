@@ -190,8 +190,15 @@
     if (!document.querySelector('[data-search-root]')) {
         toggle.setAttribute('aria-keyshortcuts', '/');
         if (toggle.title) toggle.title += ' (/)';
+        // With a Chinese input method on, the "/" key reports what the IME would type instead ("ㄥ" in
+        // Zhuyin, "、" or "／" in Pinyin, or "Process"), so the physical slash key also counts when it
+        // isn't typing another ASCII character (on a German layout that key is "-") and Shift is up
+        // (Shift+/ is "？"). IME composition only happens in text fields, which return below.
+        function isSlash(e) {
+            return e.key === '/' || (e.code === 'Slash' && !e.shiftKey && !/^[\x20-\x7e]$/.test(e.key));
+        }
         document.addEventListener('keydown', function (e) {
-            if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey || e.isComposing || e.defaultPrevented) return;
+            if (!isSlash(e) || e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
             // Typing in a field: leave "/" alone. A focused checkbox (the theme switch after a click)
             // or button isn't a field.
             var t = e.target;

@@ -321,7 +321,11 @@
                     tagName === "TEXTAREA" ||
                     tagName === "SELECT");
 
-            if (event.key !== "/" || event.defaultPrevented || isTyping) {
+            // "/" or, with a Chinese input method on, the physical slash key (see navbar-search.js)
+            var isSlash = event.key === "/" ||
+                (event.code === "Slash" && !event.shiftKey && !/^[\x20-\x7e]$/.test(event.key));
+
+            if (!isSlash || event.ctrlKey || event.metaKey || event.altKey || event.defaultPrevented || isTyping) {
                 return;
             }
 
