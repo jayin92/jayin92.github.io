@@ -30,9 +30,16 @@ display_url: https://blog.jayinnn.dev
 media_folder: /content/image
 public_folder: /image
 
-# Shrink/convert photos in the browser before they reach the repo (phone photos are 5-13 MB).
+# Shrink/convert photos in the browser before they reach the repo (phone photos are 5-13 MB), and
+# give uploads URL-safe names: "Screenshot 2026-10-17 at 15.22.25.png" → screenshot-2026-10-17-at-15-22-25.webp.
+# Unslugified, spaces and Chinese ended up as /image/Screenshot%202026….webp in the Markdown, which
+# Hugo's resources.Get can't resolve, so those images lost the WebP srcset and the lightbox. Names
+# follow the global slug options below (ASCII only, accents transliterated: "Zürich Café" →
+# zuerich-cafe); a name with nothing ASCII left, like 截圖.png, gets a random one (e8972cfc5cef.webp),
+# which can be renamed under Assets.
 media_libraries:
   all:
+    slugify_filename: true
     transformations:
       raster_image:
         format: webp
@@ -54,8 +61,12 @@ field_defaults:
 
 # Date tags in slugs ({{year}}-{{month}}-{{day}} for diaries) use the local date, not UTC, like
 # write-diary.py; with UTC a diary started in Taiwan before 08:00 got yesterday's filename.
+# ASCII-only slugs: these options also shape uploaded file names (slugify_filename above). Entry
+# slugs are unaffected (diaries are dates, posts take a typed English slug).
 slug:
   timezone: local
+  encoding: ascii
+  clean_accents: true
 
 # Hugo translations are sibling files: eth.md (zh-tw) + eth.en.md.
 # New entries start zh-tw only, so no empty English file is created by accident.
