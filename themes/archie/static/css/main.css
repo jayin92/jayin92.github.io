@@ -1854,3 +1854,73 @@ label.theme-switch.no-transition .slider::before {
 :root[data-theme-choice="dark"] .theme-icon-dark {
   display: block;
 }
+
+/* ── Lightbox previous/next (static/js/lightbox.js) ──
+   Side buttons and "n / N", only when the page has more than one zoomable image. The backdrop is
+   near-black in both themes, so these look the same in both: white on translucent black, with the
+   dark theme's light teal for the focus ring and hover (light-theme teal is ~3:1 on the backdrop). */
+dialog.lightbox {
+  /* sideways drags are the swipe, not the browser's back/forward gesture; pinch-zoom still works */
+  touch-action: pinch-zoom;
+}
+dialog.lightbox.zoomed {
+  /* pinch-zoomed in: one finger pans the zoomed view again */
+  touch-action: auto;
+}
+.lightbox-nav {
+  position: absolute;
+  top: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-top: -22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  cursor: pointer;
+}
+.lightbox-nav[hidden] {
+  display: none;
+}
+/* 20px in: clear of the scrollbar gutter that html:has(dialog.lightbox[open]) keeps (17px on
+   Windows), where clicks don't reach the dialog */
+.lightbox-prev {
+  left: 20px;
+}
+.lightbox-next {
+  right: 20px;
+}
+.lightbox-nav[aria-disabled="true"] {
+  opacity: 0.35;
+  cursor: default;
+}
+@media (hover: hover) {
+  .lightbox-nav:not([aria-disabled="true"]):hover {
+    background-color: var(--darkMaincolor);
+    color: #000;
+  }
+}
+.lightbox-nav:focus-visible {
+  outline: 2px solid var(--darkMaincolor);
+  outline-offset: 2px;
+}
+/* a click on it is a click on what's under it (the image or the backdrop: closes) */
+.lightbox-counter {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  margin: 0;
+  padding: 0.15em 0.6em;
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-family: 'Roboto Mono', 'Sarasa Mono TC', 'Noto Sans TC', monospace;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}

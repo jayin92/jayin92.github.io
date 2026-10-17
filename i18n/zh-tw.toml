@@ -38,6 +38,10 @@ code_copy_failed = "複製失敗"
 heading_link = "本節連結：{title}"
 image_zoom = "放大圖片"
 image_zoom_alt = "放大圖片：{alt}"
+image_prev = "上一張"
+image_next = "下一張"
+image_position = "第 {n} 張，共 {total} 張"
+image_position_alt = "第 {n} 張，共 {total} 張：{alt}"
 
 [entries_tagged]
 other = "標籤：{{ .Tag }}"

@@ -38,6 +38,10 @@ code_copy_failed = "Copy failed"
 heading_link = "Link to this section: {title}"
 image_zoom = "Enlarge image"
 image_zoom_alt = "Enlarge image: {alt}"
+image_prev = "Previous image"
+image_next = "Next image"
+image_position = "Image {n} of {total}"
+image_position_alt = "Image {n} of {total}: {alt}"
 
 [entries_tagged]
 other = "Entries tagged - \"{{ .Tag }}\""
