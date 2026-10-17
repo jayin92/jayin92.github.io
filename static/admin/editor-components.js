@@ -25,7 +25,7 @@
   // of editing it as a blockquote (which would escape the "["). Only on a quote's first line, like Hugo.
   var alertRe = /^(?<!^>[^\n]*\n)> ?\[!([A-Za-z]+)\]([+-]?)(?:[ \t]+([^\n]*?))?[ \t]*((?:\n>[^\n]*)*)$/m;
   var alertTypes = { NOTE: 'Note', TIP: 'Tip', IMPORTANT: 'Important', WARNING: 'Warning', CAUTION: 'Caution' };
-  var alertColors = { NOTE: '#0782bf', TIP: '#00897b', IMPORTANT: '#8250df', WARNING: '#9a6700', CAUTION: '#cf222e' };
+  var alertColors = { NOTE: '#0782bf', TIP: '#00796b', IMPORTANT: '#8250df', WARNING: '#9a6700', CAUTION: '#cf222e' };
   var parseAlert = function (m) {
     return {
       type: m[1].toUpperCase(),
@@ -208,7 +208,7 @@
       },
       toPreview: function (v) {
         var target = v.page ? '/posts/' + v.page.replace(/^\/?(posts\/)?|\/$/g, '') + '/' : v.url;
-        return '<div style="margin:1.2em 0;padding:.7em 1em;border:1px solid rgba(0,0,0,.12);border-left:3px solid #00897b;border-radius:6px">' +
+        return '<div style="margin:1.2em 0;padding:.7em 1em;border:1px solid rgba(0,0,0,.12);border-left:3px solid #00796b;border-radius:6px">' +
           '<div style="font:700 15px/1.5 monospace">' + esc(v.title || (v.page ? '(title of ' + v.page + ')' : '(no title)')) + '</div>' +
           (v.description ? '<div style="font-size:14px;color:#777">' + esc(v.description) + '</div>' : '') +
           '<div style="font:12px/1.5 monospace;color:grey">→ ' + esc(target || '(no post or URL yet)') + '</div></div>';
@@ -261,7 +261,7 @@
         return '{{< cite "' + (v.keys || '') + '"' + (v.loc ? ' "' + v.loc + '"' : '') + ' >}}';
       },
       toPreview: function (v) {
-        return '<span style="color:#00897B">[' + esc(v.keys) + (v.loc ? ', ' + esc(v.loc) : '') + ']</span>';
+        return '<span style="color:#00796B">[' + esc(v.keys) + (v.loc ? ', ' + esc(v.loc) : '') + ']</span>';
       },
     },
     {
@@ -281,7 +281,7 @@
         return '{{< footnote >}}' + (v.text || '') + '{{< /footnote >}}';
       },
       toPreview: function (v) {
-        return '<sup title="' + esc(v.text) + '" style="color:#00897B;font-family:monospace">[note]</sup>';
+        return '<sup title="' + esc(v.text) + '" style="color:#00796B;font-family:monospace">[note]</sup>';
       },
     },
     {
