@@ -1,0 +1,6 @@
+{{- /* The page's last-modified time for the sitemap, JSON-LD and og: .Lastmod (front matter lastmod,
+       else the last git commit, else date; see [frontmatter] in config.toml), but never earlier than
+       the publish date (a post committed before its date). */ -}}
+{{- $t := .Lastmod -}}
+{{- if and (not .PublishDate.IsZero) ($t.Before .PublishDate) }}{{ $t = .PublishDate }}{{ end -}}
+{{- return $t -}}

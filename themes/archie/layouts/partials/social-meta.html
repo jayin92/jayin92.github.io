@@ -24,7 +24,7 @@
 	{{- with .PublishDate }}
 	<meta property="article:published_time" {{ .Format $ISO8601 | printf "content=%q" | safeHTMLAttr }}>
 	{{- end }}
-	{{- with .Lastmod }}
+	{{- with partial "lastmod.html" . }}
 	<meta property="article:modified_time" {{ .Format $ISO8601 | printf "content=%q" | safeHTMLAttr }}>
 	{{- end }}
 	{{- range .GetTerms "tags" | first 6 }}

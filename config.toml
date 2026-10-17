@@ -10,6 +10,10 @@ timeZone = "Asia/Taipei"
 # fallback) end after a paragraph or so instead of running on for pages; 120 → RSS median ~220 chars.
 hasCJKLanguage = true
 summaryLength = 120
+# Last-modified dates (sitemap, JSON-LD, og): front matter `lastmod` if set, else the file's last
+# git commit (CI checks out the full history), else `date`. The "更新於" on a post shows only an
+# explicit `lastmod` (single.html), because the last commit is often a bulk edit (keywords, tags).
+enableGitInfo = true
 
 defaultContentLanguage = "zh-tw"
 defaultContentLanguageInSubdir = false
@@ -30,6 +34,9 @@ weight = 2
   tag = "tags"
 
 # Code Highlight — configured under [markup.highlight] below
+
+[frontmatter]
+  lastmod = ["lastmod", ":git", "date"]
 
 [pagination]
   pagerSize = 10 # articles per page

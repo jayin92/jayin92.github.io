@@ -37,6 +37,8 @@ heading_link = "本節連結：{title}"
 image_zoom = "放大圖片"
 image_zoom_alt = "放大圖片：{alt}"
 
+updated_on = "更新於"
+
 [entries_tagged]
 other = "標籤：{{ .Tag }}"
 

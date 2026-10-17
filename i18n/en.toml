@@ -37,6 +37,8 @@ heading_link = "Link to this section: {title}"
 image_zoom = "Enlarge image"
 image_zoom_alt = "Enlarge image: {alt}"
 
+updated_on = "updated"
+
 [entries_tagged]
 other = "Entries tagged - \"{{ .Tag }}\""
 

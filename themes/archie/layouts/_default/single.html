@@ -7,7 +7,12 @@
 	<article>
 		<div class="title">
 			<h1 class="title">{{ .Title }}</h1>
-			<div class="meta">{{ i18n "posted_on" }} <time datetime="{{ .Date.Format "2006-01-02" }}">{{ dateFormat (i18n "date_format") .Date }}</time>{{ if .Draft }} <span class="draft-label">DRAFT</span> {{ end }}</div>
+			<div class="meta">{{ i18n "posted_on" }} <time datetime="{{ .Date.Format "2006-01-02" }}">{{ dateFormat (i18n "date_format") .Date }}</time>
+				{{- /* "更新於" only for a lastmod written in the front matter: a .Lastmod equal to the file's last
+				       commit came from git, which is often a bulk edit (keywords, tags; see config.toml).
+				       Hugo fills .Params.lastmod either way, so it can't tell them apart. */ -}}
+				{{- $explicitLastmod := true }}{{ with .GitInfo }}{{ if $.Lastmod.Equal .AuthorDate }}{{ $explicitLastmod = false }}{{ end }}{{ end }}
+				{{- if and $explicitLastmod (gt (.Lastmod.Format "2006-01-02") (.Date.Format "2006-01-02")) }}<span class="updated"> · {{ i18n "updated_on" }} <time datetime="{{ .Lastmod.Format "2006-01-02" }}">{{ dateFormat (i18n "date_format") .Lastmod }}</time></span>{{ end }}{{ if .Draft }} <span class="draft-label">DRAFT</span> {{ end }}</div>
 			{{ if .IsTranslated }}
 			<div class="meta translations">
 				{{ range .Translations }}
@@ -16,7 +21,7 @@
 			</div>
 			{{ end }}
 		</div>
-		{{ if isset .Params "tldr" }}
+		{{ if .Params.tldr }}
 		<div class="tldr">
 			<strong>tl;dr:</strong>
 			{{ .Params.tldr }}

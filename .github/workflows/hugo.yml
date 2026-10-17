@@ -10,7 +10,11 @@ jobs:
     # Pinned: ubuntu-latest moves to Ubuntu 26 from 2026-10-19. Bump deliberately, after a test run.
     runs-on: ubuntu-24.04
     steps:
+      # Full history: Hugo's enableGitInfo takes each page's last-modified date from its last commit
+      # (a shallow clone would give every page the date of the latest commit).
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       # resources/_gen holds Hugo's processed images (WebP variants), so builds don't redo them.
       - name: Cache Hugo resources

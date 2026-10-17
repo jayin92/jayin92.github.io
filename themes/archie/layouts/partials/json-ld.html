@@ -22,7 +22,7 @@
     "url" .Permalink
     "mainEntityOfPage" (dict "@type" "WebPage" "@id" .Permalink)
     "datePublished" (.PublishDate.Format $ISO8601)
-    "dateModified" (.Lastmod.Format $ISO8601)
+    "dateModified" ((partial "lastmod.html" .).Format $ISO8601)
     "inLanguage" .Language.Locale
     "isPartOf" (dict "@type" "Blog" "name" site.Title "url" site.Home.Permalink)
   -}}
