@@ -43,15 +43,9 @@
 		Object.keys(attrs).forEach(function (k) { s.setAttribute(k, attrs[k]); });
 		document.getElementById('giscus-container').appendChild(s);
 
-		// Keep giscus in sync with the nav theme toggle and the OS setting.
-		// This script runs before the toggle's own handler (which writes localStorage), so read the
-		// checkbox state directly instead of isDark().
-		var toggle = document.getElementById('theme-toggle');
-		if (toggle) toggle.addEventListener('change', function () { sendTheme(toggle.checked ? 'dark' : 'light'); });
-		window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function (e) {
-			try { if (localStorage.getItem('theme')) return; } catch (err) {}
-			sendTheme(e.matches ? 'dark' : 'light');
-		});
+		// Keep giscus in sync with the nav theme button, and with the OS while following the system:
+		// the theme script at the end of _default/baseof.html fires `themechange` after both.
+		document.addEventListener('themechange', function (e) { sendTheme(e.detail && e.detail.dark ? 'dark' : 'light'); });
 	})();
 	</script>
 </section>

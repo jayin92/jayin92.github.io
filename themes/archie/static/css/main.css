@@ -1274,6 +1274,7 @@ sup:target a {
   .note-popover,
   .skip-link,
   .post-nav,
+  .back-to-top,
   .heading-anchor {
     display: none !important;
   }
@@ -1829,4 +1830,175 @@ label.theme-switch.no-transition .slider::before {
 }
 .nav-search-results a:focus-visible .nav-search-result-date {
   color: rgba(255, 255, 255, 0.75);
+}
+
+/* ── Theme button (markup: partials/head.html; script: _default/baseof.html) ──
+   One icon button that cycles light / dark / follow the system, drawn like the search button beside
+   it. It shows the current choice: sun, moon, or a half-filled circle for the system. The choice is
+   data-theme-choice on <html>, set by partials/header.html before the first paint, so the right icon
+   is there from the start and nothing changes or animates on load. Padding gives a 24px target;
+   the negative margins keep the 20px footprint of the search button. */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  margin: -2px -2px -2px calc(0.5em - 2px);
+  padding: 4px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+.theme-toggle:hover {
+  color: var(--maincolor);
+}
+.theme-toggle svg {
+  display: none;
+}
+:root:not([data-theme-choice="light"]):not([data-theme-choice="dark"]) .theme-icon-system,
+:root[data-theme-choice="light"] .theme-icon-light,
+:root[data-theme-choice="dark"] .theme-icon-dark {
+  display: block;
+}
+
+/* ── Lightbox previous/next (static/js/lightbox.js) ──
+   Side buttons and "n / N", only when the page has more than one zoomable image. The backdrop is
+   near-black in both themes, so these look the same in both: white on translucent black, with the
+   dark theme's light teal for the focus ring and hover (light-theme teal is ~3:1 on the backdrop). */
+dialog.lightbox {
+  /* sideways drags are the swipe, not the browser's back/forward gesture; pinch-zoom still works */
+  touch-action: pinch-zoom;
+}
+dialog.lightbox.zoomed {
+  /* pinch-zoomed in: one finger pans the zoomed view again */
+  touch-action: auto;
+}
+.lightbox-nav {
+  position: absolute;
+  top: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-top: -22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  cursor: pointer;
+}
+.lightbox-nav[hidden] {
+  display: none;
+}
+/* 20px in: clear of the scrollbar gutter that html:has(dialog.lightbox[open]) keeps (17px on
+   Windows), where clicks don't reach the dialog */
+.lightbox-prev {
+  left: 20px;
+}
+.lightbox-next {
+  right: 20px;
+}
+.lightbox-nav[aria-disabled="true"] {
+  opacity: 0.35;
+  cursor: default;
+}
+@media (hover: hover) {
+  .lightbox-nav:not([aria-disabled="true"]):hover {
+    background-color: var(--darkMaincolor);
+    color: #000;
+  }
+}
+.lightbox-nav:focus-visible {
+  outline: 2px solid var(--darkMaincolor);
+  outline-offset: 2px;
+}
+/* a click on it is a click on what's under it (the image or the backdrop: closes) */
+.lightbox-counter {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  margin: 0;
+  padding: 0.15em 0.6em;
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-family: 'Roboto Mono', 'Sarasa Mono TC', 'Noto Sans TC', monospace;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/* ── Back to top (static/js/back-to-top.js, posts only) ──
+   Bottom-right, styled like the note popover. Hidden with visibility too, so it is out of the tab
+   order and the accessibility tree until it shows. Over the text (phones, narrow windows) the script
+   shows it only while scrolling up or at the end of the page. */
+.back-to-top {
+  position: fixed;
+  right: 1rem;
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  background-color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  color: #232333;
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+}
+.back-to-top.visible {
+  opacity: 1;
+  visibility: visible;
+}
+@media (pointer: coarse) {
+  .back-to-top {
+    width: 44px;
+    height: 44px;
+  }
+}
+@media (hover: hover) {
+  .back-to-top:hover {
+    border-color: var(--hovercolor);
+    background-color: var(--hovercolor);
+    color: #fff;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .back-to-top {
+    transform: translateY(8px);
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0s linear 0.2s;
+  }
+  .back-to-top.visible {
+    transform: none;
+    transition-delay: 0s;
+  }
+}
+/* Beside the 680px column, from 1200px: at the foot of the table of contents' rail (same left edge as
+   .toc), and the sticky table of contents ends above it. Without :has() a long one may reach it. */
+@media (min-width: 1200px) {
+  .back-to-top {
+    right: auto;
+    left: calc(50% + 340px + 2.5rem);
+    bottom: 2rem;
+  }
+  main:has(.back-to-top) .toc details {
+    max-height: calc(100vh - 7.5rem);
+  }
+}
+/* Where the button puts the focus (it scrolls there itself): a landing point, not a control, so
+   no ring (Chrome drew a blue box around the whole title); the next Tab rings the first link after it */
+.title h1[tabindex="-1"]:focus {
+  outline: none;
 }

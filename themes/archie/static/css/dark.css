@@ -476,3 +476,25 @@ sup:target a {
 .nav-search-results a:focus-visible .nav-search-result-date {
   color: rgba(0, 0, 0, 0.65);
 }
+
+/* ── Theme button (see main.css) — dark. The search button beside it hovers the same light teal
+   (the light theme's teal is about 3:1 on #202124). ── */
+.theme-toggle:hover,
+.nav-search-toggle:hover {
+  color: var(--darkMaincolor);
+}
+
+/* ── Back to top (static/js/back-to-top.js) — dark, like the note popover ── */
+.back-to-top {
+  border-color: #444;
+  background-color: #2a2a2a;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  color: #e3e3e3;
+}
+@media (hover: hover) {
+  .back-to-top:hover {
+    border-color: var(--darkMaincolor);
+    background-color: var(--darkMaincolor);
+    color: #000;
+  }
+}
