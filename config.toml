@@ -113,6 +113,9 @@ weight = 4
   [[module.mounts]]
     source = "content"
     target = "content"
+    # content/image is only an asset source (the mount below): pages use the processed WebP/JPEG
+    # variants, so the originals (some phone photos are 5–13 MB) aren't published.
+    files = ["! image/**"]
   [[module.mounts]]
     source = "data"
     target = "data"
