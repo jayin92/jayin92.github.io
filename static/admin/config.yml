@@ -30,9 +30,16 @@ display_url: https://blog.jayinnn.dev
 media_folder: /content/image
 public_folder: /image
 
-# Shrink/convert photos in the browser before they reach the repo (phone photos are 5-13 MB).
+# Shrink/convert photos in the browser before they reach the repo (phone photos are 5-13 MB), and
+# give uploads URL-safe names: "Screenshot 2026-10-17 at 15.22.25.png" → screenshot-2026-10-17-at-15-22-25.webp.
+# Unslugified, spaces and Chinese ended up as /image/Screenshot%202026….webp in the Markdown, which
+# Hugo's resources.Get can't resolve, so those images lost the WebP srcset and the lightbox. Names
+# follow the global slug options below (ASCII only, accents transliterated: "Zürich Café" →
+# zuerich-cafe); a name with nothing ASCII left, like 截圖.png, gets a random one (e8972cfc5cef.webp),
+# which can be renamed under Assets.
 media_libraries:
   all:
+    slugify_filename: true
     transformations:
       raster_image:
         format: webp
@@ -40,21 +47,26 @@ media_libraries:
         width: 2560
         height: 2560
 
-# Bodies open as plain Markdown. Typing in the rich-text editor rewrites the whole body, and in this
-# version that breaks existing posts: `\\` → `\` in display math and code blocks, `\<` → `<`,
-# "``` python" → "```plain" + a stray "python" line, list continuations re-indented into code
-# blocks. The toolbar and Insert menu still work here; Insert pastes the bare shortcode
-# ({{<callout text="">}}) at the cursor to fill in by hand. The switch at the right of the toolbar
-# turns on rich text (with the component forms) for the open entry only. To make rich text the
-# default again, swap the order to [rich_text, raw] or delete this block.
+# Bodies open as plain Markdown. Typing in the rich-text editor rewrites the whole body, and in
+# 0.246.1 that still breaks existing posts: `\\` → `\` in display math, `\<` → `<`, `_` → `\_` inside
+# $…$, "``` python" → "```plain" + a stray "python" line, list continuations re-indented into code
+# blocks (code blocks themselves are kept now). The toolbar and Insert menu still work here; Insert
+# pastes the bare shortcode ({{<callout text="">}}) and Image a bare ![]() at the cursor to fill in by
+# hand (upload images under Assets). The switch at the right of the toolbar turns on rich text (with
+# the component forms and image uploads) for the open entry only. To make rich text the default
+# again, swap the order to [rich_text, raw] or delete this block.
 field_defaults:
   richtext:
     modes: [raw, rich_text]
 
 # Date tags in slugs ({{year}}-{{month}}-{{day}} for diaries) use the local date, not UTC, like
 # write-diary.py; with UTC a diary started in Taiwan before 08:00 got yesterday's filename.
+# ASCII-only slugs: these options also shape uploaded file names (slugify_filename above). Entry
+# slugs are unaffected (diaries are dates, posts take a typed English slug).
 slug:
   timezone: local
+  encoding: ascii
+  clean_accents: true
 
 # Hugo translations are sibling files: eth.md (zh-tw) + eth.en.md.
 # New entries start zh-tw only, so no empty English file is created by accident.
@@ -65,6 +77,13 @@ i18n:
   omit_default_locale_from_file_path: true
   omit_default_locale_from_preview_path: true
   initial_locales: default
+
+# Leave empty optional fields out of the front matter instead of writing description: '', tags: []
+# or an empty date (a post saved with an empty Description loses its `description: ""` line, which
+# Hugo treats the same). Keys this file doesn't list (aliases, references…) are still kept, and
+# false isn't "empty": an optional boolean such as katex is still written.
+output:
+  omit_empty_optional_fields: true
 
 collections:
   - name: posts
@@ -101,12 +120,28 @@ collections:
     fields:
       - { label: Title, name: title, widget: string, i18n: true }
       - { label: Date, name: date, widget: datetime, format: "YYYY-MM-DDTHH:mm:ssZ", default: "{{now}}", i18n: duplicate }
+      # Front matter lastmod: single.html shows "· 更新於 <date>" when it's later than the date (and the
+      # sitemap/JSON-LD use it). No default, so opening or saving a post never fills it in by itself.
+      - label: Last updated
+        name: lastmod
+        widget: datetime
+        format: "YYYY-MM-DDTHH:mm:ssZ"
+        required: false
+        i18n: true
+        hint: Optional. After a meaningful update, click Now; the post then shows "更新於 …" next to its date. Leave empty for small fixes.
       - label: Description
         name: description
         widget: string
         required: false
         i18n: true
-        hint: Shown under the title on the home page and in search results. If empty, the home page shows nothing there.
+        hint: Shown under the title on the home page, in search results and as the meta description. If empty, the start of the post is used.
+      # A comma-separated string, as all existing posts have it (header.html prints it as the keywords meta tag).
+      - label: Keywords
+        name: keywords
+        widget: string
+        required: false
+        i18n: true
+        hint: "Optional, for search engines (the keywords meta tag): comma-separated, e.g. Python, 碎形, 數學"
       - label: Tags
         label_singular: Tag
         name: tags
@@ -114,6 +149,12 @@ collections:
         required: false
         i18n: true
         hint: "Reuse existing tags so posts group on /tags/: NYCU, 修課心得, 武陵, 數學, 資訊, 科學班, ETH, Python…"
+      - label: TL;DR
+        name: tldr
+        widget: text
+        required: false
+        i18n: true
+        hint: Optional one- or two-sentence summary, shown in a "tl;dr" box above the post.
       # The theme loads KaTeX only when katex: true (partials/header.html), so math otherwise shows as raw $…$.
       - label: Math (KaTeX)
         name: katex
@@ -122,6 +163,17 @@ collections:
         default: false
         i18n: duplicate
         hint: Turn on if the post has $…$ or $$…$$ math; KaTeX is only loaded on posts with this on.
+      # outline: true forces the table of contents (single.html). A select, not a boolean: a boolean is
+      # always written, so every saved post would gain `outline: false`. "Automatic" is null, which
+      # omit_empty_optional_fields (output, above) leaves out of the file; without that option it
+      # would be written as `outline: null`.
+      - label: Table of contents
+        name: outline
+        widget: select
+        required: false
+        i18n: duplicate
+        options: [{ label: "Automatic (3+ headings)", value: null }, { label: Always show, value: true }]
+        hint: Posts get a table of contents when they have 3 or more h2/h3 headings; "Always show" adds one anyway.
       # Default to draft so nothing goes live by accident; per-locale so an English draft can stay hidden.
       # The default also fills in a missing key: a post with no `draft:` would be saved as a draft.
       - { label: Draft, name: draft, widget: boolean, default: true, i18n: true }

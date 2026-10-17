@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="robots" content="noindex" />
     <title>Jayinnn's Blog · CMS</title>
-    <!-- The CMS's own UI in the blog's look: teal accent (#00897B is hue 174; Sveltia derives its
+    <!-- The CMS's own UI in the blog's look: teal accent (#00796B, hue 174; Sveltia derives its
          accent and tinted greys from --sui-base-hue, in light and dark mode), Fira Sans + Noto Sans TC
          for text, Roboto Mono + Sarasa Mono TC for headings, tabs and code. Sveltia sets these on
          :root in a style it injects later, so :root:root is needed to win. -->
@@ -21,7 +21,7 @@
   </head>
   <body>
     <!-- Sveltia CMS, pinned: this page gets write access to the repo, so upgrade deliberately. -->
-    <script src="https://unpkg.com/@sveltia/cms@0.227.3/dist/sveltia-cms.js"></script>
+    <script src="https://unpkg.com/@sveltia/cms@0.246.1/dist/sveltia-cms.js"></script>
     <script>
       // Render the editor preview with the blog's own fonts and styles (the preview then runs in
       // an iframe). These URLs aren't cache-busted, so after a style change the preview may lag
@@ -34,22 +34,28 @@
         body { max-width: 800px; margin: 0 auto; padding: 1rem 1.5rem; }
       `, { raw: true });
 
-      // Preview laid out like a post page (single.html): title, date, body, tags. Without this the
-      // default preview prints every field label as an <h4>, which the theme styles as "#### Label".
-      // The date is the string the datetime widget saves (format in config.yml), cut to YYYY-MM-DD.
+      // Preview laid out like a post page (single.html): title, date (+ "更新於" for a later lastmod),
+      // tl;dr box, body, tags. Without this the default preview prints every field label as an <h4>,
+      // which the theme styles as "#### Label". Dates are the strings the datetime widget saves
+      // (format in config.yml), cut to YYYY-MM-DD.
       (function () {
         var h = CMS.React.createElement;
         var js = function (v) { return v && v.toJS ? v.toJS() : v; };
+        var day = function (v) { return v ? String(v).slice(0, 10) : ''; };
         var PostPreview = function (props) {
           var get = function (k) { return js(props.entry.getIn(['data', k])); };
-          var date = get('date');
+          var date = day(get('date'));
+          var updated = day(get('lastmod'));
+          var tldr = get('tldr');
           var tags = (get('tags') || []).filter(Boolean);
           return h('main', null, h('article', null,
             h('div', { className: 'title' },
               h('h1', { className: 'title' }, get('title') || 'Untitled'),
               h('div', { className: 'meta' },
-                date ? '發佈於 ' + String(date).slice(0, 10) : '',
+                date ? '發佈於 ' + date : '',
+                updated > date ? h('span', { className: 'updated' }, ' · 更新於 ' + updated) : null,
                 get('draft') ? h('span', { className: 'draft-label' }, 'DRAFT') : null)),
+            tldr ? h('div', { className: 'tldr' }, h('strong', null, 'tl;dr:'), ' ', tldr) : null,
             h('section', { className: 'body' }, props.widgetFor('body')),
             tags.length ? h('div', { className: 'post-tags' }, h('nav', { className: 'nav tags' },
               h('ul', { className: 'tags' }, tags.map(function (t, i) {
@@ -62,6 +68,6 @@
       })();
     </script>
     <!-- Bump ?v= when editing editor-components.js: static JS is cached for 4 hours. -->
-    <script src="/admin/editor-components.js?v=3"></script>
+    <script src="/admin/editor-components.js?v=4"></script>
   </body>
 </html>
