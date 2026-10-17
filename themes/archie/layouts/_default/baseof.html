@@ -15,67 +15,117 @@
         <script defer src="{{ partial "asset-url.html" "js/heading-anchors.js" }}" data-label="{{ i18n "heading_link" }}"></script>
         {{- partial "analytics.html" . -}}
         <script>
+        // Theme button (partials/head.html): light / dark / follow the system. The choice lives in
+        // localStorage.theme ('light' | 'dark', absent = system) and in data-theme-choice on <html>,
+        // which partials/header.html sets before the first paint along with the dark.css link's media
+        // and the theme-color metas; apply() changes all of them the same way.
         (function() {
             var link = document.getElementById('dark-css');
             var toggle = document.getElementById('theme-toggle');
             if (!link || !toggle) return;
+            var root = document.documentElement;
+            var status = document.getElementById('theme-status');
+            var systemMedia = link.getAttribute('data-system-media') || '(prefers-color-scheme: dark)';
+            var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
-            function isDark() {
-                if (link.media === 'all') return true;
-                if (link.media === 'not all') return false;
-                return window.matchMedia('(prefers-color-scheme: dark)').matches;
+            function valid(choice) {
+                return choice === 'light' || choice === 'dark' ? choice : 'system';
+            }
+            var choice = valid(root.getAttribute('data-theme-choice'));
+
+            function isDark(c) {
+                return c === 'dark' || (c === 'system' && window.matchMedia(systemMedia).matches);
             }
 
-            function sync() {
-                toggle.checked = isDark();
+            // From "system" a click goes to the opposite of what's on screen, then to the other
+            // theme, then back to the system. So every click changes the colours except the one back
+            // to the system, and the first click on a fresh visit always does (a fixed light → dark →
+            // system order would do nothing visible on a light OS).
+            function next(c) {
+                var sys = isDark('system') ? 'dark' : 'light';
+                if (c === 'system') return sys === 'dark' ? 'light' : 'dark';
+                return c === sys ? 'system' : sys;
             }
 
-            // localStorage throws when site data is blocked (e.g. Safari with cookies off)
-            function saved() {
-                try { return localStorage.getItem('theme'); } catch (e) { return null; }
+            function label(c) {
+                return toggle.getAttribute('data-' + c) || 'Theme: ' + c;
             }
 
-            function apply(dark) {
-                link.media = dark ? 'all' : 'not all';
-                try { localStorage.setItem('theme', dark ? 'dark' : 'light'); } catch (e) {}
-                // The browser toolbar colour follows too (header.html sets it the same way at load)
+            function sync(c) {
+                root.setAttribute('data-theme-choice', c);
+                toggle.setAttribute('aria-label', label(c));
+                toggle.title = label(c);
+            }
+
+            // Comments (partials/comments.html) follow the theme through this event
+            function notify() {
+                try {
+                    document.dispatchEvent(new CustomEvent('themechange', { detail: { choice: choice, dark: isDark(choice) } }));
+                } catch (e) {}
+            }
+
+            function apply(c) {
+                link.media = c === 'dark' ? 'all' : c === 'light' ? 'not all' : systemMedia;
+                // localStorage throws when site data is blocked (e.g. Safari with cookies off)
+                try {
+                    if (c === 'system') localStorage.removeItem('theme');
+                    else localStorage.setItem('theme', c);
+                } catch (e) {}
+                sync(c);
+                // The browser toolbar colour follows too. For the system, each meta gets back the
+                // colour of its own media query, so the browser keeps following the OS by itself.
                 var metas = document.querySelectorAll('meta[name="theme-color"]');
-                for (var i = 0; i < metas.length; i++) metas[i].content = dark ? '#202124' : '#ffffff';
+                for (var i = 0; i < metas.length; i++) {
+                    var q = metas[i].getAttribute('media');
+                    var dark = c === 'system' && q ? /dark/.test(q) : isDark(c);
+                    metas[i].content = dark ? '#202124' : '#ffffff';
+                }
+                notify();
             }
 
             // Crossfade the whole page with a View Transition (a GPU snapshot fade, same cost on any
             // page, so phones and desktops behave alike). It replaced a 0.15s colour transition on
             // every element, which iPhone Safari couldn't keep up with on long pages.
-            var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-            toggle.addEventListener('change', function() {
-                var dark = toggle.checked;
+            var latest = null;
+            var statusTimer = null;
+            toggle.addEventListener('click', function() {
+                // `choice` moves on at once, so a second press during the fade goes one step further
+                // (a key press: a mouse click then lands on the ::view-transition overlay)
+                var c = choice = next(choice);
+                if (status) {
+                    // Screen readers don't reliably say a focused button's new name: announce it
+                    status.textContent = label(c);
+                    clearTimeout(statusTimer);
+                    statusTimer = setTimeout(function() { status.textContent = ''; }, 3000);
+                }
                 if (document.startViewTransition && !reduceMotion.matches) {
-                    // .theme-switching (main.css): the header fades with the page, at the same speed
-                    var root = document.documentElement;
+                    // .theme-switching (main.css): the header fades with the page, at the same speed.
+                    // A second press skips the running transition; only the latest one removes the class.
                     root.classList.add('theme-switching');
-                    document.startViewTransition(function() { apply(dark); }).finished.finally(function() {
-                        root.classList.remove('theme-switching');
+                    var vt = latest = document.startViewTransition(function() { apply(c); });
+                    vt.finished.finally(function() {
+                        if (latest === vt) root.classList.remove('theme-switching');
                     });
                 } else {
-                    apply(dark);
+                    apply(c);
                 }
             });
 
+            // Following the system: dark.css and the theme-color metas follow their media queries
+            // live; the comments need telling.
             window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
-                if (!saved()) sync();
+                if (choice === 'system') notify();
             });
 
-            // Announced as an on/off switch rather than a checkbox
-            toggle.setAttribute('role', 'switch');
-            // The switch has already been drawn unchecked by now: set the real state with its
-            // transitions off (.no-transition, main.css), or a dark page slides the knob on every load.
-            var sw = toggle.closest('.theme-switch');
-            if (sw) sw.classList.add('no-transition');
-            sync();
-            if (sw) {
-                void sw.offsetWidth;
-                sw.classList.remove('no-transition');
-            }
+            // Back/forward cache: another page may have changed the theme since this one was shown
+            window.addEventListener('pageshow', function(e) {
+                if (!e.persisted) return;
+                var saved;
+                try { saved = localStorage.getItem('theme'); } catch (err) { return; }
+                if (valid(saved) !== choice) apply(choice = valid(saved));
+            });
+
+            sync(choice);
         })();
         </script>
     </body>

@@ -1823,3 +1823,34 @@ label.theme-switch.no-transition .slider::before {
 .nav-search-results a:focus-visible .nav-search-result-date {
   color: rgba(255, 255, 255, 0.75);
 }
+
+/* ── Theme button (markup: partials/head.html; script: _default/baseof.html) ──
+   One icon button that cycles light / dark / follow the system, drawn like the search button beside
+   it. It shows the current choice: sun, moon, or a half-filled circle for the system. The choice is
+   data-theme-choice on <html>, set by partials/header.html before the first paint, so the right icon
+   is there from the start and nothing changes or animates on load. Padding gives a 24px target;
+   the negative margins keep the 20px footprint of the search button. */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  margin: -2px -2px -2px calc(0.5em - 2px);
+  padding: 4px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+.theme-toggle:hover {
+  color: var(--maincolor);
+}
+.theme-toggle svg {
+  display: none;
+}
+:root:not([data-theme-choice="light"]):not([data-theme-choice="dark"]) .theme-icon-system,
+:root[data-theme-choice="light"] .theme-icon-light,
+:root[data-theme-choice="dark"] .theme-icon-dark {
+  display: block;
+}

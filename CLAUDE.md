@@ -50,15 +50,20 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 
 ## Dark mode
 
-- `partials/header.html` writes the `dark.css` link from an inline script with its final `media` (saved `localStorage.theme`, else `prefers-color-scheme`), so the first paint is already in the right theme. The nav switch (`partials/head.html`) is synced by the inline script at the end of `_default/baseof.html`, with `.no-transition` on while it sets the initial state so the knob doesn't slide on every dark page load.
-- The switch is a checkbox with `role="switch"`, kept focusable: the header's inline `<style>` hides it with `display:none`, which `label.theme-switch input` in `main.css` overrides with an invisible input under the slider. Wrap every `localStorage` access in try/catch (it throws when site data is blocked).
+- The reader's choice is `localStorage.theme` = `light` | `dark`; absent = follow the system (the site default, `prefers-color-scheme` with `mode = "auto"`). Three places apply it and must agree:
+  - `partials/header.html` (`<head>`) writes the `dark.css` link from an inline script with its final `media` (`all` / `not all` / the system query, which it also keeps in `data-system-media`), so the first paint is already in the right theme. It sets `data-theme-choice` (`light`/`dark`/`system`) on `<html>`, and a saved choice overrides both `theme-color` metas.
+  - `apply()` in the script at the end of `_default/baseof.html` sets the same things when the nav button is pressed (for "system": the link's `data-system-media`, storage key removed, each `theme-color` meta back to its own media query's colour), inside a View Transition with `.theme-switching` on `<html>` (see Animations). The state is held in JS, so a second key press during the fade goes one step further and only the latest transition removes the class; a mouse click during the 0.22 s fade lands on the `::view-transition` overlay and is dropped.
+  - Following the system, the link and the metas track the OS through their media queries; the `prefers-color-scheme` listener only fires `themechange`.
+- The nav button (`partials/head.html`, `#theme-toggle`) cycles from "system" to the opposite of what's on screen, then the other theme, then back to "system": every click changes the colours except the one back to "system", so a new visitor's first click always does (a fixed light → dark → system order did nothing visible on a light OS). Its icon (sun / moon / half-filled circle) is picked in `main.css` from `html[data-theme-choice]`, set before the first paint, so nothing changes or animates on load. `aria-label`/`title` name the current state (i18n `theme_light`/`theme_dark`/`theme_system`, passed as `data-*` on the button), and the visually-hidden `role="status"` `#theme-status` announces each change (cleared after 3 s): screen readers don't reliably read a focused button's new name.
+- Anything else that follows the theme listens for `themechange` on `document` (`detail.choice`, `detail.dark`), fired after every change and, while following the system, on OS changes: `partials/comments.html` restyles giscus with it.
+- Wrap every `localStorage` access in try/catch (it throws when site data is blocked); the button still works within the page then (giscus's own client.js does throw).
 
 ## Colours
 
 - Text colours must pass WCAG AA (4.5:1, 3:1 for large text and UI borders) in both modes; compute the ratio, and give every colour in `main.css` its `dark.css` counterpart.
 - Secondary text (dates, TOC, captions, blockquotes, search hints, footnote/citation numbers) uses `var(--muted)`: #656d76 in `main.css` (5.3:1 on white), redefined as #9aa0a6 in `dark.css` (6.1:1 on #202124). Don't use `grey`: 3.9:1 / 4.1:1.
 - Code-block chrome (language label, copy button, line numbers) is `rgba(0,0,0,.55)` light (4.7:1) / `rgba(255,255,255,.5)` dark (5.2:1). `syntax.css` loads after `main.css`, so a light override of a generated rule needs the `.highlight` prefix too (e.g. `.highlight .chroma .ln`).
-- Keyboard focus is one 2px teal `:focus-visible` outline (`main.css`; `dark.css` recolours it) on links, buttons, `summary`, code blocks (Chroma's `pre tabindex="0"`), zoomable images and the theme toggle; add new focusable elements to both selector lists. The toggle's checkbox stays focusable through `label.theme-switch input` (see Dark mode).
+- Keyboard focus is one 2px teal `:focus-visible` outline (`main.css`; `dark.css` recolours it) on links, buttons, `summary`, code blocks (Chroma's `pre tabindex="0"`) and zoomable images (the theme toggle is a plain `button`); add new focusable elements to both selector lists.
 
 ## Multilingual (zh-tw default, en under `/en/`)
 
@@ -141,7 +146,7 @@ Personal blog (blog.jayinnn.dev) built with **Hugo v0.167.0 (extended)**, using 
 - RSS: `layouts/rss.xml` overrides Hugo's embedded template (v0.167.0) only so the home feed lists posts (mainSections, not `hidden`) instead of every regular page (About, Search). Items carry `.Summary`, not full content (the footnote/reference lists only exist in `single.html`). Every page links a feed for autodiscovery: list pages their own, other pages the site feed.
 - `robots.txt` (`enableRobotsTXT`, `layouts/robots.txt`) allows everything and names the sitemap. Don't `Disallow` noindex pages (English shells, `/admin/`): crawlers would never see the noindex. `layouts/sitemapindex.xml` leaves out a language whose sitemap would be empty (English today).
 - Menu URLs (and other internal links) end in `/`: GitHub Pages answers `/posts` with a 301 to `/posts/`.
-- `theme-color` (browser toolbar) is a light/dark pair of metas in `header.html` matching the page background (`#ffffff`, dark.css `#202124`; keep in sync if those change). A saved manual theme overrides both at page load (dark-css script in `header.html`), and the toggle's `apply()` in `baseof.html` updates them the same way.
+- `theme-color` (browser toolbar) is a light/dark pair of metas in `header.html` matching the page background (`#ffffff`, dark.css `#202124`; keep in sync if those change). A saved manual theme overrides both at page load (dark-css script in `header.html`), and the theme button's `apply()` in `baseof.html` updates them the same way, or for "follow the system" gives each one back its own media query's colour so the browser follows the OS again (see Dark mode).
 
 ## Alerts & authoring shortcodes
 

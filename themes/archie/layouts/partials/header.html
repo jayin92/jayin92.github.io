@@ -104,79 +104,31 @@
 	{{- $darkCSS := partial "asset-url.html" "css/dark.css" }}
 	<script>
 	(function() {
-		var media = {{ if eq .Site.Params.mode "auto" }}'(prefers-color-scheme: dark)'{{ else }}'all'{{ end }};
+		// Theme choice: localStorage.theme = 'light' | 'dark', absent = follow the system (the site
+		// default below). The nav button's script at the end of _default/baseof.html uses the same rules.
+		var system = {{ if eq .Site.Params.mode "auto" }}'(prefers-color-scheme: dark)'{{ else }}'all'{{ end }};
+		var choice = 'system';
 		try {
 			var saved = localStorage.getItem('theme');
-			if (saved === 'dark') media = 'all';
-			else if (saved === 'light') media = 'not all';
+			if (saved === 'dark' || saved === 'light') choice = saved;
 		} catch (e) {}
+		var media = choice === 'dark' ? 'all' : choice === 'light' ? 'not all' : system;
+		// The nav button shows its icon for the choice from the first paint (main.css)
+		document.documentElement.setAttribute('data-theme-choice', choice);
 		// Write the link from the parser with the final media already set, so the browser waits for it
 		// before the first paint. Switching media on an existing link left it non-render-blocking, which
 		// flashed light on every page (and view transition) for a manual dark choice on a light OS.
-		document.write('<link id="dark-css" rel="stylesheet" type="text/css" href="' + {{ $darkCSS }} + '" media="' + media + '">');
+		// data-system-media is what the button puts back for "follow the system".
+		document.write('<link id="dark-css" rel="stylesheet" type="text/css" href="' + {{ $darkCSS }} + '" media="' + media + '" data-system-media="' + system + '">');
 		// A saved choice also wins over the theme-color media queries (browser toolbar colour).
-		if (media === 'all' || media === 'not all') {
+		if (choice !== 'system') {
 			var metas = document.querySelectorAll('meta[name="theme-color"]');
-			for (var i = 0; i < metas.length; i++) metas[i].content = media === 'all' ? '#202124' : '#ffffff';
+			for (var i = 0; i < metas.length; i++) metas[i].content = choice === 'dark' ? '#202124' : '#ffffff';
 		}
 	})();
 	</script>
 	<noscript><link id="dark-css" rel="stylesheet" type="text/css" href="{{ $darkCSS }}" {{ if eq .Site.Params.mode "auto" }}media="(prefers-color-scheme: dark)"{{ end }}></noscript>
 	{{ end }}
-	<style>
-	.theme-switch {
-		position: relative;
-		display: inline-block;
-		width: 44px;
-		height: 22px;
-		vertical-align: middle;
-		margin-left: 0.5em;
-	}
-	.theme-switch input { display: none; }
-	.theme-switch .slider {
-		position: absolute;
-		inset: 0;
-		background-color: #ccc;
-		border-radius: 22px;
-		cursor: pointer;
-		transition: background-color 0.3s ease;
-	}
-	.theme-switch .slider::before {
-		content: '';
-		position: absolute;
-		width: 16px;
-		height: 16px;
-		left: 3px;
-		bottom: 3px;
-		background-color: white;
-		border-radius: 50%;
-		transition: transform 0.3s ease;
-	}
-	.theme-switch input:checked + .slider {
-		background-color: var(--darkMaincolor, #80CBC4);
-	}
-	.theme-switch input:checked + .slider::before {
-		transform: translateX(22px);
-	}
-	.theme-switch .icon {
-		position: absolute;
-		top: 0;
-		bottom: 0;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		pointer-events: none;
-		z-index: 1;
-	}
-	.theme-switch .icon svg {
-		width: 11px;
-		height: 11px;
-		display: block;
-		color: white;
-	}
-	.theme-switch .icon-sun { left: 4px; }
-	.theme-switch .icon-moon { right: 4px; }
-	</style>
 	{{- if isset .Site.Params "customcss" }}
 		{{ range .Site.Params.customCSS }}
 		<link rel="stylesheet" type="text/css" href="{{ . | relURL }}">

@@ -476,3 +476,10 @@ sup:target a {
 .nav-search-results a:focus-visible .nav-search-result-date {
   color: rgba(0, 0, 0, 0.65);
 }
+
+/* ── Theme button (see main.css) — dark. The search button beside it hovers the same light teal
+   (the light theme's teal is about 3:1 on #202124). ── */
+.theme-toggle:hover,
+.nav-search-toggle:hover {
+  color: var(--darkMaincolor);
+}
