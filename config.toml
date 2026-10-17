@@ -31,8 +31,8 @@ weight = 2
 [params]
 	mode="auto" # color-mode → light,dark or auto
 	useCDN=false # don't use CDNs for fonts and icons, instead serve them locally.
-	subtitle = "A Blog about My Daily Life"
-	description = "A blog of jayinnn's daily life" # home page meta/og description
+	subtitle = "A Blog about My Random Thoughts"
+	description = "A blog of jayinnn's random thoughts" # home page meta/og description
 	mainSections = ["posts"]
 
 # Author in the JSON-LD (partials/json-ld.html); the http(s) [[params.social]] links become sameAs.
