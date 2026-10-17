@@ -2,14 +2,11 @@
 title = "About"
 description = "About Jie-Ying Lee"
 date = 2021-05-06
-aliases = ["about-me"]
+draft = false
+aliases = [ "about-me" ]
 +++
 
-## 關於我
+Hi 我是李杰穎，現在在 Google Pixel Camera 擔任軟體工程師。畢業於陽明交大資工系，在大四上學期到蘇黎世交換。
 
-李杰穎 Jie-Ying Lee，畢業於陽明交大資工系，在大四上學期到蘇黎世交換。
-
-想成為一個對社會有影響力的善良人類。
-
-- [My personal page](https://jayinnn.dev)
-- [My photography works](https://instagram.com/photograbear_)
+- 如果想要了解我的研究主題和之前做的研究，請看[我的個人網站](https://jayinnn.dev)
+- 無聊的時候喜歡[攝影](https://instagram.com/photograbear_)
