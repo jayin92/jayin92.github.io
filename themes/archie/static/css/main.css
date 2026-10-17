@@ -953,6 +953,17 @@ html:has(dialog.lightbox[open]) {
   ::view-transition-new(root) {
     animation-duration: 0.22s;
   }
+  /* Theme switch (baseof.html sets .theme-switching for the length of its view transition): the
+     header and progress bar fade as part of the page instead of as their own groups at the default
+     0.25s, and the header's own 0.15s background-color transition doesn't run on top, so the whole
+     page changes colour at one speed */
+  .theme-switching header,
+  .theme-switching .reading-progress {
+    view-transition-name: none;
+  }
+  .theme-switching .content > header {
+    transition: none;
+  }
 }
 @keyframes fade-in {
   from { opacity: 0; }

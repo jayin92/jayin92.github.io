@@ -50,7 +50,12 @@
             toggle.addEventListener('change', function() {
                 var dark = toggle.checked;
                 if (document.startViewTransition && !reduceMotion.matches) {
-                    document.startViewTransition(function() { apply(dark); });
+                    // .theme-switching (main.css): the header fades with the page, at the same speed
+                    var root = document.documentElement;
+                    root.classList.add('theme-switching');
+                    document.startViewTransition(function() { apply(dark); }).finished.finally(function() {
+                        root.classList.remove('theme-switching');
+                    });
                 } else {
                     apply(dark);
                 }
