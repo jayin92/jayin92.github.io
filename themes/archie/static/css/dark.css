@@ -172,7 +172,6 @@ a:hover {
 a:focus-visible,
 button:focus-visible,
 summary:focus-visible,
-.theme-switch input:focus-visible + .slider,
 .highlight pre:focus-visible,
 img[data-zoom-src]:focus-visible {
   outline-color: var(--darkMaincolor);

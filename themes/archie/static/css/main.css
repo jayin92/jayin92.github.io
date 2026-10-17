@@ -891,7 +891,6 @@ ul.pills > li::before {
 a:focus-visible,
 button:focus-visible,
 summary:focus-visible,
-.theme-switch input:focus-visible + .slider,
 .highlight pre:focus-visible,
 img[data-zoom-src]:focus-visible {
   outline: 2px solid var(--maincolor);
@@ -1747,33 +1746,6 @@ sup:target a {
   font-size: 0.8rem;
   line-height: 1.5;
   color: var(--muted);
-}
-
-/* ── Theme toggle (markup: partials/head.html; script: _default/baseof.html) ──
-   The theme's inline <style> in partials/header.html hides the checkbox with display:none, which
-   takes the switch out of the tab order and the accessibility tree. Keep it in place but invisible,
-   under the slider (label.theme-switch outranks that rule), so it can be focused and its
-   :focus-visible ring on .slider works. */
-label.theme-switch input {
-  display: block;
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  opacity: 0;
-}
-/* Set by the script while it syncs the switch to the saved/OS theme on load, so a dark page doesn't
-   slide the knob across on every load */
-label.theme-switch.no-transition .slider,
-label.theme-switch.no-transition .slider::before {
-  transition: none;
-}
-@media (prefers-reduced-motion: reduce) {
-  label.theme-switch .slider,
-  label.theme-switch .slider::before {
-    transition: none;
-  }
 }
 
 /* ── Code copy feedback (static/js/code-copy.js) ── */
