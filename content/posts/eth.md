@@ -2,7 +2,7 @@
 title: "ETH 交換心得"
 date: 2025-10-31T23:50:42+08:00
 description: "從 9/9 一落地到 2/10 離開這五個月在瑞士的生活"
-tags: ["NYCU", "交大", "心得", "ETH"]
+tags: ["NYCU", "心得", "ETH"]
 draft: false
 ---
 
