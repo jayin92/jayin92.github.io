@@ -1,10 +1,10 @@
 /* Markdown */
 :root{
---maincolor: #00897B;
+--maincolor: #00796B;
 --bordercl: #0782bf;
 /* default callout: dodgerblue's hue, darkened so its white text is 4.8:1 (dodgerblue: 3.2) */
 --callouctcolor: #0070e0;
---hovercolor: #00897B;
+--hovercolor: #00796B;
 --darkMaincolor: #80CBC4;
 /* Secondary text (dates, TOC, captions, hints, quotes): 5.3:1 on white, WCAG AA. dark.css sets its own. */
 --muted: #656d76;
@@ -1039,13 +1039,13 @@ html:has(dialog.lightbox[open]) {
     max-height: calc(100vh - 4rem);
     overflow-y: auto;
     padding-right: 0.5em;
-    /* Thin scrollbar in the theme colour (--maincolor #00897B), solid on hover.
+    /* Thin scrollbar in the theme colour (--maincolor #00796B), solid on hover.
        Standard properties: Chrome 121+, Firefox, Safari 18.2+. */
     scrollbar-width: thin;
-    scrollbar-color: rgba(0, 137, 123, 0.45) transparent;
+    scrollbar-color: rgba(0, 121, 107, 0.45) transparent;
   }
   .toc details:hover {
-    scrollbar-color: rgba(0, 137, 123, 0.9) transparent;
+    scrollbar-color: rgba(0, 121, 107, 0.9) transparent;
   }
   /* Older Safari only understands the -webkit- pseudo-elements */
   .toc details::-webkit-scrollbar {
@@ -1055,11 +1055,11 @@ html:has(dialog.lightbox[open]) {
     background: transparent;
   }
   .toc details::-webkit-scrollbar-thumb {
-    background-color: rgba(0, 137, 123, 0.45);
+    background-color: rgba(0, 121, 107, 0.45);
     border-radius: 3px;
   }
   .toc details:hover::-webkit-scrollbar-thumb {
-    background-color: rgba(0, 137, 123, 0.9);
+    background-color: rgba(0, 121, 107, 0.9);
   }
   .toc summary {
     list-style: none;
@@ -1203,7 +1203,7 @@ a.ref-backref {
 .references li:target,
 .cite a:target,
 sup:target a {
-  background-color: rgba(0, 137, 123, 0.12);
+  background-color: rgba(0, 121, 107, 0.12);
 }
 
 /* Hover preview of a footnote or reference (static/js/notes.js) */
@@ -1484,7 +1484,7 @@ sup:target a {
   border-radius: 0 6px 6px 0;
   background-color: color-mix(in srgb, var(--alert-color) 7%, transparent);
 }
-.alert-tip { --alert-color: #00897b; }
+.alert-tip { --alert-color: #00796b; }
 .alert-important { --alert-color: #8250df; }
 .alert-warning { --alert-color: #9a6700; }
 .alert-caution { --alert-color: #cf222e; }
