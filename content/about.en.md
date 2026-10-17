@@ -2,15 +2,13 @@
 title = "About"
 description = "About Jie-Ying Lee"
 date = 2021-05-06
-aliases = ["about-me"]
-draft = true
+draft = false
+aliases = [ "about-me" ]
 +++
 
-## About Me
+Hi there, I'm Jie-Ying Lee. I am currently a Software Engineer at Google, working on Pixel Camera. I earned my BS in Computer Science from National Yang Ming Chiao Tung University, Taiwan. I spent the first semester of my senior year on exchange at ETH Zürich.
 
-I'm Jie-Ying Lee (李杰穎), a Computer Science graduate of National Yang Ming Chiao Tung University. I spent the first semester of my senior year on exchange at ETH Zürich.
+I will apply for PhD in Robotics/CV in this application cycle (Fall 2027).
 
-I want to become a kind person who makes a positive impact on society.
-
-- [My personal page](https://jayinnn.dev)
-- [My photography works](https://instagram.com/photograbear_)
+- To know more about my research interests and previous works, please visit [my personal page](https://jayinnn.dev)
+- i also spent some free time on [photography](https://instagram.com/photograbear_)
