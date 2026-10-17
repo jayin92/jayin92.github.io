@@ -1,12 +1,14 @@
 /* woff2 only: every current browser reads it, and browsers take the first format they support,
    so the woff/ttf fallbacks (and the eot/svg files next to them) were never fetched. */
 
-/* noto-sans-tc-regular - chinese-traditional */
+/* Noto Sans TC (SIL OFL 1.1, see fonts/OFL-Noto-Sans-TC.txt): the Chinese glyphs in post prose,
+   after Fira Sans in the stack. Subset to the site's characters by tools/subset_fonts.py (CI
+   regenerates it before each build). */
 @font-face {
   font-family: 'Noto Sans TC';
   font-style: normal;
   font-weight: 400;
-  src: url('../fonts/noto-sans-tc-v11-chinese-traditional-regular.woff2') format('woff2');
+  src: url('../fonts/noto-sans-tc-400.woff2') format('woff2');
   font-display: swap;
 }
 
