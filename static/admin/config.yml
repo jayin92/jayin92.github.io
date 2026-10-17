@@ -120,12 +120,28 @@ collections:
     fields:
       - { label: Title, name: title, widget: string, i18n: true }
       - { label: Date, name: date, widget: datetime, format: "YYYY-MM-DDTHH:mm:ssZ", default: "{{now}}", i18n: duplicate }
+      # Front matter lastmod: single.html shows "· 更新於 <date>" when it's later than the date (and the
+      # sitemap/JSON-LD use it). No default, so opening or saving a post never fills it in by itself.
+      - label: Last updated
+        name: lastmod
+        widget: datetime
+        format: "YYYY-MM-DDTHH:mm:ssZ"
+        required: false
+        i18n: true
+        hint: Optional. After a meaningful update, click Now; the post then shows "更新於 …" next to its date. Leave empty for small fixes.
       - label: Description
         name: description
         widget: string
         required: false
         i18n: true
-        hint: Shown under the title on the home page and in search results. If empty, the home page shows nothing there.
+        hint: Shown under the title on the home page, in search results and as the meta description. If empty, the start of the post is used.
+      # A comma-separated string, as all existing posts have it (header.html prints it as the keywords meta tag).
+      - label: Keywords
+        name: keywords
+        widget: string
+        required: false
+        i18n: true
+        hint: "Optional, for search engines (the keywords meta tag): comma-separated, e.g. Python, 碎形, 數學"
       - label: Tags
         label_singular: Tag
         name: tags
@@ -133,6 +149,12 @@ collections:
         required: false
         i18n: true
         hint: "Reuse existing tags so posts group on /tags/: NYCU, 修課心得, 武陵, 數學, 資訊, 科學班, ETH, Python…"
+      - label: TL;DR
+        name: tldr
+        widget: text
+        required: false
+        i18n: true
+        hint: Optional one- or two-sentence summary, shown in a "tl;dr" box above the post.
       # The theme loads KaTeX only when katex: true (partials/header.html), so math otherwise shows as raw $…$.
       - label: Math (KaTeX)
         name: katex
@@ -141,6 +163,17 @@ collections:
         default: false
         i18n: duplicate
         hint: Turn on if the post has $…$ or $$…$$ math; KaTeX is only loaded on posts with this on.
+      # outline: true forces the table of contents (single.html). A select, not a boolean: a boolean is
+      # always written, so every saved post would gain `outline: false`. "Automatic" is null, which
+      # omit_empty_optional_fields (output, above) leaves out of the file; without that option it
+      # would be written as `outline: null`.
+      - label: Table of contents
+        name: outline
+        widget: select
+        required: false
+        i18n: duplicate
+        options: [{ label: "Automatic (3+ headings)", value: null }, { label: Always show, value: true }]
+        hint: Posts get a table of contents when they have 3 or more h2/h3 headings; "Always show" adds one anyway.
       # Default to draft so nothing goes live by accident; per-locale so an English draft can stay hidden.
       # The default also fills in a missing key: a post with no `draft:` would be saved as a draft.
       - { label: Draft, name: draft, widget: boolean, default: true, i18n: true }
