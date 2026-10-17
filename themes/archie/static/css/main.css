@@ -652,6 +652,13 @@ footer svg{
     font-size: 14px;
   }
 
+  /* Post prose stays 16px on phones: with the 14px root (which keeps the nav and chrome compact),
+     1.0625rem was 14.9px, small for Chinese text on a phone. Tables keep the smaller size. */
+  .body p,
+  .body li {
+    font-size: 16px;
+  }
+
   .content {
     padding: 0 0.75rem;
   }
