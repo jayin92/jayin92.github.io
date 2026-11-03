@@ -64,10 +64,12 @@ def unwrap_redirects(fragment: str) -> str:
 
 def cmd_page(args):
     body = unwrap_redirects(pathlib.Path(args.body).read_text(encoding="utf-8"))
-    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}-(am|pm)", args.slug):
-        sys.exit(f"bad slug {args.slug!r}: expected YYYY-MM-DD-am or YYYY-MM-DD-pm")
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}-(am|pm)(-\d+)?", args.slug):
+        sys.exit(f"bad slug {args.slug!r}: expected YYYY-MM-DD-am / -pm, optionally with -2, -3 ...")
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     out = OUT_DIR / f"{args.slug}.html"
+    if out.exists():
+        sys.exit(f"{out.relative_to(ROOT)} already exists: pick the next free slug (e.g. {args.slug}-2)")
     out.write_text(TEMPLATE.format(title=html.escape(args.title), body=body.strip()), encoding="utf-8")
     print(out.relative_to(ROOT))
     print(BASE_URL + f"{args.slug}.html")
