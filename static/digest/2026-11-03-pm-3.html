@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 晚報｜2026-11-03（週二）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 晚報｜2026-11-03（週二）</h1>
+<p><b>今日導讀</b>：這一份是今天的第三份晚報，主題是「動作之前先想像，但想像要夠便宜」。WorldFlow 讓 video model 同時吐出 3D flow，SparseWAM 把 driving world model 的「未來」壓成 16 個 token，ETH 的 humanoid 則只靠一顆 RGB 鏡頭躲球。新聞端有一篇值得 3D 研究者轉給同事的 pose benchmark 稽核，還有把 depth map 當成攝影作品的 Vathography。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. WorldFlow：影片與 3D motion 一起生成，讓 world model 直接吐出可執行的 flow</h3>
+<p><a href="https://arxiv.org/abs/2610.39278">arXiv:2610.39278</a>｜cs.CV / cs.RO｜RoboScience、National University of Singapore（Lin Shao）</p>
+<p><b>問題</b>：video world model 預測的是像素，3D dynamics 只是隱含的；world action model 需要昂貴、綁定機器人的 action data；而直接預測 3D flow 的方法只有 flow 監督，作者認為這對物理動態是很弱的訊號。WorldFlow 想要一個模型同時看到兩者：用影片的豐富監督學 dynamics，輸出卻是機器人能直接用的 3D 軌跡。</p>
+<p><b>方法</b>：輸入一張 RGB、語言指令和 N 個 3D query points，聯合建模未來影片與每個點逐幀的位移 f_t = p_t − p_{t−1}。骨幹建在 Cosmos-Nano 上，保留原本處理指令的 reasoner，把 generator 改成 Mixture-of-Transformers，video token 與 flow token 之間 full attention、一起做 rectified-flow 去噪。flow token 由位移的線性投影、geometry embedding（絕對位置加相對於點雲中心的 Fourier 特徵）、noise level 嵌入組成，並用 RoPE 對齊到影片格點：每個 clip 是 13×9×15 個 video token 加 48×64 個 flow token。除了 flow matching loss，還在重建出的乾淨 flow 上加位移大小、累積方向、終點三個輔助 loss。資料約 144 萬個 object-level clip（約 1,224 小時），涵蓋 ManiSkill、RoboCasa、RoboTwin 等 7 個模擬器、AgiBot World、Something-Something V2、EPIC-KITCHENS 和自採的 SpatialCog，軌跡由 Track4World 自動抽取、caption 由 Gemini 2.5 Pro 生成，用 64 張 H800 訓練兩個階段。</p>
+<p><b>結果</b>：在自建的 WorldFlowBench（1,678 個 held-out 樣本）上，ADE 在 Sim7 是 0.051 m，最強外部 baseline（Cosmos3-Nano 生成影片後再用 4RC 追蹤）是 0.096；SpatialCog 上 0.060 對 0.131。真實資料 Real3 只小贏（0.081 對 0.085），PWT 還輸給 baseline（0.311 對 0.332）。最有說服力的是 ablation：同一架構只學 flow 時，Sim7 ADE 是 0.099，加入影片聯合生成後降到 0.051；直接生成 flow 也比「先生成影片再追蹤」好（0.060 對 0.083）。實機上用 xArm 加 XHand 做 12 個任務共 36 次，只換掉 flow predictor，成功率 66.7% 對 μ0 的 11.1%。</p>
+<p><b>限制與疑問</b>：query points 必須事先給定；監督來自自動追蹤，帶有雜訊；評估只給一張圖，沒有運動歷史，也不處理多模態未來。實機只和 μ0 比，36 次試驗不多，SpatialCog 又是作者自己的資料，最大的改善恰好出現在這裡。</p>
+<p><b>為什麼值得看</b>：這是「影片監督當作 3D motion 的 regularizer」最乾淨的一組證據，48% 的 ADE 改善來自同一架構只差在有沒有一起生成影片。做 Dream2Flow 類 object-centric 操作、或想把 video generation 預訓練轉成機器人 prior 的人，可以把 flow token 設計直接拿去試；自動挑 query points、和 action head 聯合訓練，都是作者自己點名的下一步。</p>
+
+<h3>2. SparseWAM：Driving world-action model 只需要 16 個 register token</h3>
+<p><a href="https://arxiv.org/abs/2611.00044">arXiv:2611.00044</a>｜cs.CV｜上海交通大學 AutoLab、Guangzhou Zaofu Intelligent Technology、HKUST (Guangzhou)</p>
+<p><b>問題</b>：world action model（WAM）同時預測未來場景與自車軌跡，希望把場景動態的 prior 帶進 planning。但像 DriveVA 這種建在 Wan2.2-5B 上的方法，推論時要去噪整段未來 video latent，非常慢；SimWAM、Metis 則用 attention mask 在部署時拿掉 world branch，於是 policy 根本沒有「先想像再行動」。作者還認為 DINO、JEPA 這類 patch 特徵 token 太多，又帶著大量跟決策無關的外觀資訊。</p>
+<p><b>方法</b>：第一階段在凍結的 DINOv2 ViT-S/14 上接 16 個可學的 register token，只訓練 register 和 rank 32 的 LoRA，輸出只保留 register 當成場景表示，用 L1 模仿學習加上對 PDMS 子指標的 score distillation 監督，讓這 16 個 token 只記住和開車有關的東西。第二階段是 modality-decoupled Mixture-of-Transformers：world expert（寬 512）處理歷史與未來的 register，action expert（寬 256）處理 8 個 waypoint，兩者共享 joint attention。關鍵是 causal mask：未來 register 看不到 action，而 action 看得到全部，所以推論時動作確實以「想像出的未來」為條件。兩個 expert 都用 rectified flow 訓練；推論時一次平行去噪 64 個樣本（10 步 Euler），再由第一階段的 scorer 挑最好的一條。</p>
+<p><b>結果</b>：NAVSIM navtest 只用前鏡頭，多模態版 PDMS 92.6，高於 DriveVA 的 90.9，延遲 164.3 ms 對 829.0 ms；單模態版 89.1、122 ms，參數只有 51.8M（SimWAM 是 1.02B）。NAVSIM v2 的 navhard EPDMS 39.6，比 DriveLaW 高 9.0。Ablation 很清楚：在同樣的 MoT 配方下，DINOv2 和 V-JEPA 2.1 都是 87.8，register 是 89.1；causal mask 比隔離或雙向 attention 高 0.4。作者還用 FLUX.2 做反事實編輯（移除前車、加行人 vs. 換成夜晚、下雨），register 表示對規劃相關變化的敏感度是背景變化的 1.41 倍，其他表示都低於 1。</p>
+<p><b>限制與疑問</b>：只有 NAVSIM、只有前鏡頭、沒有 closed-loop；多模態的提升依賴用模擬器標籤訓練的 scorer 從 64 個樣本中挑選；navtest 的 EC 子分數只有 72.8，明顯低於 DriveLaW 的 77.4；比較表混了 LiDAR 與多鏡頭方法；程式碼要等接收後才釋出。</p>
+<p><b>為什麼值得看</b>：這篇的訊息是「world model 預測什麼」比「怎麼預測」更重要：與其生成像素，不如生成一個為決策蒸餾過的極小 latent。這個想法可以直接搬到 manipulation 的 WAM：先用 success/progress 監督學一組 register，再在 register 空間裡做 imagine-then-act，可能比在 video latent 裡想像便宜一個數量級。</p>
+
+<h3>3. 只用一顆單眼 RGB，讓 Unitree G1 學會躲避球</h3>
+<p><a href="https://arxiv.org/abs/2611.01197">arXiv:2611.01197</a>｜cs.RO｜ETH Zurich Robotic Systems Lab（Marco Hutter 組）、RWTH Aachen</p>
+<p><b>問題</b>：人形機器人要對快速飛來的物體做反應，同時不能失去平衡。作者把躲避球當成可控的測試：找到球、判斷是否有威脅、閃開、恢復姿態，再把球找回來準備下一次投擲，而且全程只用軀幹上的一顆 RGB 相機，不靠動作捕捉。</p>
+<p><b>方法</b>：感知端是微調過的 YOLOv8，只輸出 bounding box 和是否偵測到；一個三層 MLP 從 box 歷史估計球在機器人座標系中的位置與一個「威脅」旗標，深度靠已知球半徑與 box 大小推得。模擬時不渲染影像，而是用已知球體的切線投影解析地算出 box，再加入掉幀、像素雜訊、尺寸雜訊與 30 到 50 ms 延遲。控制端是兩個 asymmetric actor-critic policy：閃避/恢復與搜尋/追蹤，以 50 Hz 輸出 29 個關節目標，由一個帶遲滯的狀態機切換。在 Isaac Lab 訓練，每個 episode 投五顆球，距離 2.5 到 5 m、速度 6 到 10 m/s。三階段 curriculum：actor 先用真值，再開始訓練 estimator，等閃避成功率超過 0.9 才切換成估計值。</p>
+<p><b>結果</b>：解析投影在 1 到 64 個環境都維持約 0.5 ms，渲染則從 4.99 ms 漲到 32 個環境的 123.67 ms，64 個環境直接失敗，觀測生成快 10.2 到 259.7 倍，與真實渲染的 box 平均 IoU 0.912 到 0.933。5 m、6 m/s 時閃避成功率 97.8% 到 100%，但 2.5 m、10 m/s 時只剩 33.2% 到 40.8%。Curriculum ablation：完整三階段 90.8%，直接訓練 74.1%，拿掉 estimator warmup 只有 67.6%。雜訊增大到 large 時成功率掉到 26.9%，作者估計實際 YOLO 雜訊接近 small 等級（84.4%）。實機上超過 15 次單次投擲，不碰到也不跌倒的成功率超過 85%。</p>
+<p><b>限制與疑問</b>：沒有任何外部 baseline，只有 ablation；實機數字是「超過 15 次」的彙總，作者說之後會補精確次數；沒有動捕真值可以驗證實機的位置估計；policy 常偏好單一閃避方向；搜尋時軀幹轉太快會造成 motion blur 而掉偵測。</p>
+<p><b>為什麼值得看</b>：最值得帶走的是「用解析幾何取代渲染」：如果感知介面能壓縮成 bounding box，就能在數千個平行環境裡模擬感知雜訊，而不必付渲染成本。這個做法可以推廣到接球、避障、追蹤移動目標等任務；另一個好題目是把 box 換成 keypoint 或 mask，看解析投影能撐到多複雜的感知表示。</p>
+
+<h2>快速瀏覽</h2>
+<ul>
+<li><b>Democratizing Robot-Use Agents</b>（<a href="https://arxiv.org/abs/2611.01560">2611.01560</a>，Pieter Abbeel 等 28 位作者）：robot-use agent 用 LLM 加工具鏈 zero-shot 操作機器人，但多半依賴閉源前沿模型。作者推出開源 harness uni-robot-agent，搭 Qwen3.8-Flash-Next 在 RoboDojo 拿到 31.39 分，超過已發表的 GPT-6 Astra-RoboProbe（28.97）和許多 VLA/WAM baseline，並在 19 個真實任務上有競爭力。</li>
+<li><b>Anchor 1</b>（<a href="https://arxiv.org/abs/2611.00193">2611.00193</a>，Archon Robotics）：為精準全身操作設計的人形 controller，用校準過的稀疏 motion reference 取代線上 joint-space retargeting，並把誤差回饋和 motion encoding 分開。最嚴格的實機設定下 tracking error 比現有 controller 低 30% 到 80%，也讓遙操作收資料更有效率，附一個量測精度、穩定性與可達範圍的 benchmark。</li>
+<li><b>JADE：VLM 是 joint denoiser</b>（<a href="https://arxiv.org/abs/2611.01215">2611.01215</a>）：多數 diffusion VLA 只把 VLM 當成固定的 conditioning；JADE 讓 VLM 在每一步去噪時也讀入目前的 noisy action，透過 gated cross-attention 引導 action expert，並直接學習還原乾淨 action latent。RoboDojo 平均成功率 12.67%，是 π0.5 系方法中最高，四個雙臂實機任務比 π0.5 高 20.8 個百分點。</li>
+<li><b>Reflex</b>（<a href="https://arxiv.org/abs/2611.00524">2611.00524</a>）：robot policy 的 serving 層。作者發現重用中間去噪狀態幾乎不比「少跑幾步」好，且 backbone 可能占 70% GPU 時間，所以改成快取整個 action chunk，再用學出的 action-aware 相似度加 residual correction 修正，並依任務進度決定何時重跑原 policy。延遲改善 1.4 到 11 倍、吞吐量 2.0 到 2.2 倍，成功率相當。</li>
+<li><b>A Straight Line Is Not a Camera Pose</b>（<a href="https://arxiv.org/abs/2611.00482">2611.00482</a>）：做 feed-forward 重建的人應該讀的稽核。在常用的 Sintel 協定下，一條不看影像的等速直線，mean ATE 竟然比 11 個近期模型中的 10 個還低，因為 ATE 的對齊會把任何等速預測擬合到真實軌跡的最佳直線，而且只對位置對齊、完全忽略朝向。作者提出 pose-anchored ATE，只改一個函式、每個 clip 多 0.06 ms，和 reprojection error 的 Spearman 相關從 0.32 提高到 0.61。</li>
+<li><b>MoRE-GS</b>（<a href="https://arxiv.org/abs/2611.00375">2611.00375</a>）：預測動態 3D Gaussian 場景的「未來」，而不只是插值。凍結由已觀測時段建出的 Gaussian，再用四個 expert（persistence、係數空間 Transformer、GCN、帶剛性/非剛性約束的結構化 Transformer）預測控制點運動，由按運動群組與預測時距分桶的路由表混合。摘要說在 D-NeRF 與 HyperNeRF 上勝過其他方法，但沒有給數字。</li>
+<li><b>FORCE</b>（<a href="https://arxiv.org/abs/2611.00023">2611.00023</a>）：從原始影片無監督學習成對物體交互的 video world model，每對物體的關係是一個固定 latent，可以刪除、修改、轉移或新增，做反事實編輯。從影片做的編輯和模擬器真值的一致度只有 0.19 到 0.37，換成真實物體位置則升到 0.57 到 0.85，作者結論是瓶頸在感知定位，而不在關係動態本身。</li>
+</ul>
+
+<h2>新聞與討論</h2>
+<ul>
+<li><b>Vathography：把 depth map 當成攝影作品</b>（<a href="https://vathography.com/">vathography.com</a>｜<a href="https://news.ycombinator.com/item?id=50331800">HN</a>）：一位攝影者提出「vathograph」，把單張照片的深度圖本身當成最終作品，名字來自希臘文的「深度」加「書寫」。流程是任意相機拍一張，用 Marigold V2 在 ComfyUI 裡估深度（另有分塊估計的高解析節點避開顯存限制），再用 Blender 外掛決定「焦點」：焦點變成拍攝後才選的深度到色調映射。對做 monocular depth 的人來說，這是少見的「模型輸出被當作美學媒材」的案例；作者也提醒部分第三方 ComfyUI 節點曾夾帶惡意程式，要用官方實作。</li>
+<li><b>Ben Recht：效率的定義與「銀河演算法」</b>（<a href="https://www.argmin.net/p/galactus-the-devourer">argmin.net</a>｜<a href="https://news.ycombinator.com/item?id=50320904">HN</a>）：Recht 從 1965 年 Edmonds 的 matching 演算法談起，認為多項式時間從來不是「有效率」的好定義。他拿 OpenAI 宣稱的 subexponential SAT 演算法當例子：依他的讀法，除非變數數量超過約 10^(10^25)，否則它會退回暴力搜尋，而宇宙的原子數大約 10^80；與此同時，工業 SAT solver 已能在一天內解十億變數的實例。HN 上的反駁也很有內容：big-O 雖不完美，但可組合、好分析、通常能預測實務表現，而且證明 NP-complete 問題「必須」用銀河演算法本身就會是重大成果。</li>
+<li><b>OpenAI 談 monorepo 的 Git 擴展</b>（<a href="https://openai.com/index/scaling-git-at-openai/">openai.com</a>｜<a href="https://news.ycombinator.com/item?id=50345924">HN</a>）：原文擋自動抓取，以下根據 HN 留言所引用的段落。OpenAI 做了一個叫 Pando 的系統，現在支撐整個 monorepo 的開發；據引述，核心由一位工程師設計、由多組 agent 實作，約 10 週完成。技術上用 Git 的 packfile-uri 讓 pack 走獨立下載連結（並回饋上游），push 時邊串流到 blob storage 邊驗證 packfile、不解開到本地 repo。留言兩派：一派說 Meta、Google 十年前就做過，另一派在問 AI 產生的大量 commit 究竟是生產力還是膨脹；也有人質疑不解包就驗證是否太信任客戶端。</li>
+<li><b>DiscImageStudio：把圖燒在光碟的資料面上</b>（<a href="https://github.com/JiaFeiMiao-K-Cat/DiscImageStudio">GitHub</a>｜<a href="https://news.ycombinator.com/item?id=50346849">HN</a>）：不是 LightScribe，而是把圖片 dither 成黑白後，反推成 CD-DA 音軌、DVD 或 BD-R 的資料，讓燒出來的資料區本身呈現圖像。DVD 路徑實作了 ECC、EFMPlus、NRZI，還有用拍照量測軌距、再用三次曲線修正的校準流程。HN 上作者說靈感來自一個 CTF 題目，而且校準對 pregroove 幾何極度敏感；有人提議把資料與圖像用 DVD 糾錯碼混合，像 QR code art 一樣。</li>
+<li><b>NVIDIA auto-ontology</b>（<a href="https://github.com/NVIDIA/auto-ontology">GitHub</a>｜<a href="https://news.ycombinator.com/item?id=50348962">HN</a>）：NVIDIA 開源（Apache 2.0）的企業資料「語意層」：從 metadata 自動生成 ontology 與 knowledge graph，定義指標與實體的商業意義，驗證 agent 產生的 SQL 是否符合認證過的定義，並透過 MCP、CLI、API 提供給 agent。預設模型是 Nemotron 3 Nano 30B-A3B 加 Nemotron 的 embedding 與 reranker。README 沒有給準確率數字，而是指向另一個 BIRD text-to-SQL 評估 repo，且不接受外部貢獻。</li>
+<li><b>ERICI：歐洲 RISC-V 工業電腦倡議</b>（<a href="https://erici.eu">erici.eu</a>｜<a href="https://news.ycombinator.com/item?id=50334523">HN</a>）：目標是定義一套從 firmware、boot loader、partitioning hypervisor 到即時 OS 與 Linux 的參考軟體堆疊，並在 RVA23 硬體上驗證，能開機就算相容。網站沒有列出會員和資金，目前只在 SpacemiT K3 板子上展示過。HN 上的質疑很直接：看起來像個人計畫、示範硬體都來自中國廠商；支持者則認為對要跑十年以上的工業設備而言，開放 ISA 是對抗授權與制裁風險的保險。</li>
+<li><b>Hacker Times：紐約時報版面的 HN</b>（<a href="https://hackertimes.ca/">hackertimes.ca</a>｜<a href="https://news.ycombinator.com/item?id=50346981">HN</a>）：每小時更新、由 AI 編輯的 HN 報紙版首頁，分成 Technology、Software、Science 等版。頭條是 HN 第一頁分數最高的文章，其他版位依 60% 分數、25% 留言數、15% 排名加權，並宣稱不繞過付費牆。如果你喜歡這份 digest 的形式，它是另一種把 HN 變成「可以讀完」的嘗試。</li>
+</ul>
+</article>
+</body>
+</html>
