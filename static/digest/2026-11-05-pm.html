@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 晚報｜2026-11-05（週四）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 晚報｜2026-11-05（週四）</h1>
+<p><b>今日導讀</b>：今晚的主題是「拿掉一個習以為常的模組，看看會發生什麼」。NEO-VLA 拿掉 VLA 前面的 vision encoder，讓 action expert 直接讀 backbone 的中間層；Solv3R 把 3D 重建模型改成不依賴迭代次數的 solver，可以一直算下去、隨時加入新視角；GaussianRenderFormer 則嘗試用 transformer 取代 3DGS 的 rasterizer。新聞方面，有 OpenAI 用 AI 一口氣找出九百多個 Linux kernel 提權漏洞，也有白宮 IP 段出現 residential proxy 出口。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. NEO-VLA：沒有 vision encoder 的原生 VLA</h3>
+<p><a href="https://arxiv.org/abs/2611.06918">arXiv:2611.06918</a>｜cs.RO / cs.CV｜NTU S-Lab（Ziwei Liu 團隊）、SenseTime Research、Ropedia｜HF Daily Papers 今日第一（49 upvotes）</p>
+<p><b>問題</b>：多數 VLA 用 CLIP、SigLIP 或 DINOv2 把影像壓成最後一層 feature 再交給 policy。作者認為幾何、邊界這類細節可能在最後一層就已經丟了，而 action prediction 也許更需要「中間的視覺計算」。</p>
+<p><b>方法</b>：backbone 是一個 40 層、2B 參數的 encoder-free VLM（NEO 系列），像素只經過一個 stride 32 的兩段式卷積 embedder，每個 32×32 區塊一個 token，所有相機、視角、時間步共用。位置用三軸（時間、高、寬）的 native RoPE，文字 causal、同一視覺區塊內雙向 attention。每個時間區塊最多三個視角，附相機 ID token、內參與旋轉的 geometry token，再加六個 proprioception token。動作由一個隨機初始化的窄 action expert 產生，它讀取 backbone 指定層的 KV cache；作者比較了 first-28、skip-28、end-28 等「讀哪幾層」的 layer map。動作用 flow matching 預測 30 步的 chunk（雙臂各 26 維含 12 個手指關節，加 8 維身體），推論 10 步 Euler。訓練分三階段：凍結 backbone 113.4K 步、全解凍 75K 步（並以 0.1 權重混入理解資料的 next-token loss），最後在自有資料上微調 75K 步。資料是九個公開資料集共 223 萬條 episode、9,927 小時。</p>
+<p><b>結果</b>：同樣在 OXE 上預訓練 75K 步後比 LIBERO，凍結 backbone 時 NEO-VLA 平均 90.9，Qwen3-VL-2B 79.5、Gemma-3-4B 84.5；全微調為 95.3 對 90.8、91.0。有趣的對照實驗是：把 Qwen3-VL 的 vision tower 中間層也接給 expert，凍結分數反而從 79.5 掉到 64.9。layer map 方面，凍結時讀前 28 層最好（94.9），讀後 28 層只有 86.7。擾動分析顯示 layer 0–10 的 KV 對平移誤差影響最大。最終成績 LIBERO 平均 97.4、LIBERO-Plus 89.7、RoboTwin 2.0 Clean2Rand 69.40；真機三個任務各 20 次，分別 12、17、13 次成功，π0.5 為 10、14、13。有理解資料共同訓練時，RoboTwin C2R 是 69.4，只用動作資料微調只剩 10.7，而且模型講不出合法文字。</p>
+<p><b>限制與疑問</b>：作者自己承認，預訓練與容量都不同，無法把增益完全歸功於「拿掉 encoder」。LIBERO-Pro 的 Position 只有 3.0、Task 6.3，空間配置或任務目標一改就崩。RTX 3090 上一次查詢約 280 ms，其中 action expert 就佔 163 ms。真機只有三個任務。</p>
+<p><b>為什麼值得看</b>：「低層視覺特徵對控制最有用」這件事有了相當乾淨的證據：讀前段層勝過讀後段層，而且 encoder-based 模型接中間層並不能複製這個效果。做 3D-aware 或 geometry-heavy 的 policy 時，可以試著把 depth 或 3D foundation model 的中間特徵也用 layer map 的方式接進 expert，而不是只拿最後輸出。</p>
+
+<h3>2. Solv3R：把 3D 重建 transformer 變成真正的迭代 solver</h3>
+<p><a href="https://arxiv.org/abs/2611.02857">arXiv:2611.02857</a>｜cs.CV｜Jeong-gi Kwak、Andrea Tagliasacchi、Kwang Moo Yi 等；UBC、SFU、多倫多大學、Wayve、Sony</p>
+<p><b>問題</b>：VGGT 這類 geometric foundation model 一次 forward 就輸出幾何，streaming 模型逐幀更新狀態，兩者都不像傳統 SfM 那樣能「繼續優化」或把新視角加進既有解。先前的 DéjàView 雖然跨迭代共享權重，但每一步的更新仍依賴迭代編號，算多了就會發散。</p>
+<p><b>方法</b>：把共享的 transformer block 當作類似 Jacobi iteration 的 stationary solver：z^{k+1} = T(z^k; z^0)，每次呼叫都重新注入初始影像編碼 z^0。從 117M 參數的 DéjàView 微調，把依步數條件化的 gate 換成學出來的常數 gate，每次更新後把狀態 RMS 正規化。任何一次呼叫後都能解碼相機、深度、ray map。訓練時每個 iteration 抽 4–64 個視角，先跑 16–40 次不回傳梯度的呼叫，再跑 8 次可微呼叫，並以 0.15 機率加入 feature noise 或重置部分視角；loss 是 GT 監督加上 0.5 倍的 DéjàView 蒸餾。8×H100 訓練約一週。推論時用相對更新量小於 0.02 作為停止條件。</p>
+<p><b>結果</b>：148 個視窗中 144 個在 64 次內收斂，平均 17.5 次，其中 99.3% 相機旋轉誤差小於 5°。24 視角離線重建，adaptive 版在 ETH3D AUC@3 達 70.4（DéjàView 66.0、VGGT 35.4），ScanNet++ 81.2；但 DTU 仍是 1.26B 的 VGGT 遠勝（96.5 對 85.5）。消融最有說服力：原版 DéjàView 跑 128 次後 AUC@5 直接歸零，Solv3R 跑 1024 次仍有 78.8；拿掉 input injection 或狀態正規化，同樣在 1024 次歸零。地圖式 relocalization 上，每個視角 cache 2.86 MB、51 ms，7-Scenes recall 72.8%，VGGT 需要 97.6 MB、186 ms，recall 45.5%。Streaming 每幀 95 ms、5.0 GB，沒有任何 streaming 專用訓練。</p>
+<p><b>限制與疑問</b>：adaptive 模式計算量從 76.5 升到 91.3 TFLOPs；Cambridge relocalization recall 只有 24.9%；Sintel ATE 仍輸給 LingBot-Map。小模型在 DTU 這類高精度 benchmark 上與 VGGT 的差距也還很明顯。</p>
+<p><b>為什麼值得看</b>：這篇把「feed-forward 重建」和「可持續優化的 solver」接起來，而且方法很簡單（常數 gate、輸入注入、正規化）。對做 SLAM 或機器人建圖的人，warm start、增量加視角與共用單一 KV cache 都是實用性質；也可以思考同樣的 stationary 設計能否用到 feed-forward 3DGS 或 4D 重建。</p>
+
+<h3>3. GaussianRenderFormer：用 transformer 渲染 3D Gaussian Splats</h3>
+<p><a href="https://arxiv.org/abs/2611.05593">arXiv:2611.05593</a>｜cs.CV｜Shahaf Valencia Levy、Sagie Benaim（希伯來大學）</p>
+<p><b>問題</b>：3DGS 的渲染靠投影、排序、alpha blending 這套手寫 rasterizer。三角網格已經有 learned renderer（RenderFormer），Gaussian 還沒有。作者把這篇定位成物件層級的 feasibility study。</p>
+<p><b>方法</b>：每個 Gaussian（中心、尺度、四元數、RGB、opacity 共 14 維）經線性層變成一個 768 維 token。視角無關的 scene encoder 有 12 層 self-attention、16 個 register token，並對 Gaussian 中心用 3D RoPE；視角相關的 decoder 把每個 4×4 像素 patch 的光線編成 token，六層 cross-attention 讀 scene token，再由 DPT head 輸出 log 空間的像素。相對 RenderFormer 有三個改動：Gaussian 投影位置的 2D RoPE、更小的 patch，以及把每個 Gaussian 投影後的 2D covariance（footprint）經零初始化線性層加到 key 上，只多 23,040 個參數。總共 195M 參數，從 RenderFormer 權重初始化。loss 是 log 空間加權 L1 加 0.5 倍 LPIPS。資料是 Objaverse 上 26,820 個已訓練好的 splat，每個裁到 20,000 個 Gaussian。</p>
+<p><b>結果</b>：在 300 個全新物件上，PSNR 38.08 dB、SSIM 0.9814、LPIPS 0.0113；直接用 gsplat rasterize 同一份輸入是 44.02 dB。footprint 帶來約 1.4 dB，拿掉 2D RoPE 掉 5.2 dB（1,000 物件消融）。96 幀環繞平均 38.52 dB，影片沒有明顯閃爍。但速度是硬傷：單一視角 275 ms、2.8 GB，gsplat 只要 0.7 ms；64 萬個 Gaussian 時一個視角要 75 秒。從頭隨機初始化訓練會塌成全黑圖。</p>
+<p><b>限制與疑問</b>：比 rasterizer 差好幾 dB、慢數百倍；只有單物件、從外往內看；換解析度或相機距離就明顯退化（拉遠到 24.09 dB）；只用 view-independent 顏色，沒有 SH。輸入準備仍要用 rasterizer 剪枝。訓練成本 1,327 GPU-hours。</p>
+<p><b>為什麼值得看</b>：這不是要取代 rasterizer，而是證明「神經網路能學會 splat 的渲染方程」。作者寫得很誠實，分析章節（誤差集中在邊緣、scene encoder 是瓶頸）比數字更有價值。下一步自然是加入材質與光源參數做 learned relighting 或 global illumination，這正是 rasterizer 做不到的地方。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>PyRUA-DataFarm：讓 coding agent 當遙操作員</h3>
+<p><a href="https://arxiv.org/abs/2611.05320">arXiv:2611.05320</a>｜北京大學 DAGroup 等。給一個資料需求和一條目標場景的校正 episode，agent 自己寫模擬場景、專家控制器和成功判定，再用以真實影像為條件的影片模型把 rollout 渲染成多視角照片級影片。五個真機任務上，只用這種資料訓練的 policy 100 次成功 93 次，同量遙操作資料是 84 次；換了沒見過的桌布與彩色燈光後，前者仍有 87 次、後者掉到 46 次。每小時三視角資料約 107 美元。</p>
+
+<h3>GameVerse：分鐘級的遊戲 world model 資料集</h3>
+<p><a href="https://arxiv.org/abs/2610.37257">arXiv:2610.37257</a>｜Alaya Lab。現有遊戲影片資料多是十秒以內的短片，作者整理出 69.7K 段、1,655 小時、3.5 億幀的第一與第三人稱遊戲畫面，其中 1,358 小時是連續兩分鐘的片段。每段都有相機軌跡，以及把靜態場景與動態事件分開寫的 caption。作者表示在上面訓練能明顯拉長 interactive world model 的穩定時長。</p>
+
+<h3>H2RB：用未配對的人類示範把技能轉到機器人</h3>
+<p><a href="https://arxiv.org/abs/2611.04391">arXiv:2611.04391</a>｜KAIST（Jinwoo Shin 團隊）。用幾何錨定的表徵對齊，加上兩個 domain 分開 decoder、共享 action latent 的 tokenizer，同時訓練人類與機器人示範。真機物件遷移從 8.0 提升到 51.8，技能遷移達 62.7，物件擺位分布外則從 6.0 到 45.3。</p>
+
+<h3>Ctrl-F：把「力」當成人形機器人的指令介面</h3>
+<p><a href="https://arxiv.org/abs/2611.05507">arXiv:2611.05507</a>｜Koushil Sreenath、Masayoshi Tomizuka 等（柏克萊）。在動作模仿之外，為每個指定接觸部位（手、腳）加上 3D 力指令，由統一的 motion-force controller 追蹤，高階 planner 依物體狀態線上給力。硬體上能拖、推、抬、踢最重 20 kg 的箱子；不看力的 baseline 在推與踢任務上失敗。</p>
+
+<h3>Time-to-Goal：替 JEPA world model 學一個時間距離</h3>
+<p><a href="https://arxiv.org/abs/2611.05847">arXiv:2611.05847</a>。JEPA 規劃時用預測 latent 與目標的歐氏距離當成本，但這不保證「離目標時間越近成本越低」。作者在凍結的 LeWorldModel 上，用 margin ranking loss 從離線軌跡三元組學一個輕量的 T2G 度量，四個導航與操作 benchmark 的平均規劃成功率從 32.7% 升到 63.0%，接近或超過階層式 H-JEPA。</p>
+
+<h3>VLA 推論時間到底花在哪？</h3>
+<p><a href="https://arxiv.org/abs/2611.06710">arXiv:2611.06710</a>。在 H100 到 Jetson Thor 共四類 GPU、七個 VLA 上量測七類加速手法（量化、剪枝、kernel 編譯、CUDA graph 等），分析 CPU launch overhead、記憶體頻寬與 kernel 效率如何互相影響，並整理出依延遲預算疊加優化的 VLA-Triage 準則。部署 VLA 到邊緣裝置前值得翻一下。</p>
+
+<h3>RoboCasa-Mem：長程行動操作的記憶 benchmark</h3>
+<p><a href="https://arxiv.org/abs/2611.06475">arXiv:2611.06475</a>。九個需要回憶互動歷史的 mobile manipulation 任務，分成環境記憶（位置、屬性、關係）與流程記憶（任務進度、多任務排程），並提出後續約束取決於機器人先前行為的 Behavior-Conditioned Evaluation。附 1,800 條示範，baseline HMAP 的低階 VLA 會用 VGGT 系列的幾何特徵。</p>
+
+<h3>AnchorComplete：從部分點雲補完整個場景 mesh</h3>
+<p><a href="https://arxiv.org/abs/2611.03228">arXiv:2611.03228</a>｜Andrea Vedaldi、Daniel Cremers 等。在 TRELLIS.2 上以部分點雲為條件，讓生成的幾何貼住觀測，再用公制尺度、固定大小視窗的 coarse-to-fine 流程補全大場景。作者表示在 Replica 等 benchmark 上優於強 baseline，稀疏視角時差距尤其大。</p>
+
+<h2>新聞與討論</h2>
+
+<h3>OpenAI 用 AI 找出 948 個 Linux kernel 提權漏洞</h3>
+<p>OpenAI 的〈<a href="https://openai.com/index/a-thousand-fewer-paths-to-root/">A thousand fewer paths to root</a>〉描述以 AI 大規模掃描 kernel，找出低權限使用者可觸發、且有可量測記憶體破壞的提權漏洞（原文擋自動抓取，以下依 HN 討論中的引述）。據討論，數字以修補數計算，一個 patch 可能涵蓋多個變體；團隊成員回覆說早期掃描找到 166 個，現在是九百多個，之後每代新模型都會重掃。<a href="https://news.ycombinator.com/item?id=50372929">HN 討論</a>多在追問子系統與 bug 類型分布、Google 的 Sashiko 是否抓到過，以及一般組織根本付不起百萬美元等級的 token 預算。</p>
+
+<h3>白宮網段出現 residential proxy 出口</h3>
+<p>Layer3 Intel 的<a href="https://layer3intel.com/blog/residential-proxies-white-house-network">報告</a>指出，residential proxy 網路的出口 IP 中有屬於白宮的 IP 段（原文無法直接抓取，依 HN 引述）。報告說約一半流量落在美東晚上五點到午夜，並坦承資料「只看得到出口，看不到背後的裝置或人」，也不知道裝置在哪。<a href="https://news.ycombinator.com/item?id=50371246">HN 討論</a>（1,000+ 分）有人提醒 IP 歸屬不代表裝置真的在白宮內；更大的話題是：免費 VPN、IPTV 盒子裡偷裝的 proxy SDK 本質上就是 botnet，也是爬蟲壓垮小網站、逼大家上 Cloudflare 與 CAPTCHA 的源頭。</p>
+
+<h3>OpenAI Images 2.6</h3>
+<p>OpenAI 發布 <a href="https://openai.com/index/introducing-images-2-6/">Images 2.6</a>，ChatGPT 與 Codex 全方案可用（官方頁擋抓取，依 HN 引述）。討論中提到 API 多了 SVG 輸出與動畫 GIF，官方宣稱生成快 50%。<a href="https://news.ycombinator.com/item?id=50372945">HN</a> 上有人實測 1024×1024 低、中品質每張圖的 token 用量漲了 3 到 4 倍，等於變相漲價；也有人推測 SVG 是先生成點陣圖再向量化，但這只是從文件推論。</p>
+
+<h3>Ripple-65B Preview：美國 open-weight 的 agentic coding 新高？</h3>
+<p>做 AI 晶片設計平台的 Ricursive Intelligence 釋出 <a href="https://www.ricursive.com/ripple">Ripple-65B Preview</a>：dense transformer（非 MoE）、80 層、12T token 預訓練、最長 1M context，小到能在 DGX Spark 上跑。自報 TerminalBench 2.1 得分 80.52，高於 Reflection Beam（501B）的 80.1 與 Meta Muse Spark Open 的 76.4。所有數字都是公司自報、只有單一 benchmark，且頁面沒寫授權條款，使用前要看 model card。<a href="https://news.ycombinator.com/item?id=50369925">HN 討論</a></p>
+
+<h3>Conductor 加入 Meta，雲端版兩週內關閉</h3>
+<p>同時指揮多個 coding agent 的 Mac app <a href="https://www.conductor.build/announcement">Conductor 宣布加入 Meta</a>。11/4 起停止註冊與下載，11/13 Conductor Cloud 變唯讀，11/20 關閉並開始刪除雲端資料；本機版會持續更新到 2027 年初再收掉。用過的人記得用「Transfer to local」或在設定中匯出資料。<a href="https://news.ycombinator.com/item?id=50369503">HN 討論</a>（187 則留言）多半在感嘆 agent 工具被大廠收購後關站的模式。</p>
+
+<h3>SpaceX Starfall：微重力實驗的回收艙</h3>
+<p>SpaceX 推出 <a href="https://www.spacex.com/starfall">Starfall</a>，標語是「Affordable, routine access to microgravity」。官方頁內容無法讀取，HN 留言描述它是有足夠 delta-v 離軌、附隔熱盾與降落傘的回收艙，但沒有價格與酬載數字。<a href="https://news.ycombinator.com/item?id=50373308">HN 討論</a>中最有意思的是競爭關係：Varda 做太空製藥、靠 SpaceX 發射，現在發射商自己也下場了。</p>
+
+<h3>Show HN：花十年讓 DOS 版 Wing Commander 能雙人連線</h3>
+<p>作者與兄弟想在《Wing Commander》裡當彼此的僚機，從 2015 年開始在 DOSBox 裡比對記憶體快照找出位置與速度向量，再寫 trampoline 透過 main loop hook 注入、呼叫遊戲本身的開火與傷害函式（還得模仿 Borland overlay 的 stack frame 才不會當掉）。2020 年就能玩，但跨 NAT 連線太麻煩而停擺；今年改用 WebRTC 與 Emscripten，直接在瀏覽器跑，放進自己的 GOG 版本即可。<a href="https://fireflyk64.github.io/wcmulti/">原文</a>｜<a href="https://news.ycombinator.com/item?id=50369895">HN 討論</a></p>
+</article>
+</body>
+</html>
