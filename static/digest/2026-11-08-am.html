@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 早報｜2026-11-08（週日）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 早報｜2026-11-08（週日）</h1>
+<p><b>今日導讀</b>：週末 arXiv 沒有新清單，今天從週五清單和 HF 本週熱門裡挑出還沒讀過的幾篇。三篇深度閱讀各補一塊「讓模型記得、對得上、學得會」的拼圖：讓長影片 world model 記住畫面外的東西、把 VGGT 的重建直接對到衛星地圖上，以及把一個 4B 的 VLM 用 SFT + RL 訓練成只靠低階 API 寫程式操作機器人的 agent。新聞這邊有 MSR AI Frontiers 解散的內部視角、Mac 上那個沒寫進文件的「家人分類器」，以及一個把 coding benchmark 小改一下就讓分數散開的實驗。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. History Forcing：用「有沒有歷史」的差值，教 few-step 影片模型記住過去</h3>
+<p><a href="https://arxiv.org/abs/2611.02782">arXiv:2611.02782</a>｜cs.CV｜Zhejiang University、Microsoft Research、Monash University、Adelaide University</p>
+<p><b>問題</b>：few-step autoregressive（AR）影片 diffusion 生成很快，但長 rollout 會慢慢漂：人物外觀、場景布局一點一點變。world model 更麻煩，鏡頭轉開再轉回來時，最近幾個 chunk 裡根本沒有那個區域的資訊。現有蒸餾有兩條路：Self Forcing 式的 DMD 用 bidirectional teacher 當目標，畫質好但不吃遠端歷史；直接蒸餾一個看得到長歷史的 AR teacher，又會把 AR teacher 較差的畫質一起學進來。作者把這叫做 history–quality coupling。</p>
+<p><b>方法</b>：做法很像 classifier-free guidance。對同一個 noisy student chunk，讓 AR teacher 預測兩次：一次只給最近的 context，一次再多給一段「額外歷史」。兩個 score 的差值就是「歷史帶來的修正」，乘上權重後加到 bidirectional teacher 的 reference score 上，當成 DMD 的新目標。作者證明這等於在 reference 分佈上乘一個 p(歷史 | 當前 chunk) 的 posterior 項，所以畫質監督仍來自 bidirectional teacher，一致性另外加強。長影片任務裡，額外歷史取自 student 自己 rollout 中較早、漂移較少的 12 個 latent frame，兩邊共享最近 6 個 frame。world model 任務裡，則讓 teacher 從同一張初始畫面固定鏡頭不動，生成「你不在時這裡發生了什麼」，再用 OPSD-V 式的 velocity 自蒸餾，把這段歷史的修正加進 EMA teacher 的目標。底座是 Wan2.1-T2V-1.3B，student 從 Causal Forcing 的 checkpoint 起始，只訓練 300 iteration；world model 部分用 DreamX-World-5B，800 筆樣本、LoRA 微調 100 步。</p>
+<p><b>結果</b>：VBench 15 秒生成的 quality score 從 baseline 的 84.44 提到 85.07（AR teacher 再用 10 秒影片微調後），高於 LongLive、Rolling Forcing（皆 84.20）和 Infinity-RoPE（84.54）。VBench-Long 60 秒生成的 aggregate 是 79.82，在 1.3B 模型裡最高，贏過用 14B teacher 蒸餾的 Rolling Forcing（79.22）和 LongLive（79.12），接近 5B 的 LongLive-2.0（79.90）；而且 student 訓練時的 rollout 最長只有 15 秒。world model 方面，PlayWorld out-of-sight 的 Evolution Quality 從 2.35 到 2.70，MemoBench 的 Object Consistency 從 58.43 到 62.18。訓練成本只比 DMD 多約 2%。</p>
+<p><b>限制與疑問</b>：歷史修正的品質受 AR teacher 本身能力限制，作者也承認固定鏡頭的 teacher rollout 若場景本身變化少，對畫面外演化的監督就弱。dynamic degree 隨歷史權重上升而下降（權重 2 時掉到 73.61），一致性和動態之間仍有取捨。PlayWorld 是 1 到 5 分的評分，43 個案例，差距的統計意義值得保留。</p>
+<p><b>為什麼值得看</b>：「同一個 teacher、條件不同，取差值當 guidance」是很便宜的招式，可以搬到任何想強化某種條件的蒸餾：例如機器人 world model 裡強化 action 條件或 3D memory。固定鏡頭 teacher 當作「畫面外世界的旁觀者」也是個好點子，值得思考能不能換成有明確 3D 狀態的模擬器。</p>
+
+<h3>2. X-VGGT：把 VGGT 的重建直接對到衛星圖上</h3>
+<p><a href="https://arxiv.org/abs/2611.07575">arXiv:2611.07575</a>｜cs.CV｜University of Central Florida（David G. Shatwell、Mubarak Shah）</p>
+<p><b>問題</b>：地面照片做 3D 重建只能得到局部座標、尺度未知的結果；cross-view geo-localization 能估出一台相機在衛星圖上的位置，但不重建 dense 幾何。作者想一次完成兩件事：給一組地面照片加一張有地理座標的正射衛星圖，輸出相機姿態、metric 點雲，並讓每個像素都落在地圖座標上。</p>
+<p><b>方法</b>：架構沿用 VGGT 的 alternating attention（frame attention 與 global attention 交替），DINOv2 encoder，把衛星圖當成最後一個 view 一起丟進去，給它專屬的 camera/register token。衛星 view 不預測相機或深度，只透過 attention 影響地面 view 的重建。新增的 Satellite Alignment Head 只讀衛星 token，迭代輸出一個場景層級的轉換：重力方向、yaw、log scale、平面平移，用它把整個局部重建正交投影到衛星平面。所以是一個 transform 對齊整個場景，而不是每台相機各自定位。loss 除了 VGGT 原本的 camera 與 point map loss，還有三項 georeferencing loss：轉換參數本身、投影後的 dense 點、投影後的相機中心。訓練資料是 KITTI 加上作者自己補上衛星圖的 Sat-MegaDepth。</p>
+<p><b>結果</b>：每個場景 16 張地面圖加一張 150 m 範圍的衛星圖。相機定位誤差在 KITTI（地理上不重疊的 Test-2）是 24.62 m、22.50°，zero-shot 的 Mapillary Metropolis 是 14.35 m、17.59°；最強的組合 baseline「VGGT 重建 + Loc² 逐張定位再 RANSAC 對齊」分別是 31.46 m／81.16° 和 37.06 m／89.19°。像素層級 geo-registration 在 KITTI 是 25.52 m（Loc² 43.96 m），Metropolis 是 17.84 m（VGGT + Loc² 50.54 m）。直接把衛星圖丟給原版 VGGT 或 MASt3R 當成一個 view 則完全失敗，誤差上百到上千公尺。局部重建的 AUC 和 VGGT 相當（KITTI 83.90 對 83.29）。</p>
+<p><b>限制與疑問</b>：十幾到二十幾公尺的誤差對 150 m 的衛星範圍來說仍不小，離 GPS-denied 機器人導航可用的精度還有距離。方法假設衛星圖是正射、已知解析度且不過時；衛星圖過舊、被遮或解析度低時效果會掉。WRIVA 和 ACC-NVS1 的方向誤差仍在 40° 以上。</p>
+<p><b>為什麼值得看</b>：這是把 feed-forward 幾何模型接上地理座標的乾淨範例，「多加一個 view 與一個 head、用 scene-level transform 而非逐相機定位」的設計可以直接套到 drone、室內平面圖或 OSM 地圖。對做大場景 3DGS 或城市級重建的人，這提供了一個免 GPS 的全域對齊初始化。</p>
+
+<h3>3. CaPtain：把 4B 的開源 VLM 訓練成只用低階 API 的 code-as-policy 機器人 agent</h3>
+<p><a href="https://arxiv.org/abs/2610.40799">arXiv:2610.40799</a>｜cs.RO｜MMLab, The Chinese University of Hong Kong、NovaXBot</p>
+<p><b>問題</b>：code-as-policy（CaP）agent 讓 LLM 寫程式呼叫機器人 API，靠前沿模型已經很強，但每個 episode 要付 API 費用（例如 OpenRUA 在 LIBERO-PRO 拿 91.8，每 episode 8 到 22 美元），也不能上機載算力。其他做法把真正的操作交給凍結的 VLA 或 grasp/place 技能，RL 最多只能學會排順序。小型開源 VLM 直接上場則完全不行：Qwen3.5-4B 在他們的 harness 裡 LIBERO 成功率是 0。</p>
+<p><b>方法</b>：先定義 CaPtain-Harness：一個持久的 Python session，只提供 22 個低階能力，包括感知（RGB-D、SAM 3 分割、Molmo2 pointing）、幾何量測、guarded motion（給末端位姿，力超過就停），沒有 grasp、place 技能，也沒有 VLA。每次呼叫回傳文字「收據」：停止原因、走了多遠、峰值力、夾爪開合。訓練分兩段：先用 GPT-6 Astra 在 harness 裡產生的軌跡做 SFT，並以一定機率把歷史中的像素座標遮掉，逼模型重看圖；再做多輪 RL。關鍵是 simulator critic：從模擬器讀 36 個 policy 看不到的特權特徵（夾爪狀態、目標距離、物體抬升量、關節位置等），用 5 個 MLP ensemble 預測成功機率；每個 request 的 credit 是它造成的成功機率變化，而且前後用同一個時間索引，所以只看不動的 request 自然拿到接近零的 credit，credit 集中在抓取和放置上。critic 只在訓練時使用。</p>
+<p><b>結果</b>：held-out LIBERO 從 0% 到 SFT 後 55.4%，RL 後 73.8%；誤報完成從 7.1% 降到 2.1%。LIBERO-PRO 達 78.5%，高於前沿模型 agent K1（77.2%）、WAA（75.6%）、ASPIRE（71.7%）。RL 在三個擾動套件都有 +17.6 到 +21.2 點的提升；作者對照指出，有 end-to-end policy 在 LIBERO 97%、到 LIBERO-PRO 只剩 12.8%。沒在目標域訓練的情況下，SimplerEnv WidowX 有 83.3%，CaP-Bench 75.0，也只在粗略的模擬分身裡調整就能在真機上完成任務。</p>
+<p><b>限制與疑問</b>：雙臂與陌生運動學的遷移還很弱：RoboTwin 2.0 只有 22.6%，RoboDojo 0.8%。每個 episode 上限 60 個 request、1,080 秒，速度離反應式控制很遠。SFT 資料來自 GPT-6 Astra，所以「不靠前沿模型」只在測試時成立。標準 LIBERO 上仍低於 VLA 的 94% 到 98%，優勢在於擾動下的穩健性。</p>
+<p><b>為什麼值得看</b>：把「模擬器有特權狀態」這個機器人學的老優勢（asymmetric actor-critic）接到 LLM agent 的多輪 RL 上，是很好的 credit assignment 解法，也可以搬到 VLA 的 RL 後訓練或 world model 的獎勵設計。另一個啟示是：讓收據把物理結果講清楚，小模型就能靠文字回饋自我修正。</p>
+
+<h2>快速瀏覽</h2>
+<ul>
+<li><b>HiFOR：分層預見加上 action 導向的檢索</b>（<a href="https://arxiv.org/abs/2610.40373">2610.40373</a>，HF 本週 24 讚）。VLA 同時預測短期狀態演化、語意里程碑和最終目標，用 Hierarchical Dependency Mask 串起不同時間尺度；去噪過程中再依 action 表徵，從按時間、視角、空間組織的 latent world 檢索相關的未來資訊。在兩個模擬 benchmark 和六個真機任務上驗證，摘要未給具體數字。</li>
+<li><b>Rotation Is Token-Blind：feed-forward 幾何 Transformer 的量化</b>（<a href="https://arxiv.org/abs/2611.07955">2611.07955</a>）。作者證明 rotation、smoothing 這類對所有 token 一視同仁的 PTQ 轉換，改善不了 VGGT 類模型裡少數特殊 token（如 camera token）的相對 SNR，並提出統計量 Γ 判斷何時需要針對特殊 token 做 bias 修正。W4A8 接近全精度，W8A8 峰值記憶體比 FP32 少 2.2 到 3.1 倍，實機最多快 3.1 倍。</li>
+<li><b>Bri3D：單張圖生成組合式 3D 場景</b>（<a href="https://arxiv.org/abs/2611.07961">2611.07961</a>）。先預測一個用顏色區分實例的 voxel 場景骨架，再把每個物體抽出成 scene anchor，交給凍結的物體生成器在 anchor 定義的位姿裡補細節。場景層級的訓練只學排列，物體細節沿用預訓練先驗；摘要稱布局與幾何都優於 SAM3D、MIDI，整體生成也比 SceneGen 和 SAM3D 快。</li>
+<li><b>Probing Spatial State Representations：視覺基礎模型有「空間狀態」嗎？</b>（<a href="https://arxiv.org/abs/2610.40636">2610.40636</a>）。用凍結特徵 probe 測 10 種表徵在第一人稱串流下的四層能力：空間結構、物體恆存、預測性更新、可行動性。結論是可見場景讀得好，不代表物體離開視野後還記得；物體恆存與可行動性建立在相機姿態可讀出之上，而特徵預測依賴可見場景的讀出。</li>
+<li><b>STEP：會預測的感知式人形行走</b>（<a href="https://arxiv.org/abs/2611.08097">2611.08097</a>）。用多個 learned query 把深度與本體感覺 token 聚成 policy state，加上雙向 masked prediction（用一個模態預測另一個的 latent）和 action-conditioned 的下一狀態預測（EMA target）。在 23 自由度的 Noetix E1 上 100 次實機試驗成功 98 次，包含 40 cm 平台、70 cm 間隙和看不到後方地形的倒退下樓梯。</li>
+<li><b>VLA-Tug：從 VLA 的 latent 預測失敗與失敗類型</b>（<a href="https://arxiv.org/abs/2611.08425">2611.08425</a>）。在 VLA backbone 的中間層掛一個輕量 probe，用失敗前的軌跡片段監督，在相同誤報率下早期偵測提升最多 30%；遇到沒見過的任務時，漏報與誤報上界仍有效的比例最高 86%（baseline 最多 21%）。附 3,180 個標註 episode 的資料集。</li>
+<li><b>Shape-teacher alignment：訓練時借 3D，部署時只用影像</b>（<a href="https://arxiv.org/abs/2611.08275">2611.08275</a>）。把 Point-MAE 的物體特徵當成對應影像 patch 的對齊目標，讓影像 policy encoder 學到形狀結構，部署時不需要深度。LIBERO 上預訓練 policy 在 Object 與 Spatial 套件的收斂分別快 4.7 倍和 5.6 倍。</li>
+<li><b>REA：腦與小腦的非同步路由 runtime</b>（<a href="https://arxiv.org/abs/2610.42053">2610.42053</a>）。原則是「執行中的 policy 永遠不等大腦」：事先記錄每個 policy 的成功率，只在邊界觸發 judge，失敗時走有預算上限的升級階梯。LIBERO-Pro 60 個任務、3,000 個 episode 達 95.9%，略高於同池最佳單一 policy（94.7%），控制步數少 25%；也在 Unitree G1 上展示。</li>
+</ul>
+
+<h2>新聞與討論</h2>
+
+<h3>Microsoft Research 的 AI Frontiers 走入歷史</h3>
+<p><a href="https://hunch.net/?p=13764006">hunch.net</a>（John Langford 的部落格）上的一篇內部回顧：2023 年 ChatGPT 之後，一群人在 MSR 成立約 50 人的 AI Frontiers，做過 Autogen、Fara computer-use agent，紐約團隊則做 Next Latent objective、Dion3（改良版 Muon）和 Full Bandwidth Transformer。今年 9 月被併入 Microsoft AI，作者說 MAI 前 Inflection 領導層的哲學是「只做 scaling、刻意不做研究」，並舉 ByteDance 實驗顯示 Full Bandwidth Transformer 的變體可能抵得上兩倍大的模型。作者已離開，說創始領導團隊的其他人也得出類似結論。<a href="https://news.ycombinator.com/item?id=50406563">HN 討論</a>裡有人補充，這不只是微軟：大公司普遍把資源押在 transformer scale-out，探索性研究被壓縮。</p>
+
+<h3>每台 Mac 都有一個沒寫進文件的「家人分類器」</h3>
+<p>Eighth Rank 的 Dario Pasquini 與 Michał Bazyli <a href="https://8rank.ai/game/apple-intelligence-personal-knowledge-graph">拆解了 macOS 13 以來的 Personal Knowledge Graph</a>：兩個 daemon（knowledgeconstructiond、intelligenceplatformd）把聯絡人、照片人臉、行事曆、Family Sharing、通訊紀錄、位置等交叉比對，存在 ~/Library/IntelligencePlatform 的 51 個 SQLite 資料庫裡，graph.db 是 181 個實體類別、278 個 predicate 的 triple store。最引人注目的是兩個 XGBoost CoreML 模型，用 144 個多半是行為性的特徵判斷誰是家人，其中 84 個來自你們一起出現的照片，甚至有 photosPersonPosteriorProbabilityGivenSaturdayNight 這種特徵。刪掉的資料會先移到 expired_stable_graph 表。作者開源了讀取自己圖譜的工具 iKnow。<a href="https://news.ycombinator.com/item?id=50403097">HN 討論</a>裡作者親自回答問題，也有人從 schema 設計的角度覺得這是機率式知識圖譜的好教材。</p>
+
+<h3>MaxxBench：DeepSWE 分數相同的模型，改一下需求就分家</h3>
+<p><a href="https://maxxbench.unlap.ai/research/why-maxxbench/">MaxxBench</a> 對 89 個 DeepSWE 任務做小幅修改，例如報告檔名改成小寫、時間戳改成 UTC 加 Z，參考解中位數只多 17 行（3.5%）。原本都在 74% 左右的模型立刻散開：Claude Opus 5.5 從 74.2% 到 76.4%，GPT-6 Astra 到 71.9%，Gemini 3.8 Flash 到 53.4%，DeepSeek V4.1 Flash 到 55.6%；12 個設定的分數差距從 20.9 點擴大到 48.3 點。他們還看到模型明明正確實作了新需求，卻猜測隱藏測試要的是原版而把程式碼改回去。<a href="https://news.ycombinator.com/item?id=50406222">HN 討論</a>有人指出 DeepSWE 比 DeepSeek V4 Flash 晚發表，不可能是針對它 benchmaxx，下滑最多的其實是各家的小模型。</p>
+
+<h3>31B 影音 diffusion 壓成 14B、6 步、INT8</h3>
+<p>Video Rebirth 釋出 <a href="https://github.com/Video-Rebirth/hyperflow-h3-flash">HyperFlow H3 Flash</a>，是 MiniMax-H3 的壓縮、少步數版本，同時生成影片與 32 kHz 立體聲。參數 13.7B／13.9B，不到原版約 31B transformer 的一半；4、6 或 8 步採樣，不用 CFG。5.2 秒片段 6 步在 4 張 B200 上 8.7 秒、單張 RTX 5090 上 92 秒；Q4_K_M GGUF 只要 9.1 GB，可以在 24 GB 顯卡上跑。<a href="https://news.ycombinator.com/item?id=50405263">HN 討論</a>最常見的要求是：請拿出不同量化等級的品質與時間比較，不然只說變小了沒有意義。</p>
+
+<h3>極品飛車：地下狂飆 2 在瀏覽器裡連線</h3>
+<p><a href="https://nfsu2.xyz/">nfsu2.xyz</a> 把 PC 版遊戲本身的 x86 程式碼靜態重編譯成 C，再編成在 Chrome 和 Firefox 跑的版本：寬螢幕最高 120 fps、自由漫遊、和朋友線上比賽，支援手把、方向盤和觸控。專案從 NFSU2Recomp 分支而來，作者說起因是想和二十年前一起玩的弟弟再玩一次。<a href="https://news.ycombinator.com/item?id=50403052">HN 討論</a>一邊驚嘆所有人擠進同一個 career 模式的混亂，一邊質疑遊戲素材直接放上網的合法性，也有人回報載入素材時會卡頓。</p>
+
+<h3>Coldframe：偽裝成超市冷藏控制器的 honeypot</h3>
+<p>2026 年歐洲有攻擊者利用預設密碼和舊韌體入侵連上網的超市冷藏主控器、強迫除霜。<a href="https://github.com/hedgerow-dev/coldframe">Coldframe</a> 扮成 Danfoss AK-SM 800A 和 Dixell XWEB EVO，連 server header 順序、TLS 憑證格式都模仿真機；弱密碼可以登入一個假的冷藏櫃儀表板，所有「除霜」操作都只會被記錄，並標記出對應的公開 CVE。整個程式是單一 Python 檔、只用標準函式庫。<a href="https://news.ycombinator.com/item?id=50406292">HN 討論</a>有個實用提醒：用 Shodan 找到的這類裝置很多本身就是別人的 honeypot，或早已被入侵改過網頁，拿來當模仿對象要小心。</p>
+
+<h3>10 美元的 OpenStick 家用伺服器</h3>
+<p><a href="https://blog.bosscher.ch/posts/openstick/">一篇輕鬆的文章</a>：一支含運費 10 美元的 4G 網卡棒，有 512 MB RAM、四核 1 GHz Cortex-A53、4 GB eMMC、Wi-Fi、4G 數據機和 GPS，被動散熱完全無聲，刷成 Debian 後就是一台小伺服器。作者在上面跑 AdGuard Home（加上封鎖清單後 60% 的 DNS 查詢被擋掉）、會自動跳過 YouTube 業配的 CastSponsorSkip，以及閒置只吃約 3 MB 記憶體的 AI agent harness Zeroclaw，讓它在這台「爆炸半徑有限」的機器上當 root shell 幫忙看 log。<a href="https://news.ycombinator.com/item?id=50406670">HN 討論</a></p>
+</article>
+</body>
+</html>
