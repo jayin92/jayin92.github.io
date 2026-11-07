@@ -1,0 +1,220 @@
+# Sveltia CMS (https://sveltiacms.app/en/docs), served at /admin/.
+#
+# Local (recommended): run `hugo server`, open http://localhost:1313/admin/ in a Chromium browser
+#   (Arc/Chrome/Edge), choose "Work with Local Repository" and pick this repo folder.
+#   It only writes files — review, commit and push yourself.
+# Online: https://blog.jayinnn.dev/admin/ → "Sign In with GitHub" (OAuth via the worker below),
+#   or "Sign In Using Access Token" with a fine-grained token limited to this repo
+#   (Contents: read and write). Saving commits to main, which deploys the site.
+
+backend:
+  name: github
+  repo: jayin92/jayin92.github.io
+  branch: main
+  # "Sign In with GitHub" goes through our Sveltia CMS Authenticator worker (Cloudflare,
+  # source: github.com/sveltia/sveltia-cms-auth; secrets GITHUB_CLIENT_ID/_SECRET and
+  # ALLOWED_DOMAINS=blog.jayinnn.dev live on the worker).
+  base_url: https://sveltia-cms-auth.jayin920805.workers.dev
+  # OAuth apps can't be limited to one repo; this repo is public, so ask only for public-repo
+  # access (the default "repo" would include every private repo too).
+  auth_scope: public_repo
+
+app_title: Jayinnn's Blog CMS
+logo:
+  src: /android-chrome-192x192.png
+site_url: https://blog.jayinnn.dev
+display_url: https://blog.jayinnn.dev
+
+# Uploads land next to the existing images and are referenced as /image/..., so Hugo's
+# responsive-image pipeline (WebP srcset + lightbox) picks them up.
+media_folder: /content/image
+public_folder: /image
+
+# Shrink/convert photos in the browser before they reach the repo (phone photos are 5-13 MB), and
+# give uploads URL-safe names: "Screenshot 2026-10-17 at 15.22.25.png" → screenshot-2026-10-17-at-15-22-25.webp.
+# Unslugified, spaces and Chinese ended up as /image/Screenshot%202026….webp in the Markdown, which
+# Hugo's resources.Get can't resolve, so those images lost the WebP srcset and the lightbox. Names
+# follow the global slug options below (ASCII only, accents transliterated: "Zürich Café" →
+# zuerich-cafe); a name with nothing ASCII left, like 截圖.png, gets a random one (e8972cfc5cef.webp),
+# which can be renamed under Assets.
+media_libraries:
+  all:
+    slugify_filename: true
+    transformations:
+      raster_image:
+        format: webp
+        quality: 85
+        width: 2560
+        height: 2560
+
+# Bodies open as plain Markdown. Typing in the rich-text editor rewrites the whole body, and in
+# 0.246.1 that still breaks existing posts: `\\` → `\` in display math, `\<` → `<`, `_` → `\_` inside
+# $…$, "``` python" → "```plain" + a stray "python" line, list continuations re-indented into code
+# blocks (code blocks themselves are kept now). The toolbar and Insert menu still work here; Insert
+# pastes the bare shortcode ({{<callout text="">}}) and Image a bare ![]() at the cursor to fill in by
+# hand (upload images under Assets). The switch at the right of the toolbar turns on rich text (with
+# the component forms and image uploads) for the open entry only. To make rich text the default
+# again, swap the order to [rich_text, raw] or delete this block.
+field_defaults:
+  richtext:
+    modes: [raw, rich_text]
+
+# Date tags in slugs ({{year}}-{{month}}-{{day}} for diaries) use the local date, not UTC, like
+# write-diary.py; with UTC a diary started in Taiwan before 08:00 got yesterday's filename.
+# ASCII-only slugs: these options also shape uploaded file names (slugify_filename above). Entry
+# slugs are unaffected (diaries are dates, posts take a typed English slug).
+slug:
+  timezone: local
+  encoding: ascii
+  clean_accents: true
+
+# Hugo translations are sibling files: eth.md (zh-tw) + eth.en.md.
+# New entries start zh-tw only, so no empty English file is created by accident.
+i18n:
+  structure: multiple_files
+  locales: [zh-tw, en]
+  default_locale: zh-tw
+  omit_default_locale_from_file_path: true
+  omit_default_locale_from_preview_path: true
+  initial_locales: default
+
+# Leave empty optional fields out of the front matter instead of writing description: '', tags: []
+# or an empty date (a post saved with an empty Description loses its `description: ""` line, which
+# Hugo treats the same). Keys this file doesn't list (aliases, references…) are still kept, and
+# false isn't "empty": an optional boolean such as katex is still written.
+output:
+  omit_empty_optional_fields: true
+
+collections:
+  - name: posts
+    label: Posts
+    folder: /content/posts
+    create: true
+    extension: md
+    format: yaml-frontmatter
+    i18n: true
+    # Titles are mostly Chinese, so a slug from the title gave files like 交大資工修課心得：測試-王小明.md
+    # (and that URL). New posts ask for an English slug instead: the Slug panel opens by itself and
+    # saving waits for it. Not editable afterwards, since renaming would change a published URL.
+    slug:
+      editable: [create]
+      hint: "File name and URL (/posts/slug/): lowercase English words joined by hyphens, e.g. eth-exchange. Can't be changed after the first save."
+      pattern: ['^[a-z0-9]+(-[a-z0-9]+)*$', 'Use lowercase letters, digits and hyphens, e.g. eth-exchange']
+    # "View on Live Site" in the editor menu. Hugo lowercases URLs (GSAT-apply.md → /posts/gsat-apply/);
+    # English is under /en/ (the zh-tw prefix is dropped by omit_default_locale_from_preview_path).
+    # Drafts aren't on the live site, so their link 404s.
+    preview_path: "/{{locale}}/posts/{{slug | lower}}/"
+    # Newest first; "Draft"/"Published" filters and per-year groups in the list's toolbar.
+    # Published is `ne: true` so posts without a draft key (published to Hugo) are included.
+    sortable_fields:
+      fields: [date, title]
+      default: { field: date, direction: descending }
+    view_filters:
+      filters:
+        - { name: drafts, label: Drafts, field: draft, eq: true }
+        - { name: published, label: Published, field: draft, ne: true }
+    view_groups:
+      groups:
+        - { name: year, label: Year, field: date, pattern: '\d{4}' }
+    summary: "{{title}} · {{date | date('YYYY-MM-DD')}}{{draft | ternary(' · DRAFT', '')}}"
+    fields:
+      - { label: Title, name: title, widget: string, i18n: true }
+      - { label: Date, name: date, widget: datetime, format: "YYYY-MM-DDTHH:mm:ssZ", default: "{{now}}", i18n: duplicate }
+      # Front matter lastmod: single.html shows "· 更新於 <date>" when it's later than the date (and the
+      # sitemap/JSON-LD use it). No default, so opening or saving a post never fills it in by itself.
+      - label: Last updated
+        name: lastmod
+        widget: datetime
+        format: "YYYY-MM-DDTHH:mm:ssZ"
+        required: false
+        i18n: true
+        hint: Optional. After a meaningful update, click Now; the post then shows "更新於 …" next to its date. Leave empty for small fixes.
+      - label: Description
+        name: description
+        widget: string
+        required: false
+        i18n: true
+        hint: Shown under the title on the home page, in search results and as the meta description. If empty, the start of the post is used.
+      # A comma-separated string, as all existing posts have it (header.html prints it as the keywords meta tag).
+      - label: Keywords
+        name: keywords
+        widget: string
+        required: false
+        i18n: true
+        hint: "Optional, for search engines (the keywords meta tag): comma-separated, e.g. Python, 碎形, 數學"
+      - label: Tags
+        label_singular: Tag
+        name: tags
+        widget: list
+        required: false
+        i18n: true
+        hint: "Reuse existing tags so posts group on /tags/: NYCU, 修課心得, 武陵, 數學, 資訊, 科學班, ETH, Python…"
+      - label: TL;DR
+        name: tldr
+        widget: text
+        required: false
+        i18n: true
+        hint: Optional one- or two-sentence summary, shown in a "tl;dr" box above the post.
+      # The theme loads KaTeX only when katex: true (partials/header.html), so math otherwise shows as raw $…$.
+      - label: Math (KaTeX)
+        name: katex
+        widget: boolean
+        required: false
+        default: false
+        i18n: duplicate
+        hint: Turn on if the post has $…$ or $$…$$ math; KaTeX is only loaded on posts with this on.
+      # outline: true forces the table of contents (single.html). A select, not a boolean: a boolean is
+      # always written, so every saved post would gain `outline: false`. "Automatic" is null, which
+      # omit_empty_optional_fields (output, above) leaves out of the file; without that option it
+      # would be written as `outline: null`.
+      - label: Table of contents
+        name: outline
+        widget: select
+        required: false
+        i18n: duplicate
+        options: [{ label: "Automatic (3+ headings)", value: null }, { label: Always show, value: true }]
+        hint: Posts get a table of contents when they have 3 or more h2/h3 headings; "Always show" adds one anyway.
+      # Default to draft so nothing goes live by accident; per-locale so an English draft can stay hidden.
+      # The default also fills in a missing key: a post with no `draft:` would be saved as a draft.
+      - { label: Draft, name: draft, widget: boolean, default: true, i18n: true }
+      - { label: Body, name: body, widget: markdown, i18n: true }
+
+  # Single pages. about.md / about.en.md use TOML front matter (+++), which is kept on save;
+  # keys not listed here (date, aliases) are kept too.
+  - name: pages
+    label: Pages
+    i18n: true
+    files:
+      - name: about
+        label: About
+        file: /content/about.{{locale}}.md
+        format: toml-frontmatter
+        i18n: true
+        preview_path: /{{locale}}/about/
+        fields:
+          - { label: Title, name: title, widget: string, i18n: true }
+          - { label: Description, name: description, widget: string, required: false, i18n: true }
+          # A date-only datetime field writes a native TOML date (date = 2021-05-06); as an unlisted key
+          # it would come back quoted as a string.
+          - { label: Date, name: date, widget: datetime, type: date, required: false, i18n: duplicate }
+          # about.md has no draft key: default false keeps it published when saved.
+          - { label: Draft, name: draft, widget: boolean, default: false, i18n: true }
+          - { label: Body, name: body, widget: markdown, i18n: true }
+
+  # Diaries are not published on the site (content/diaries/_index.md sets render: never).
+  - name: diaries
+    label: Diaries
+    folder: /content/diaries
+    create: true
+    extension: md
+    format: yaml-frontmatter
+    slug: "{{year}}-{{month}}-{{day}}"
+    sortable_fields:
+      fields: [date]
+      default: { field: date, direction: descending }
+    fields:
+      - { label: Title, name: title, widget: string }
+      - { label: Date, name: date, widget: datetime, format: "YYYY-MM-DDTHH:mm:ssZ", default: "{{now}}" }
+      - { label: Tags, name: tags, widget: list, default: [Diary] }
+      - { label: Draft, name: draft, widget: boolean, default: false }
+      - { label: Body, name: body, widget: markdown }

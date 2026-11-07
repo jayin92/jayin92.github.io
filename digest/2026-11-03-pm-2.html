@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 晚報｜2026-11-03（週二）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 晚報｜2026-11-03（週二）</h1>
+<p><b>今日導讀</b>：這是今天的第二份晚報，主題是「量測本身也會出錯」。一篇論文追到 RoboTwin 的失敗有一部分是 PhysX 的一個常數造成的，另一篇把 self-supervised 3D 的 asymmetry 從輸入端搬到表示端。影片生成這邊，Wave Forcing 把 streaming video 拉到 134.8 FPS。新聞則有晶片股大跌、pretraining poisoning 植入 agent 後門，以及「AI 依賴」的反思。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. When the Simulator Fails, Not the Policy：模擬器把物體彈飛，記到 policy 頭上</h3>
+<p><a href="https://arxiv.org/abs/2610.41857">arXiv:2610.41857</a>｜cs.RO｜清華大學人工智慧學院等</p>
+<p><b>問題</b>：模擬 benchmark 用 success rate 打分，每一個失敗 episode 都算 policy 的錯。作者發現很多時候 policy 其實已經把物體放好了，是物理引擎接著把它「彈出去」。更糟的是，benchmark 自己的 scripted demonstration 也會以同樣方式失敗。</p>
+<p><b>方法</b>：他們做了 SimuGuard，一個掛在 LIBERO、RoboTwin、RoboCasa、RoboDojo 上的稽核外掛，不改變評測本身。偵測分三層：先找接觸後 40 ms 內速度超過 0.5 m/s、單一 4 ms step 加速 0.35 m/s 以上，並在 240 ms 內移動至少 4 cm 的物體；再用重力檢查（峰值速度要超過同落差自由落體的 1.5 倍）；最後排除只是被機器人搬著走的物體。它能從 seed 逐位元重播 episode，也能只改一個模擬參數重跑。用這套工具，他們把 RoboTwin（PhysX 5.3.1）的問題追到 GJK 距離計算裡一個固定門檻：|ab×ac|² ≤ 2⁻²³ 的三角形被當成退化而丟掉。RoboTwin 的 convex piece 只有一兩公分大，正好落到門檻以下。結果是兩塊相距 21 mm 的幾何被回報為穿透 27.5 mm，solver 在一步內把它推開，罐子速度從 0.2 跳到 22 m/s。</p>
+<p><b>結果</b>：LingBot-VA（world action model）在 RoboTwin 的 2,060 個 episode 中有 80 個含 artifact；五個 container 任務的 44 個失敗裡有 40 個是 artifact。只改這一個常數、其他不動，closed-loop 下 LingBot-VA 在五個任務上從 89 次成功升到 98 次（每任務 20 seeds），artifact 從 12 個降到 0。HyVLA 從 90 升到 94。報告的 83.1% 其實落在 75.8% 到 98.5% 的區間。限制 depenetration 速度不是解法：限到 1 m/s 時，37 個 episode 裡仍有 26 個出現 artifact。LIBERO（π0.5）和 RoboCasa 的比例低很多，分別是 400 中 2 個、300 中 5 個。</p>
+<p><b>限制與疑問</b>：repaired engine 的 closed-loop 實驗只有兩個 policy、五個任務，LingBot-VA 單獨看 sign test p = 0.11，並不顯著。RoboDojo 的假接觸原因還沒找到，MuJoCo 的稽核規模也較小。偵測器 precision 0.925 只在一個任務上由五位工程師評過。另外，摘要與正文對新版 PhysX 如何改這個門檻的描述不太一致。</p>
+<p><b>為什麼值得看</b>：VLA 論文之間常常只差幾個百分點，而這篇顯示同一個 benchmark 的「分數區間」可以寬達 20 個點。如果你在 RoboTwin 上比較方法，至少應該檢查 PhysX 版本，或附上 SimuGuard 的區間。更廣的教訓是：在相信 success rate 之前，先把每一個 physics step 記下來看看。</p>
+
+<h3>2. Rethinking Asymmetry in Self-Supervised 3D Geometry Learning：把 asymmetry 從輸入搬到 3D 表示</h3>
+<p><a href="https://arxiv.org/abs/2610.42092">arXiv:2610.42092</a>｜cs.CV｜Yonsei University、UC Merced、ETH Zurich（Ming-Hsuan Yang、Eunbyung Park 等）</p>
+<p><b>問題</b>：從 unposed images 自監督學 3D 的方法（E-RayZer、NAS3R 等）會預測相機與場景，再 render held-out view 當監督。為了避免 trivial solution，它們在<b>輸入端</b>製造 asymmetry：E-RayZer 用分開的 backbone，NAS3R 用 masked attention，讓 context view 看不到 target view。作者認為這同時丟掉了 held-out view 本來能提供的 cross-view correspondence，而如果目標是幾何精度而不是 rendering 品質，這個代價不值得。</p>
+<p><b>方法</b>：所有 view 都進同一個 shared backbone（Pixio-base encoder 加 12 層、alternating view-wise/global attention 的 multi-view transformer，256×256 輸入），camera head 回歸相對於中間 view 的 pose，DPT head 預測 per-pixel 3D Gaussians。Asymmetry 只放在<b>建 3D 場景</b>這一步：held-out view 的 Gaussians 不放進場景，所以它只能由 context view 的 Gaussians render 出來。再加兩個不需要 3D 標註的訊號：一是 sparse-dense feature alignment，EMA teacher 看全部 view、online network 看稀疏子集，在四層特徵上做 cosine loss（對齊 depth 反而有害）；二是對 frozen foundation model 特徵的 semantic guidance。總 loss 是 L_nvs + 0.1·L_align + 0.2·L_sem。</p>
+<p><b>結果</b>：在 DL3DV 上訓練、10 views，跟 E-RayZer（246M）比，本方法（183M）DL3DV RPA@3 為 70.0 vs. 60.3，跨域到 NRGBD 的 RPA@3 為 63.5 vs. 35.6，ScanNetv2 AbsRel 0.125 vs. 0.168。在 RE10K 上訓練時，對 1.22B 的 NAS3R，RE10K RPA@3 是 65.7 vs. 47.4。消融中 semantic guidance 貢獻最大（RPA@3 從 66.6 到 82.3），兩個訊號加在一起是 82.8。自監督預訓練再 SFT，也比純監督（RPA@3 73.4 vs. 50.8）好。</p>
+<p><b>限制與疑問</b>：假設靜態場景，動態物體只會被壓低 opacity；只到 up-to-scale；只做 256×256；DL3DV 的 depth 是拿 MoGe-2 的預測當 pseudo GT。和 SPFSplat 的比較也不完全公平，因為後者用了 MASt3R 初始化和 GT intrinsics。</p>
+<p><b>為什麼值得看</b>：這篇的核心觀點很簡單也很可遷移：防止 shortcut 的 asymmetry 不一定要犧牲 correspondence，可以放在 representation 層。做 feed-forward 3DGS 或 VGGT 類模型的人，可以想想自己的 masking 是不是太保守。加入 SpatialVID 後 dynamic 子集的 pose 大幅提升，也暗示大量 in-the-wild 影片可以拿來做無標註的幾何預訓練。</p>
+
+<h3>3. Wave Forcing：讓 streaming video generation 一輪 forward 吐一個 chunk</h3>
+<p><a href="https://arxiv.org/abs/2611.00859">arXiv:2611.00859</a>｜cs.CV｜上海交通大學 DENG Lab 等｜HF Daily Papers 熱門</p>
+<p><b>問題</b>：Self Forcing、Causal Forcing 這類 chunk-wise autoregressive 影片生成，每個 chunk 先做 S 步 denoising，再額外跑一次 forward 把乾淨的 K/V 寫進 history cache。所以就算一步 denoising，每個 chunk 也要兩次 forward。長時間生成還有 quality 下降與 camera drift。</p>
+<p><b>方法</b>：Wave Forcing 讓第 i 個 chunk 的第 s 步在第 i+s 輪執行，像波前一樣斜著推進。Attention 在 chunk 內是 full、chunk 間是 causal，所以每個 query 只看比自己更乾淨的前面 chunk。每個 denoising stage 和 store stage 放在各自的完整模型副本（GPU）上，pipeline 填滿後就達到「1F1C」：每一輪並行 forward 輸出一個 chunk，而且保留所有 denoising 步驟。訓練分三階段（基於 Wan2.1-T2V-1.3B）：mixed-noise DMD 初始化、加上 LPIPS（權重 0.25）的 off-policy DMD，最後用 RF/WF/SF 三種 rollout 各 1/3 機率做 on-policy causal adaptation。系統面的 WaveRT 在 QKV projection 後就提前把 K/V 送給下游，讓通訊與計算重疊，VAE decode 也做了 pipeline。</p>
+<p><b>結果</b>：5-step WF 的 VBench Total 81.64，略高於 Rolling Forcing 的 81.15。Dynamic Degree 在短片從 51.39 升到 94.44，100 秒長片從 36.63 升到 91.45，Subject Preservation 97.10 vs. 92.75。不過 Camera Drift 是 0.37 vs. 0.17，比 Rolling Forcing 差。速度上，4-step WF 在 8 張 H200 上達 147.6 DiT FPS、134.8 端到端 FPS，是單卡 Causal Forcing（19.06 FPS）的 7.07 倍。和 Ulysses/Ring context parallelism 比，Wave Parallelism 在 1.3B 是 150.09 vs. 80.60 FPS。</p>
+<p><b>限制與疑問</b>：14B 的速度測試用的是隨機初始化權重，因為沒有預訓練權重，也沒有算力訓練，所以只能說明系統吞吐。Subject Preservation 與 Drift 只在 100 個 prompt 上用 SAM3 tracking 估，與人類判斷的一致性還沒驗證。沒有評估 prompt 切換、相機或動作控制，也沒量「第一幀看到要多久」。8 張 H200 換 134.8 FPS 的成本也值得考慮。</p>
+<p><b>為什麼值得看</b>：對 interactive world model 和機器人模擬來說，延遲與吞吐比單幀品質更關鍵。這篇示範了「生成演算法、訓練、runtime 一起設計」的思路：pipeline parallelism 本來就適合 denoising 的步驟結構。可以延伸的問題是，加入 action conditioning 後 1F1C 的 pipeline 延遲是否可接受。</p>
+
+<h2>快速瀏覽</h2>
+<p><b>Movens-Zero：用網路影片擴展人形機器人動作基礎模型</b>（<a href="https://arxiv.org/abs/2610.41877">2610.41877</a>）。從原始網路影片做出 Movens-5M：1,500 萬段人體動作、500 萬段經過 retargeting 與執行驗證的人形動作，超過 10,000 小時，並對齊文字、影片、語音、音樂。單一 flow-matching action expert 同時訓練七種生成任務，用 Multimodal Real-Time Chunking 做閉環執行。資料從 1% 擴到 100%、模型從 64M 擴到 911M，四種模態都持續進步。</p>
+<p><b>∇Mimic：用精確的模擬器梯度訓練人形控制</b>（<a href="https://arxiv.org/abs/2610.41654">2610.41654</a>）。First-order policy learning 在接觸豐富的全身控制上常因梯度爆炸失敗。作者用 median-relative 的逐樣本梯度裁剪，加上自寫的 Unitree G1 可微 GPU 引擎 NablaEngine（比 MuJoCo Warp adjoint 快 11.5 倍）。追蹤全部 40 段 LAFAN1，20 分鐘達到 world-model 方法要 1.2 小時的 0.82 分。</p>
+<p><b>ID-WM：hierarchical world model 與 implicit dynamics</b>（<a href="https://arxiv.org/abs/2610.42146">2610.42146</a>）。Gaoyue Zhou、Mido Assran、Lerrel Pinto 等人。高層模型在 state manifold 上取樣可達的轉移，低層 world model 當 inverse dynamics 把子目標落成動作。三個導航與操作套件上比 policy 與 diffusion planner 好 38.5%，比單層 world model MPC 好 135%。</p>
+<p><b>TinyAstral：把自我演化的 harness 蒸餾到 4B 小模型</b>（<a href="https://arxiv.org/abs/2610.41216">2610.41216</a>）。先凍結 teacher，讓前沿 LLM agent 讀軌跡、提出 harness 修改，只接受通過配對統計檢定的修改；RoboTwin 上 teacher 從 33.4% 升到 63.6%。再把 teacher 軌跡蒸餾給 4B student，達 62.8%，加速器時間約為 teacher 的五分之一。</p>
+<p><b>ReLift：把 dense 3D tracking 當成「修補 lift 後的軌跡」</b>（<a href="https://arxiv.org/abs/2610.42136">2610.42136</a>）。發現 2D tracker 加 3D geometry model 直接 lift、遮擋段內插，就已經接近專門的 3D tracker。ReLift 只吃幾何輸入，用沿軌跡與跨軌跡交替的 attention 修正錯誤，可以換 tracker 或 geometry model 而不需重訓。WorldTrack 上比最強 baseline 多 2.1 APD（動態點多 3.0）。</p>
+<p><b>Any Forcing：任意步數、一步也穩定的自迴歸影片生成</b>（<a href="https://arxiv.org/abs/2610.42031">2610.42031</a>）。與 Wave Forcing 同主題但走另一條路：用統一的 adversarial discriminator 讓模型能用任意 denoising 步數，再用 training-free 的長期記憶選擇解決一步生成的漂移。單張 H100 上短片 20.9 FPS、長片 24.7 FPS。</p>
+<p><b>GeoFlip：影片生成模型懂不懂幾何改變物理結果？</b>（<a href="https://arxiv.org/abs/2610.42002">2610.42002</a>）。482 對場景，只改支撐範圍、物體位置或機構配置，讓結果在「穩定」與「倒下」之間翻轉。16 個 image-to-video 模型中，事件正確率最高只有 27.98%，常見錯誤是忽略幾何變化、彎曲剛體。</p>
+<p><b>VoxLution：coarse-to-fine 的高解析室內場景生成</b>（<a href="https://arxiv.org/abs/2610.41501">2610.41501</a>）。Angela Dai 組。先生成低解析 layout，再把 3D super-resolution 當成多解析稀疏 voxel 上的序列建模，用 training-free 的 tokenization 把八個 octant 編成一個數字。3D-FRONT 上 FPD 降 59.6%、FID 降 51.1%。</p>
+
+<h2>新聞與討論</h2>
+<p><b>Intel 與晶片股崩跌：一個月蒸發 3.7 兆美元</b>。Yahoo Finance 報導，週一大盤七成股票上漲，晶片股卻幾乎全跌，一天少了超過 4,000 億美元市值。自 10 月 6 日起，晶片與記憶體股合計跌掉約 3.7 兆美元。Intel 在 10 月 30 日因財測不佳單日跌近 29%（1974 年以來最差），週一再跌約 9%，市值已不到 9 月底的一半。Nvidia 跌約 16% 但金額最大（約 8,960 億），TSMC 約 4,350 億。HN 討論分成兩派：一派說這是賭場，一派說高成長股的估值本來就對新數據極度敏感；也有不少人認為 Intel 的晶圓廠對美國的晶片自主仍然重要，只是現有股東未必受益。<a href="https://finance.yahoo.com/markets/article/the-intel-stock-collapse-is-getting-worse--and-the-37-trillion-chip-rout-is-spreading-212154947.html">文章</a>｜<a href="https://news.ycombinator.com/item?id=50346153">HN 討論</a></p>
+<p><b>Agentic Backdoors via Pretraining Poisoning</b>。Nicholas Carlini、Javier Rando 等人從頭預訓練 0.6B、1.7B、4B 的 Qwen3 架構模型，再後訓練成 CLI agent。只要污染 0.1% 的預訓練資料，就能植入 remote code execution 後門：看到 trigger 就執行攻擊者的指令，其他時候行為正常。成功率隨模型變大而上升，4B 在 0.1% 污染率下約 92%，污染率降到 0.0005% 仍能成功。HN 上有人懷疑這是在替「開源模型危險」造勢，也有人指出閉源模型一樣有風險；比較務實的共識是 agent 一定要 sandbox，而且植入後門比找出後門容易得多。<a href="https://arxiv.org/abs/2610.37741">論文</a>｜<a href="https://news.ycombinator.com/item?id=50341334">HN 討論</a></p>
+<p><b>Resisting Cognitive Surrender</b>。作者把「cognitive surrender」定義為不加思考地接受 agent 的輸出，不探索、不比較替代方案；這樣工作又快又不累，所以特別誘人。建議包括：設定自己的「vibe limit」，界定多複雜的改動可以放心交出去；重要專案自己動手打，把 agent 當 reviewer 而不是 author；要 agent 產生附註解的 review view、用 debugger 追真實執行；真的要全權委派，就先投資 observability 和 deterministic validation。文中引用 Andrew Grove：「delegation without follow-through is abdication」。對每天和 coding agent 一起寫研究程式碼的人，這篇值得十分鐘。<a href="https://knlb.dev/essays/surrender">文章</a>｜<a href="https://news.ycombinator.com/item?id=50323123">HN 討論</a></p>
+<p><b>Warsaw in voxels：華沙市中心的互動 3D voxel 地圖</b>。建築、街道、電車軌來自 OpenStreetMap，建築高度與樹木來自波蘭 GUGiK 的 LiDAR，顏色取自航照，個別樹種來自華沙市的行道樹資料庫，所以葉子會隨季節變色；可以調日期、時間、天氣，還能點一個行人來操控。作者說第一版靠 AI 很快做出來，真正花時間的是修鋸齒幾何、斷掉的街道、漂浮的樹冠。HN 留言最多的是效能（Firefox 舊機不到 1 FPS），建議 greedy meshing 與 mipmapping。對做 3D 重建與城市級場景的人，這是很好的「開放資料 + LiDAR」範例。<a href="https://p.migdal.pl/warsaw-vibe-voxel/">專案</a>｜<a href="https://news.ycombinator.com/item?id=50339221">HN 討論</a></p>
+<p><b>PostHog 的 warehouse 搬離 DuckDB</b>。PostHog 為每位客戶各開一個 DuckDB，五個月後放棄。原因是單機引擎在雲端必須在 query 前決定機器大小，大 query 逼他們用巨型 instance。DuckLake 在他們約 2 PB、一兆列、1,530 萬個 snapshot 的規模下，單表寫入可能超過三分鐘，因為每次 commit 都重讀整個 catalog 的統計，而其中 99% 以上屬於已刪除的表。新架構是自己的 Trino 版本加上自創的 open table format HogLake。HN 上不少人批評一年內 ClickHouse → DuckDB → Trino 換了兩次是規劃不足，也嫌文章缺 benchmark；作者回應說主產品的 analytics 仍在 ClickHouse。<a href="https://posthog.com/blog/moving-off-duckdb">文章</a>｜<a href="https://news.ycombinator.com/item?id=50338747">HN 討論</a></p>
+<p><b>美國普查局把 AI 改叫「Super Intelligence」</b>。Simon Willison 發現，Census Bureau 的 Business Trends and Outlook Survey 從 10 月 19 日那一輪起，依 Executive Order 14434 把題目中的「AI」改成「Super Intelligence or SI」，例子變成「SI-powered data analysis」，並註明 SI「formerly referred to as」AI。他關心的是這會不會改變回答：該題 2025 年 11 月已改過一次措辭，大企業（250 人以上）的採用率在新措辭下從 2026 年 2 月約 30% 升到 10 月約 40%。他直言這個行政命令「asinine」。<a href="https://simonwillison.net/2026/Nov/2/census-bureau-super-intelligence/">文章</a>｜<a href="https://news.ycombinator.com/item?id=50336840">HN 討論</a></p>
+<p><b>V100 SXM2 腳位與 NVLink 參考資料</b>。有人整理了 NVIDIA V100 SXM2 模組的 800 個接點（兩個連接器各 400 個），附上 2 卡與 4 卡 NVLink 的連線表與 KiCad 起始檔，目標是做一塊開源的 4×V100 NVLink 載板。重點細節包括每張卡需要 156.25 MHz 的 NVHS 差動時脈。目前只是參考資料，不含電源與時脈電路，也還不是經過驗證的硬體。對想用二手 SXM2 卡自組訓練機的實驗室，可以先收藏。<a href="https://github.com/pigeon-labs-stack/v100-sxm2-reference">GitHub</a>｜<a href="https://news.ycombinator.com/item?id=50344912">HN 討論</a></p>
+</article>
+</body>
+</html>
