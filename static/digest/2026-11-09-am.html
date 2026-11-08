@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 早報｜2026-11-09（週一）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 早報｜2026-11-09（週一）</h1>
+<p><b>今日導讀</b>：週末 arXiv 沒有新一批論文，今天挑的是上週五清單裡還沒讀過的三篇，主題都是「把看不見的東西留住」：WAM-Sim 用分層記憶讓駕駛 world model 跑一分鐘不走樣，Structure from Collision 從物體掉地上的樣子猜出裡面的空洞，FUHA 則把全身動作壓成兩個 token。新聞方面，Goldman 收回交易員的 Claude Code、Nvidia 董事會調查黃仁勳遭外國情報鎖定一事，都值得留意。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. WAM-Sim0.1：給駕駛 world model 一套「不准改寫」的分層記憶</h3>
+<p><a href="https://arxiv.org/abs/2611.07939">arXiv:2611.07939</a>｜cs.CV｜復旦大學、深圳引望智能</p>
+<p><b>問題</b>：autoregressive 的駕駛 world model 一段一段往下生成，跑到分鐘級就會出三種毛病：道路結構和地理脫鉤（structural drift）、車和行人換了樣子或類別（identity drift）、畫質逐段變差。作者認為 HD map、3D box、參考幀這些條件都只是「每個 chunk 臨時給一下」，模型沒有一個持續存在的狀態，所以光加長 context 解決不了。</p>
+<p><b>方法</b>：底座是從 OmniDreams 初始化的 28 層 3D DiT（hidden 2048），Wan2.1 VAE，一個 93 幀 chunk 有 84,480 個 token。記憶分三層，由粗到細注入：(1) structural tokens：把每幀 HD map 投影到 latent 網格，直接加在 noisy latent 上；(2) scene tokens（唯讀）：依自車 GPS 與航向，從資料庫取最近的地理參考影像，VAE 編碼後只讓同一段的 video token 看得到；(3) instance tokens（只寫一次）：每條軌跡挑幾張面積適中的最大 crop，寫進以 track ID 為 key 的記憶庫後就鎖住，並用 mask 限制每個前景 token 只能 attend 自己那台車的記憶。第二階段是 Drive DiffusionNFT：每個條件抽 16 條 rollout，用 group-normalized 的三種 reward 做 flow-matching RL，分別是 VBench 畫質、車／人二元分類器（判斷物體像不像真的），以及 SoliReward 的物理分數。訓練資料除了 nuScenes，還有自收的 12.18 萬段、約 1,000 小時中國城市／鄉村／高速路影片，用 32 張 Ascend 910B 訓練。</p>
+<p><b>結果</b>：nuScenes 上 FID 3.47、FVD 25.72，對比 UniMLVG 的 5.80／36.10 和 MagicDrive-V2 的 20.91／94.84；偵測 mAP 24.16、road mIoU 71.23 也是表中最好，但 NDS 32.10 輸 DrivingDiffusion 的 33.10。自家長時評測上 FVD 74.20（OmniDreams SFT 81.64、HorizonDrive 218.51），Scene Sim. 0.910。最有說服力的是 60 秒 rollout：沒記憶時 FVD 286.54，有記憶 137.92。人評 15 位專家、60 個場景，對 HorizonDrive 勝率 71.7%。代價是參數從 2.0B 增到 3.1B，704×1280 下從 8.00 降到 6.94 FPS。</p>
+<p><b>限制與疑問</b>：nuScenes 沒有地理參考資料庫，所以主表其實沒用到 scene memory，最核心的「地理錨定」只在自家資料上驗證。摘要說用 VLM 當物理裁判，方法段寫的卻是 SoliReward，兩者對不太上。reward ablation 中加入物理 reward 後畫質分數反而從 62.68 掉到 61.48，文字卻說全面提升。Section 4.1 寫兩階段訓練、附錄寫四階段，也不一致。</p>
+<p><b>為什麼值得看</b>：「唯讀／只寫一次」的記憶設計，本質是把 3D 世界裡不會變的東西（地圖、背景、物體外觀）從生成迴路裡隔離出來，避免模型自己的錯誤被寫回記憶。這個想法可以直接搬到室內機器人 world model：把 object-level 的外觀記憶鎖住，只讓動態部分 autoregressive 生成。另一個可以追的方向是把 instance memory 換成 3DGS 物體表示，讓「鎖住」有幾何意義而不只是幾張 crop。</p>
+
+<h3>2. Structure from Collision：看物體撞地的樣子，推回內部的空洞</h3>
+<p><a href="https://arxiv.org/abs/2611.07900">arXiv:2611.07900</a>｜cs.CV｜NTT（Takuhiro Kaneko 單一作者）</p>
+<p><b>問題</b>：一個外觀完整的物體，裡面有沒有空洞、空洞在哪，表面上看不出來，但它掉到地上變形和反彈的方式會不一樣。Structure from Collision（SfC）就是從多視角的碰撞影片反推內部結構。前作 SfC-NeRF 用 density 場去最佳化，作者指出這個做法本質上不對盤：空洞是「沒有材料」，空洞附近的 density gradient 很弱；而且表面運動的誤差可能指向錯的方向（真正空洞在左邊，誤差卻暗示要挖右邊）。</p>
+<p><b>方法</b>：把問題改寫成「假設空間裡的推理」。先用 GIC 重建一個實心的粒子集（約 10⁵ 個粒子），然後把空洞表示成明確的假設 h =（形狀、中心、大小、方向），從實心粒子挖掉對應區域就是一個候選。全域階段不用梯度：只跑 forward 的 MPM 物理模擬，用碰撞前後幾幀的 2D mask loss 打分，預設是兩輪 5×5×5 網格搜尋，共 250 次模擬。局部階段再把選中的假設當成 Lagrangian 粒子系統，透過可微 MPM（DiffTaichi）最佳化初始粒子位置，loss 包含 3D Chamfer、2D mask、防止粒子擠在一起的 repulsive loss，以及用 Delaunay 四面體算的體積保持項（權重 10⁴），Adam 跑 2,000 步。</p>
+<p><b>結果</b>：SfC benchmark（5 種外形 × 4 種空洞大小／位置，共 40 序列，11 視角）上，空洞位置變化的設定 Chamfer distance 從 SfC-NeRF 的 0.281 降到 0.109，大小變化從 0.165 降到 0.063。預測未來幀時，+7 幀 PSNR 33.6（SfC-NeRF 27.1、GIC 23.1）。ablation 顯示全域搜尋和局部精修都有貢獻：只實例化 0.204，加局部精修 0.156，加全域搜尋 0.121，全部 0.109。換成 random search 或 CMA-ES 差不到 0.002，代表重點在「先搜假設」這個結構，而不是用哪個搜尋器。全域搜尋只佔局部精修約 3% 的時間。</p>
+<p><b>限制與疑問</b>：全部是合成資料、相機已校正、材料參數已知（雖然測了 ±10% 誤差和未知參數的情況，CD 從 0.100 升到 0.119）。假設空間外的空洞形狀找不回來，複雜拓撲（Comp 子集）在只知道大小時 CD 仍有 0.582。只處理單一空洞。</p>
+<p><b>為什麼值得看</b>：這篇的教訓很通用：當觀測只是間接約束（看不見的內部、遮擋區域），與其硬做 dense 梯度最佳化，不如先離散地列出結構假設，用 forward 模擬篩選，再局部精修。對機器人來說，「搖一搖、敲一敲來判斷物體內部」是很自然的主動感知問題，這篇提供了一個乾淨的 inverse-physics 管線。後續可以想把假設空間用學到的 shape prior 生成，或換成觸覺／力覺觀測。</p>
+
+<h3>3. FUHA：兩個 token 就能描述全身動作的即時人物動畫</h3>
+<p><a href="https://arxiv.org/abs/2611.07481">arXiv:2611.07481</a>｜cs.CV｜NVIDIA、首爾大學（Hanbyul Joo 等）</p>
+<p><b>問題</b>：用一段 driver 影片驅動一張參考照片，現有方法多半依賴外部 pose estimator 和多步 diffusion，又慢又只能涵蓋特定部位；而學出來的緊湊動作表示，過去大多只做臉。作者想要一個同時涵蓋臉、手、身體，又能即時跑的動作表示。</p>
+<p><b>方法</b>：凍結的 DINOv3 ViT-B/16 抽特徵，motion encoder 是一個只有 2 個 query 的 Q-Former，輸出 2×512 的動作 embedding；appearance encoder 用 1,024 個 query，只對參考圖算一次。解碼時先把動作 token 展開成 motion map，再 cross-attend 外觀 embedding，最後用凍結的 Cosmos 或 TAESD tokenizer 解碼成影像，一步出圖，不 denoise。關鍵是一個 triplet 式對比 loss：anchor 是 driver 的動作 embedding，positive 是同一姿勢的關鍵點渲染圖（去掉外觀），negative 是同一人但不同姿勢的參考幀，逼 embedding 只記姿勢不記長相。另有區域加權的 L1／LPIPS（眼睛、手權重 10）和 AdaFace identity loss。資料約 105 萬段、5,172 小時，64 張 H100 訓練 3 天。</p>
+<p><b>結果</b>：自建的上半身 benchmark 上，self-reenactment LPIPS 0.106、FVD 38.9，手部關鍵點誤差 AKD-H 48.5（最佳 baseline MimicMotion 65.6），作者稱每項 self 指標都贏。速度是重點：RTX Pro 6000 上 FUHA-C 10.71 FPS、FUHA-T 26.60 FPS，diffusion 系的 Wan-Animate、UniAnimate-DiT 都不到 0.4 FPS；RTX 4090 上 FP16 的 FUHA-T 可到 38.9 FPS。用動作 embedding 做檢索時，「找到同一個人」的比例只有 0.1%，而 DINOv3 等十種通用 embedding 是 3.2–11.5%，說明外觀真的被剝掉了。拿掉對比 loss，cross-reenactment 的 ID 從 0.701 崩到 0.057；只用 1 個 token 也崩。</p>
+<p><b>限制與疑問</b>：臉和全身只是「有競爭力」：臉部 cross-reenactment 的 ID 輸 X-Portrait（0.793 vs 0.654），TikTok 上 FVD 輸 Wan-Animate。沒有生成先驗，細節比 diffusion 軟。上半身 benchmark 是自建且未說明是否公開。</p>
+<p><b>為什麼值得看</b>：一個 1,024 維、和外觀解耦、可線性內插的全身動作 embedding，用途不只動畫。它可以當人類示範影片的動作 tokenizer，給 humanoid 或 VLA 做 retargeting 前的中介表示；也能當影片生成模型的控制訊號，作者已經示範接到 Wan2.2-Animate-14B（FUHA-W）。值得試的是：這個 embedding 對手部細節到底保留多少，夠不夠做操作任務的模仿。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>Semantics-to-Contact：VLM 指地方，真機 residual RL 處理接觸</h3>
+<p><a href="https://arxiv.org/abs/2611.07532">arXiv:2611.07532</a>｜cs.RO。兩階段框架：VLM 先找出任務相關區域、給粗略空間引導，再由真機上、有人類介入回饋的 residual RL policy 用力覺學細部接觸行為。另加一種只隨機化背景、保留機器人與物體的 object-centric augmentation。六個真實接觸任務上成功率勝過強 baseline，對視覺和位置變化都穩定。</p>
+
+<h3>PhySA：VLM 覺得好看的步態，物理上反而更抖</h3>
+<p><a href="https://arxiv.org/abs/2611.07679">arXiv:2611.07679</a>｜cs.RO。用 VLM 給 humanoid 步態打美感分數時，作者發現四個 VLM 都偏好關節加速度更大的片段。PhySA 把稀疏的 VLM 分數和依模擬器狀態觸發的物理懲罰拆成兩個可移除的 reward channel，在 MuJoCo Humanoid-v5 上比 PPO、Text2Reward、Eureka 減少 26–32% 關節加速度，但 episode 變短，而且在 IsaacLab 和 Unitree G1 上沒有效果，作者很老實地寫出來了。</p>
+
+<h3>FAH：直接預測 3D 關節，比預測 MANO 參數再投影更好</h3>
+<p><a href="https://arxiv.org/abs/2611.07711">arXiv:2611.07711</a>｜cs.CV。基於 SAM 3D Body 的手部分支，經微調和特徵蒸餾，直接預測 2D／3D 關節與表面點，再擬合 MANO 或 MHR-Hand，還能估接觸和手部部位，並把手放回世界座標。ViT-L 版含 mesh fitting 在 RTX 4070 Ti SUPER 上 65 fps，ViT-S 不含 mesh 可到 125 fps，程式碼已開源。</p>
+
+<h3>FreeOcc：既然 planner 已經知道自車怎麼走，就別再學 ego-motion</h3>
+<p><a href="https://arxiv.org/abs/2611.08128">arXiv:2611.08128</a>｜cs.CV。4D occupancy 預測模型通常花大量 attention 去分離自車運動和場景動態；FreeOcc 直接用 SE(2) 把自車運動扣掉，只對其他 agent 的殘差運動解 ODE（conditional flow matching），並只對不確定的 voxel 跑 ODE。28.3M 參數，nuScenes 上 mIoU 32.1%、近場 Chamfer 0.47 m，27 FPS，可 zero-shot 轉到 SemanticKITTI。</p>
+
+<h3>BestRand：隨機抽題幾乎夠用，只差那條長尾</h3>
+<p><a href="https://arxiv.org/abs/2611.00883">arXiv:2611.00883</a>｜cs.LG｜HF 51 讚。分析用子集估計整個 benchmark 分數的誤差分佈，發現隨機抽樣大多數時候很準，但有長尾的大誤差。BestRand 保留隨機抽樣的低成本、壓掉長尾：在 70 多個文字、多模態、agent benchmark 和 VLA 評測上，高誤差風險平均降 50.2%、估計誤差降 16.4%，建構成本只要競爭方法的 51.3%。跑 VLA 評測很貴的人可以留意。</p>
+
+<h3>Harness-S：用「兄弟 harness」救回失敗的 rollout，再把能力蒸回 policy</h3>
+<p><a href="https://arxiv.org/abs/2611.04277">arXiv:2611.04277</a>｜cs.CL｜HF 66 讚。agent 的 harness（包在模型外的執行系統）從同一個基底演化出不同變體，各自修不同的失敗。訓練時只有在 base harness 全部失敗時才呼叫兄弟 harness 產生 rollout 來替換，做 RL，讓 policy 回到原本 harness 也學得會。AppWorld、SWE-Gym、DBBench 上明顯勝過純 policy 訓練，但摘要沒給具體數字。</p>
+
+<h2>新聞與討論</h2>
+
+<h3>Goldman Sachs 收回交易員和銀行家的 Claude Code</h3>
+<p><a href="https://www.thestateofai.com/news/goldman-sachs-claude-code-traders-bankers">報導</a>引述 Bloomberg：Goldman 十月更新內部規範，Claude Code 和 GitHub 只開放給工程師（約 4.7 萬員工中的 1.2 萬人），多數交易員和銀行家失去權限，strats 仍保留；理由是生產力與風險檢討，公司內部、整合多家模型的 AI 助理則照常可用。時間點微妙：Anthropic 10 月 26 日提交的 S-1 正好列 Goldman 為主承銷商之一。<a href="https://news.ycombinator.com/item?id=50415628">HN 討論</a>（329 分）多半聚焦「lethal trifecta」：一台能讀客戶資料、能上網、又有 agent 的工作站，在現有架構下只能緩解，無法根治。</p>
+
+<h3>Nvidia 董事會對黃仁勳遭外國情報鎖定一事展開獨立調查</h3>
+<p><a href="https://nvidianews.nvidia.com/news/statement-from-nvidia-board-of-directors">官方聲明</a>（11 月 8 日）：在媒體報導黃仁勳是外國情報行動的目標之後，董事會由獨立董事組成委員會、聘外部律師調查。董事會表示目前沒有理由認為國安或公司機密外洩，也對黃仁勳的領導有信心，他本人承諾全力配合，職位沒有變動。<a href="https://news.ycombinator.com/item?id=50416801">HN 討論</a></p>
+
+<h3>Claude Code 的「Don't ask again」讓 1,122 個公開 GitHub 檔案洩漏密碼</h3>
+<p>Apiiro 的<a href="https://apiiro.com/blog/coding-agents-leaking-secrets-github-dont-ask-again">報告</a>在公開 repo 裡找到大量被提交的權限設定檔。HN 上 Claude Code 團隊的 Boris 說明，問題檔案是 <b>.claude/settings.local.json</b>，Claude Code 建立時會自動 gitignore，外洩的多半是手動建立後提交的；他也承認目前沒有做 secret scrubbing，正在研究，並建議所有 repo 都開 secret scanning。留言引述報告：5% 的設定直接允許任意 shell 指令，另有 43% 允許 <b>Bash(python:*)</b> 這類等同任意執行的規則。<a href="https://news.ycombinator.com/item?id=50407882">HN 討論</a>（541 分）有一派認為只有 OS 層級的 sandbox 才算真正的保證。</p>
+
+<h3>llama-modchip：在 64 GB RAM、沒有 GPU 的筆電跑 284B 的 DeepSeek</h3>
+<p><a href="https://github.com/synchopate/llama-modchip">專案</a>把 DeepSeek-V4-Flash（284B，每 token 啟用約 13B）重新量化到 1.71 bpw、約 56.6 GiB：大部分 routed expert 用 IQ1_S，敏感層用較高精度，attention projection 用自訂 3.75 bpw 格式，整個模型加 256K KV cache 都塞在 RAM 裡。在 Ryzen 9 9955HX 上 prefill 約 43 tok/s，decode 9–10 tok/s，加上 n-gram 推測解碼可到 11.5–14.7 tok/s。要用專案自己 patch 過的 llama.cpp，品質數字也都是作者自測。<a href="https://news.ycombinator.com/item?id=50411961">HN 討論</a></p>
+
+<h3>拼回 Stasi 撕碎文件：電腦重建專案為什麼停擺</h3>
+<p>德國聯邦檔案館的<a href="https://www.bundesarchiv.de/en/stasi-records-archive/the-reconstruction-of-torn-documents/">說明頁</a>：1989–90 年東德秘密警察撕碎的文件裝了約 16,000 袋，估計 4,000–5,500 萬頁。人工至今只拼完 600 袋、約 170 萬頁。Fraunhofer IPK 的 e-Puzzler 自 2007 年起花了約 650 萬歐元，試點 23 袋拼回約 9.1 萬頁，原理可行但始終達不到 80% 自動重建率，2016 年停止，現在正重新做需求規格與市場調查。對做 fragment matching 和文件影像的人來說，這是一個真實、規模巨大、至今未解的 CV 問題。<a href="https://news.ycombinator.com/item?id=50389923">HN 討論</a></p>
+
+<h3>Declarative Dragging：宣告「拖完要變成什麼狀態」，系統自動生成拖放互動</h3>
+<p>Joshua Horowitz、Andrew Blinn、Jeffrey Heer 的 UIST 2026 Best Paper（<a href="https://declarative-dragging.github.io/">專案頁</a>）。作者只要對每個可拖元素宣告它可以導向哪些未來的 model 狀態，系統 D2 會預先渲染這些狀態、找出元素在每個狀態中的落點當 drop zone，再組合成平滑的動畫拖放；行為可以組合，也能加 snapping 等修飾。已做成 SVG 函式庫 Dragology，示範包括代數樹、Bézier 曲線、辮子群。<a href="https://news.ycombinator.com/item?id=50368481">HN 討論</a></p>
+
+<h3>把 Android 16 移植到視障母親的按鍵手機</h3>
+<p>作者的母親視力受損，原本用 Nokia 1280，換成約 400 歐元的二手 Kapsys SmartVision 3（Android 11、實體鍵盤）後卻又慢又常當機，承諾的更新也沒來。作者用 Dynamic System Updates 裝上 Android 16（保留原系統當退路），<a href="https://z1x.us/blog/four-hundred-bucks-of-e-waste">文章</a>記錄了一路的坑：最後讓 init 崩潰的竟是一條舊 SELinux 規則，改一行就好；TalkBack 不理模擬的方向鍵，只好寫無障礙 app 直接移動游標。現在 TalkBack 能用更好的聲音說烏克蘭語，原本會當的 app 也能跑了。<a href="https://news.ycombinator.com/item?id=50366821">HN 討論</a></p>
+</article>
+</body>
+</html>
