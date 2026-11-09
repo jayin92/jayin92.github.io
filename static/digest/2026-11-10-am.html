@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 早報｜2026-11-10（週二）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 早報｜2026-11-10（週二）</h1>
+<p><b>今日導讀</b>：今天的主題是「通用模型直接動手」。Apple 的 AMP1 讓前沿 LLM 不靠任何技能庫、直接寫程式控制機械手臂，在 RoboLab-120 上把最強 VLA 甩開將近一倍；同一天 Anthropic 發表的 Fable 5.2 也把 RoboDojo 與電路板設計當成主打。另外兩篇深讀回到生成：騰訊混元把「零件分割」塞進 3D 生成的同一個 latent，字節則用極少的改動讓 Wan2.1 直接吐出帶 alpha 的特效影片。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. AMP1：不給任何抓取技能，讓前沿模型自己寫程式操控機械手臂</h3>
+<p><a href="https://arxiv.org/abs/2611.09892">arXiv:2611.09892</a>｜cs.RO｜Apple（Matthias Müller、Vladlen Koltun 等）</p>
+<p><b>問題</b>：通用模型用在操作上，過去主要有兩條路：一是 skill orchestration（模型挑選 grasp、place 等現成技能），二是 code-as-policies（模型先寫好整支程式再執行）。前者被技能能力上限綁住，後者執行中模型不在迴路裡。作者主張第三條路「Agentic Manipulation Policy（AMP）」：模型全程在迴路中，直接下達末端軌跡，邊做邊改策略。</p>
+<p><b>方法</b>：AMP1 本身只是一個 harness。模型在持續存在的 Python interpreter 裡呼叫 SDK，SDK 分三類：sensing（RGB、depth、內外參、本體感覺，影像只有在模型主動顯示時才進 context）、perception（把融合點雲 voxel 化後依相鄰與顏色斷點分群，每個物體擠出成封閉 mesh，供碰撞檢查）、motion（基本版只能下「帶時間的 TCP waypoint + 夾爪開合」，另有加了 grasp/place 例行程序的 assistive 版）。它也能從任意虛擬視角渲染點雲與機器人，或把規劃中的抓取投影回真實影像檢查。加上跨 episode 的持久記憶，就能 few-shot 與 continual learning，權重不動。</p>
+<p><b>結果</b>：RoboLab-120 上，搭 Gemini 4 Argon 達 85.6%，搭 Opus 5.5 為 82.8%；排行榜最強 VLA 與 WAM 分別是 49.2% 與 42.9%，最強 agent（SenseNova-RoboRSI，GPT-6 Astra）57.1%。vague/specific 指令下只差約三個百分點，FLUX 3 Action 遇到模糊指令則從 42.9% 掉到 28.4%。CaP-Gym 上 LIBERO-PRO 95.2%、robosuite 700/700、BEHAVIOR-1K 48/50，全部 zero-shot。真機（Franka + 三相機）12 個任務 108 次試驗成功 104 次（96.3%），FLUX 45.4%、對照 VLA 27.8%。RoboDojo 雙臂任務加上記憶練習後，未見過的佈局成功率從 26.4% 升到 84.1%。消融顯示模型選擇影響最大：Opus 5.5 82.8%、Haiku 5.5 51.6%、Opus 4.5 35.2%；強模型反而在 assistive 版表現較差；把影像換成文字描述，Opus 5.5 從 82.8% 掉到 36.8%。</p>
+<p><b>限制與疑問</b>：作者自己承認還不實用。真機平均成功時間 280 秒，其中 211 秒在等模型推理，執行只占 69 秒。每個 RoboLab episode 用 Opus 5.5 約 1.39 美元。真機失敗多來自碰撞（標定與簡化幾何），而 104/108 是開啟「錯誤恢復」SDK 的數字，關掉為 94/108。另一點值得注意：論文說 RoboLab 剩下的失敗多半是 benchmark 本身的瑕疵（物體太重太大、verifier 不穩），代表這些 benchmark 也快被打穿了。</p>
+<p><b>為什麼值得看</b>：這是目前最強的證據之一，說明「通用 VLM + 好的 harness」在泛化與指令理解上已經壓過專門訓練的 VLA。對做 VLA 的人，值得思考的是分工：把 AMP 的軌跡當成蒸餾資料、讓 agent 只在小模型快失敗時介入，或把它當成生成 demonstration 的自動標註員。論文中「影像不能被文字取代」「多相機非必要、強模型會自己三角化補深度」也直接挑戰了先前 code-as-policy 的設計建議。</p>
+
+<h3>2. OmniLatent：把幾何、貼圖和零件 ID 編進同一個 3D latent</h3>
+<p><a href="https://arxiv.org/abs/2611.09055">arXiv:2611.09055</a>｜cs.CV｜HKU、騰訊、CUHK、南京大學</p>
+<p><b>問題</b>：可編輯的 3D 資產需要零件結構，但現行流程是「先生成整顆 mesh，再跑一個 part segmentation」。分割品質因此受生成 mesh 的瑕疵牽連，細結構、銳邊與只靠紋理區分的邊界都容易出錯。零件標註又遠比幾何與貼圖資料稀少。</p>
+<p><b>方法</b>：建在 VoxSet 的 voxel-query 表示上。每個表面點帶三個對齊的欄位：幾何（座標、法向、銳利度）、外觀（RGB albedo）、零件（6-bit 二進位 ID，物體內隨機指派，最多 64 個零件；作者說比用 RGB 編零件更不怕去噪誤差）。VAE 共用 encoder，decoder 先解 SDF、Marching Cubes 抽面，再用這些頂點去查變形、顏色和零件 ID，所以零件邊界天生貼在生成的表面上。訓練是課程式的：90 萬 mesh 先學幾何，30 萬帶貼圖資產對齊外觀，最後 2 萬個人工標零件的物體教零件。生成器是 1.9B 的 MM-DiT（rectified flow），條件是單張影像與可選的 2D 分割遮罩；生成一個資產約 30 秒。再微調出兩個延伸：3D 點提示（每個點帶二進位零件 ID，可做完整分割、修正與細分），以及 amodal 零件補全（依可見 voxel 數動態分配 token，RoPE 錨定可見部分、無 RoPE token 補不可見部分）。</p>
+<p><b>結果</b>：PartObjaverse-Tiny（watertight）上 mIoU 74.18，對手 PartField 52.61、SAMPart3D 50.02，另一個 SAM 系的 3D 分割方法 58.10。為了公平，所有方法都在 OmniLatent 生成的 mesh 上重測，最強基線為 56.01。在真值 mesh 上，不給遮罩 62.42、給遮罩 76.53。10 個點提示時完整分割 67.32、互動分割 55.75，皆高於對照方法。</p>
+<p><b>限制與疑問</b>：主表的 74.18 是「有 2D 遮罩引導」的數字，而遮罩從哪來（真值渲染或 SAM 類模型）會大幅影響實用性；無遮罩的 62.42 才是全自動的水準。作者列的失敗模式包括對稱結構分得不對稱、外觀相近的零件被併成一塊，以及單視角遮罩造成背面誤切。</p>
+<p><b>為什麼值得看</b>：「稀有標註搭便車在豐富模態的 latent 上」這個想法，可以直接搬到機器人需要的 articulation、材質或可抓取部位：把關節軸或 affordance 當成另一個表面欄位一起編碼。對做 sim asset 生成的人，零件化又帶貼圖的單圖生成，是把網路影像轉成可互動模擬物件的關鍵一步。</p>
+
+<h3>3. UniRGBA：讓 Wan2.1 原生產生帶透明度的特效影片</h3>
+<p><a href="https://arxiv.org/abs/2611.09069">arXiv:2611.09069</a>｜cs.CV｜ByteDance</p>
+<p><b>問題</b>：煙火、粒子、火焰、泡泡這類特效素材需要 alpha 通道才能疊到任意背景上，但影片生成模型只輸出 RGB。既有做法（TransPixeler、Wan-Alpha）多用摳圖資料訓練，隱含「前景是實心物體」的假設；架構上不是把 alpha token 接在後面讓序列加倍，就是重塑 VAE latent，導致原本 RGB 能力退化。</p>
+<p><b>方法</b>：核心主張是「alpha 只是第四個通道」。把 Wan2.1 的 3D causal VAE 第一層與最後一層卷積多加一個通道並零初始化，等於從原 VAE 無損起跑；只對稱地解凍最外層的 encoder/decoder（約 5% 參數）。損失是六項漸進式重建損失，其中關鍵是一個權重極小的 KL reference loss，把微調後的 posterior 拉向凍結的原 VAE posterior，避免 latent 漂移；另有隨機背景合成損失。第二階段才加上對合成結果的輕量 patch GAN。DiT 本身完全不改架構，只對 q/k/v/o 與 FFN 加 DoRA，用約 2,357 段 RGBA 影片微調。</p>
+<p><b>結果</b>：VAE 重建（內部 RGBA 特效資料）PSNR 29.16，Wan-Alpha 25.00；RGB 部分 29.75 對 24.42，alpha 部分 34.45 對 30.50。損失消融中，單加 KL reference 就讓 PSNR 從 19.93 升到 24.46。RGBA T2V 在 Text Alignment（4.26 對 3.98）、Naturalness（4.02 對 3.69）上勝過 Wan-Alpha，Aesthetic 則較低（0.469 對 0.523）。直接把 VAE 換掉、不調 DiT 生成一般 RGB 影片，多數指標與原 Wan2.1 相當。</p>
+<p><b>限制與疑問</b>：資料是內部特效素材庫，評估集與指標也是內部的。論文說純 RGB 重建「持平或略好」，但表上 PSNR 33.41 對 36.73、LPIPS 0.040 對 0.021 其實明顯較差；另外說純 RGB 輸入時 latent 與原 VAE「完全相同」，但最外層已被解凍，這點需要看程式碼確認。目前只在 832×480 驗證。</p>
+<p><b>為什麼值得看</b>：「零初始化擴通道 + 只解凍外層 + KL 錨定原 posterior」是很通用的配方，可直接用在給影片 VAE 加 depth、normal、segmentation 或光流通道，讓同一個 DiT 同時輸出多模態。這對做 4D 重建或機器人影片世界模型的人，是低成本取得「RGB + 幾何」聯合生成的一條路。</p>
+
+<h2>快速瀏覽</h2>
+<ul>
+<li><b>Computer-Use Agents Are Embodied Generalists</b>（<a href="https://arxiv.org/abs/2611.09847">2611.09847</a>，CMU 的 Sean Welleck 組）：和 AMP1 同方向但更極端。把具身任務包成一個「軟體」，畫面就是 agent 的視角、控制就是鍵盤滑鼠，讓 computer-use agent 用操作一般軟體的方式完成。同一個 agent 不做任何比賽專屬調整，在四個 ECCV workshop 比賽拿到第一、二、三與第六名。</li>
+<li><b>Localizing and Editing the Goal Representation of a VLA</b>（<a href="https://arxiv.org/abs/2611.08895">2611.08895</a>）：對 OpenVLA 說「不要把碗放到爐子上」，它在 79% 的否定指令 rollout 中照樣把碗放上去，goal probe 對「not X」和「X」的讀數幾乎一樣。activation patching 顯示目標在第 12 層前主要由指令 token 承載，之後轉到最後一個 prompt token；在第 8 層的指令 token 加 steering vector 能改變 18 次中的 12 次。對 VLA 安全約束是很實在的警訊。</li>
+<li><b>ODEAction</b>（<a href="https://arxiv.org/abs/2611.09672">2611.09672</a>）：不預測 action chunk，改學一個定義在動作空間上的 transition field，以當前動作為初始條件解 ODE 推出後續動作，避免 chunk 交界處的不連續。可當任何 VLA 的 action head，在 LIBERO、EBench、RoboTwin 與真機上優於對應的 chunking 基線，精細操作的提升最明顯。</li>
+<li><b>MS-pDiT：Scale as a Modality</b>（<a href="https://arxiv.org/abs/2611.08802">2611.08802</a>）：pixel-space diffusion，把同一張噪聲圖用多種 patch size 切成多條 transformer stream，用 MM-DiT 式聯合注意力雙向交換。ImageNet 256 上尺度數從 2 加到 5，FID 從 4.39 降到 2.19；最終 256 與 512 的 FID 分別為 1.43、1.44，T2I 的 GenEval 0.86。「多加一個尺度比加深度划算」這個結論值得記住。</li>
+<li><b>Video2Asset</b>（<a href="https://arxiv.org/abs/2611.09661">2611.09661</a>）：從多視角行車影片線上建出可獨立編輯的 3D 街景物件。以 occupancy 為中介，把當前觀測和每個資產紀錄裡累積的身分、幾何、外觀證據比對來決定是否沿用身分，再從資產庫實例化 mesh。nuScenes 上資產碎片化減少 15.4%，可做刪除物件、換 mesh、改軌跡等編輯。</li>
+<li><b>STRIDE</b>（<a href="https://arxiv.org/abs/2611.08857">2611.08857</a>，TU Darmstadt Jan Peters 組）：直接在人形機器人上學走路時，量不到 base velocity，所以改用只需 IMU 的「追蹤指令加速度曲線」當 reward，搭配 off-policy 的 XQC、高增益關節 PD 與左右對稱增強。模擬中 Unitree G1 與 Booster T1 在 14 分鐘的樣本內學會走路，訓練跌倒次數少 81%。</li>
+<li><b>TT-MBRL</b>（<a href="https://arxiv.org/abs/2611.09625">2611.09625</a>，Radu Timofte 組）：world model 的長期記憶不靠加大 context，而是測試時用梯度下降把本回合的觀測寫進權重，每個 episode 得到一個專屬的 world model。在 Memory Maze 上刷新 SOTA，且在 DMC、Atari 100k 不退步。和 test-time training 系列的序列模型是同一條思路。</li>
+<li><b>Video-Coder</b>（<a href="https://arxiv.org/abs/2611.09894">2611.09894</a>）：訓練一個會寫程式建 3D 場景、渲染出「草稿影片」的 agent，再把結構與運動訊號交給影片生成器。SFT 後用執行回饋加影片 reward 做 agentic RL，執行 reward 逐步退火。在 Minimax-H3 上 PhyGenBench 約提升 7 分、VBench-2.0 約提升 24 分，資料、模型與程式碼全開源。</li>
+</ul>
+
+<h2>新聞與討論</h2>
+<ul>
+<li><b>Anthropic 發表 Claude Fable 5.2 與 Mythos 5.2</b>：<a href="https://www.anthropic.com/claude-fable-and-mythos-5-2">官方公告</a>。兩者是同一個底層模型，Fable 帶資安與生物防護、開放給所有人，Mythos 給通過審核的機構。價格降到每百萬 token 輸入 8、輸出 40 美元，另有快 2.5 倍的 fast mode。對本報讀者最相關的是機器人：RoboDojo Sim 最高 effort 64.9%，Fable 5.1 為 27.6%、GPT-6 Astra 29.8%。另一篇<a href="https://www.anthropic.com/research/claude-electronics-design">研究文章</a>記錄 Claude 和 Diode 合作，從規格、選料、四層 PCB 佈線、外殼 CAD 到韌體設計出三個裝置，電路都不需修改就能運作；內部 PCB Gym 從 Fable 5 的 25% 升到 69%。Artificial Analysis 給它 65 分的最高<a href="https://artificialanalysis.ai/models/claude-fable-5-2">智慧指數</a>，但每題平均 26.54 美元、45 分鐘，是榜上最慢最貴的一群。<a href="https://news.ycombinator.com/item?id=50429906">HN 討論</a>（600+ 分）的置頂留言把它和前幾天「Opus 5.5 變笨」的抱怨連起來；也有人質疑公告挑選對手的 effort 等級不一致。</li>
+<li><b>Meta 推出最小模型 Muse Ember</b>：<a href="https://research.meta.ai/blog/muse-ember">Meta 部落格</a>。定位是 agent 整天在跑的子任務：tool call、程式小任務、路由、抽取。每百萬 token 輸入 0.10、輸出 0.50 美元，1M context、最多 512K 輸出。Meta 稱它在 Artificial Analysis 指數上以約三分之一的成本追平 Haiku 5.5 的最佳分數；PerceptionBench 80.6，Haiku 78.6。<a href="https://news.ycombinator.com/item?id=50429024">HN 上</a>有人失望它不是 open weights，也有人注意到 cached input 只收輸入價的 4%。</li>
+<li><b>e-means：Meta FAIR 的 k-means，約 10 倍快且 loss 更低</b>：<a href="https://e-means.github.io/">專案頁</a>（作者含 Hervé Jégou、Matthijs Douze）。用 mini-batch 加指數移動平均更新每群的 sum 與 count，batch 大小與步長由 scaling law 自動決定、不用調參，再加上新的初始化、死群復活與餘弦衰減，最後用每群上一個 epoch 的精確平均收尾。1.2 到 3 個 epoch 就達到 Lloyd 跑 25 個 epoch 的 test loss，GPU 上比 Flash-KMeans 快 10 到 45 倍，CPU 上比 Faiss 快 8 到 15 倍。做 VQ codebook 初始化、IVF 索引或大規模特徵分群的人可以直接換掉。<a href="https://news.ycombinator.com/item?id=50429734">HN</a> 有人說套到自己的 IVF 索引上快了 146 倍。</li>
+<li><b>Gemini 把連結的 Drive 與 Gmail 內容送進人工標註流程</b>：<a href="https://github.com/thisisme6598/gemini_files/">揭露文件</a>。作者指出 Google 2023 年承諾 Workspace 個人內容「不會被人工審閱者看到」，但 10 月 16 日改寫了說明頁與舊部落格，現在明言審閱者可能看到「整封信或整個檔案」。更麻煩的是，即使沒用 @Drive 或 @Gmail，隨口提到相關話題也可能觸發背景檢索，而且結果是機率性的，從完全不取用到整份檔案原文進 context 都有。<a href="https://news.ycombinator.com/item?id=50429426">HN 討論</a>多是「該轉去本地模型了」。</li>
+<li><b>長得像烏鴉的撲翼無人機騙過反無人機偵測</b>：<a href="https://taskandpurpose.com/news/drone-mimicking-bird-test/">Task &amp; Purpose</a>。Ornadyne 的 O1 重約一磅，靠拍翼飛行，可飛 10 公里、一小時以上，外型、翼展與顏色可依當地鳥種調整。美國空軍 9 月在 Edwards 基地的「Game of Drones」演練中，其他廠商的偵測系統把它判成鳥。對做空中目標偵測與分類的 CV 研究者，這是很具體的 adversarial 情境。<a href="https://news.ycombinator.com/item?id=50413885">HN</a> 有人提到 CIA 在 1960 年代就做過類似的 Project AQUILINE。</li>
+<li><b>同一張 H100，一小時 2.69 或 12.29 美元</b>：<a href="https://github.com/datareceipts/data-receipts/tree/main/109-gpu-pricing">data-receipts</a>。只比同型號（SXM 80GB）的隨需價格：RunPod Community 2.69、RunPod Secure 3.99、AWS p5 6.88、Azure ND 12.29，差 4.57 倍。作者也說明這不全是利潤：Azure ND 有每 GPU 400 Gbps InfiniBand 與資料中心 SLA，單機微調用不到，跨 64 節點訓練則沒得選。<a href="https://news.ycombinator.com/item?id=50427085">HN</a> 上有人警告社群主機可能窺看 VM，也有人說在 Azure 就算有大額 credits 也拿不到 GPU 配額。</li>
+<li><b>在 32GB 的 M1 Max 上，用不到 16 GiB 跑 120B MoE</b>：<a href="https://mitln.github.io/moe-inference-engine/">作者文章</a>。把大部分 expert 留在 SSD、按需載入，並嚴格限制行程記憶體。gpt-oss-120b 平均 7.84 tok/s，同機另一套引擎 5.78；有其他程式占用 4 GiB 時差距拉大到 1.72 倍。最有參考價值的是踩雷紀錄：macOS 的檔案快取默默把 8 GB 模型放在 RAM，讓早期「SSD 讀取」的數字虛高；還有一個 MLX kernel 會因 tensor 排列不同走不同數值路徑。<a href="https://news.ycombinator.com/item?id=50430323">HN 討論</a>還很少。</li>
+</ul>
+</article>
+</body>
+</html>
