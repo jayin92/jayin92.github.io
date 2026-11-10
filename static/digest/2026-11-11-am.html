@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 早報｜2026-11-11（週三）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 早報｜2026-11-11（週三）</h1>
+<p><b>今日導讀</b>：arXiv 今天還沒換新清單，所以這期以 Hugging Face 上新竄起的論文為主。三篇深度閱讀剛好都在處理「部署端的現實」：一個能在手機 NPU 上 5.5 ms 跑完的人體 mesh 模型、一份關於 world action model 該餵什麼資料的系統性研究，以及讓使用者用幾個點擊修正 feed-forward 3D 重建的方法。新聞面則有 DeepMind 用 AI 形式化驗證 Signal、Blender 5.3 正式支援 Gaussian splat。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. InstantHMR：在手機 NPU 上 5.5 ms 做出整個人體 mesh</h3>
+<p><a href="https://arxiv.org/abs/2611.09195">arXiv:2611.09195</a>｜cs.CV｜NaturalPad、LAAS-CNRS</p>
+<p><b>問題</b>：單張影像的 human mesh recovery（HMR）近年精度大進步，但 SAM 3D Body、CameraHMR、HMR2.0 這類 ViT-H 或 DINOv3 架構都是為 GPU 設計的。作者實測，它們在 Galaxy S23、S24 的 NPU 上根本跑不起來（記憶體不夠或編譯失敗）。另一個問題是各論文在 3DPW、EMDB 上的評測設定（person box、焦距、body model 轉換）不一致，光是這些選擇就能讓同一個模型差好幾 mm，跟方法之間的差距一樣大。</p>
+<p><b>方法</b>：輸入 288 px 的人物 crop，用 ImageNet 預訓練的卷積 backbone HGNetV2 抽出 9×9 個 token。刻意不用 ViT，因為卷積能直接對應到手機 NPU 加速的算子。接著用 4 層 transformer decoder 精煉 71 個 learned query，其中 1 個給身體、70 個給 2D keypoint，並加上 CLIFF 式的 bbox 位置編碼（以焦距正規化的視角與尺寸）。身體 query 接 MHR head 和 camera head，keypoint query 接 SimCC head，在 96 個 bin 上分類 x、y 座標。3D keypoint 不另外回歸，而是從 MHR rig 的 forward kinematics 讀出，所以 mesh 和 keypoint 永遠一致。bone scale 必須設上下界，否則一個過大的預測沿著肢體連乘，會長出幾百公尺高的骨架，讓訓練發散。訓練只用 SAM 3D Body 公開的人工 MHR 標註，共 4.2M 個 crop，loss 有 11 項。整個網路的限制是必須在 fp16 下完整編譯到 NPU，不能有任何算子退回 CPU。共有 N/T/S/M 四個尺寸，參數量 20.0M 到 32.2M，只差在 backbone。</p>
+<p><b>結果</b>：InstantHMR-M 在 S23 NPU 上 5.49 ms，S24 上 4.01 ms，RTX 4070 TensorRT 上 0.98 ms，是所有方法中最快的。PA-MPJPE 在 EMDB-1 為 48.8 mm、3DPW 40.0 mm、RICH 41.7 mm。在手機上能即時跑的方法中，它在 EMDB-1 比 SMPLer-X、MeshPose、HybrIK、Multi-HMR 好 20 到 25 mm。只有 NLF 更準，但在 NPU 上慢 12 倍（NLF-S）和 23 倍（NLF-L）；在 3DPW 上它和 NLF-S 只差 0.6 mm。不考慮手機限制的話，SAM 3D Body 系列在 EMDB-1 仍好 8 到 10 mm，但每人要 130 到 416 ms。ablation 中最大的增益來自 crop framing 的混合（標準 crop 75%，其餘為拉遠、拉近、平移），讓 EMDB-1 從 58.8 降到 48.8 mm。另一個有趣的發現是：在 NPU 上，從 nano 到 medium 的延遲只從 4.60 增加到 5.49 ms，所以直接選 medium 就好。</p>
+<p><b>限制與疑問</b>：沒有專門的手部分支，手只佔 9×9 token 中的幾個像素。只在 Qualcomm NPU 上測過，沒測 iPhone。沒有報告 jitter 等時間性指標。另外，最好的模型只能做研究用途，可商用版本 M-C 在 EMDB-1 掉到 72.2 mm，作者也坦承訓練影像比任何架構設計都重要。</p>
+<p><b>為什麼值得看</b>：這篇是 humanoid teleoperation 和 human-to-robot retargeting 的實用零件：在手機上就能拿到低延遲的 3D 人體。它的評測協議（統一 box、焦距、用官方 MHR→SMPL 轉換重測 11 個方法）本身也值得參考。可以延伸的方向包括加一個輕量的手部分支，或把它當成 WHAM 類 online video 方法的 per-frame encoder。</p>
+
+<h3>2. SWAM：world action model 的資料該怎麼配？</h3>
+<p><a href="https://arxiv.org/abs/2611.12870">arXiv:2611.12870</a>｜cs.CV / cs.RO｜上海交通大學、上海創智學院、Noematrix、西湖大學、同濟大學</p>
+<p><b>問題</b>：World action model（WAM）根據語言指令同時預測影片和動作。過去的工作多在改架構，並默認影片預訓練學到的 language–video alignment 會自然保留。作者認為加入動作學習可能破壞這個對齊，而目前幾乎沒有關於「該用什麼資料和監督來保住它」的指引。</p>
+<p><b>方法</b>：影片分支由 Wan2.2-TI2V-5B 初始化（UMT5-XXL text encoder），動作分支隨機初始化，兩者構成 Mixture-of-Transformers，透過 masked attention 單向讓資訊從影片流向動作。關鍵設計是只有影片分支有 text cross-attention，動作分支只能透過影片特徵間接取得語言。每個 chunk 包含 2 個 video latent frame 和 48 步動作，動作是 16 維的雙手 end-effector（位置、四元數、夾爪）。loss 是兩個等權重的 flow-matching loss。資料池共約 47,017 小時：一般影片 10,910 小時、egocentric 影片 10,986 小時、自家 UMI 示範 15,285 小時、機器人示範 9,836 小時（AgiBot、InternData-A1 等）。egocentric、UMI 和機器人資料先由 Qwen 3.8 Max 切成子任務，再由 Seed 2.1 Pro 寫出三種詳細程度的 caption，外加場景與光線描述。</p>
+<p><b>結果</b>：只在 RoboTwin 2.0 的 50 個任務、各 50 條 Clean 示範上做 post-train，Easy（Clean→Clean）88.10%、Hard（Clean→Random）61.56%，平均 74.83。對照組中 OpenWAM 為 89.30/48.70，π0.5 為 70.66/46.00，4D-WAM 為 81.50/41.80，所以 Easy 稍輸 OpenWAM，Hard 則高出 12.86 個百分點。真機（Flexiv 雙臂，疊杯、摺毛巾、禮物裝盒，各 30 次）Hard 設定下成功率 40.00%，OpenWAM 為 23.33%。ablation 很有料：caption 從 Brief 到 Detailed 加環境描述，Hard 從 47.20 升到 55.04；egocentric 與 UMI 以 1:1 取樣最好（53.84）；「語言只經過影片」的架構達 57.36，比 single-stream 的 52.56 和一般 dual-stream 的 52.48 都好；額外加 CLIP、DINOv2、SigLIP2 或 Qwen3-VL 的 image encoder 反而都變差（39.76 到 42.96，原生為 49.52）。真機 Hard 成功率隨影片預訓練從 22.5k 小時擴到 90k 小時，由 33.33 升到 48.89。</p>
+<p><b>限制與疑問</b>：作者承認模型的複雜推理和多階段規劃能力有限，歷史 context 也短，不利長時程任務。主表 Hard 61.56 與 scaling 表的 61.52 有些微不一致。UMI 資料是自家收集，別人很難完整重現資料配方，不過作者說會釋出整理過的資料。</p>
+<p><b>為什麼值得看</b>：這是少見把 WAM 的「資料配方」當主角的系統研究，結論也很具體：caption 品質重要、ego 與 UMI 要混、不要外掛 VLM encoder、語言走影片分支。對正在做 video-based policy 的人，這些 ablation 可以直接拿來省實驗。值得追問的是，這些結論換到別的 video backbone 上是否仍成立。</p>
+
+<h3>3. Click3R：feed-forward 3D 重建錯了，點幾下就能修</h3>
+<p><a href="https://arxiv.org/abs/2611.12875">arXiv:2611.12875</a>｜cs.CV｜University of Virginia</p>
+<p><b>問題</b>：DUSt3R 這類 feed-forward 重建模型只給一個固定答案，遇到重複紋理、對稱結構、大視角變化或無紋理區域時一旦出錯，就沒有簡單的修正方式。test-time optimization（如 LoRA3D）太貴，也解不了真正有歧義的場景；Pow3R 那種要相機內參或深度的先驗又常常拿不到。</p>
+<p><b>方法</b>：以 DUSt3R 為底，使用者在兩張圖上點出幾組對應點。每個點正規化到 token grid，用 SAM 式的 random Fourier feature 編碼，再加上 view embedding 和 pair embedding（標示哪兩點是一組）。每個 view 各接一個兩層的 two-way attention adapter（prompt self-attention、prompt↔image cross-attention），共增加 34.1M 參數（6.4%）。沒有點擊時 adapter 退化成 identity，模型行為等同原本的 DUSt3R。訓練用 9 個資料集、各 10 萬對，loss 沿用 DUSt3R 的 confidence-weighted regression。點擊由 GT pointmap 投影模擬（5 cm 內才算可見），數量採 curriculum：30% 樣本 0 個點、40% 為 1 到 4 個、30% 為 5 到 12 個。作者另建了 Hard3DBench，依大視角、低重疊、大 baseline 等失敗類型自動分類，包含 ID 與 OOD（7Scenes、DTU、ETH3D 等未訓練過的資料）兩部分。</p>
+<p><b>結果</b>：Hard3DBench 2-view OOD 的 mAA@30° 從重訓 DUSt3R 的 52.6，用 1、4、8 個點分別升到 56.6、60.4、62.4；5-view ID 從 39.4 升到 49.3。真人標註測試（100 對 OOD，平均每對 3.8 個點）中，median rotation error 從 15.05° 降到 8.78°，mAA@30 從 35.7 升到 56.2，接近 GT 隨機點 K=4 的 59.2。用 RoMa v2 自動匹配取代真人，K=4 也有 55.0。ablation 顯示必須 end-to-end 訓練，凍結 DUSt3R 只訓練 adapter 的效果最差。</p>
+<p><b>限制與疑問</b>：只在 224 px 的雙視角上訓練，多視角靠 global alignment。adapter 是 soft conditioning，訊號在後面 12 個 decoder block 中被稀釋。錯誤的點擊會讓結果變差，全部點錯甚至比不點還糟。超過 90° 的旋轉和數十公尺深度範圍的大場景，點擊仍修不好。</p>
+<p><b>為什麼值得看</b>：RoMa v2 自動點擊幾乎追上真人這一點最有意思：它意味著「稀疏對應點當 prompt」可以變成全自動的 refinement 介面，接到 VGGT 或 MASt3R 上應該也成立。對機器人來說，這也提供一個把 tracker 或 SLAM 的可靠 keypoint 注入 feed-forward 重建的乾淨方式。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>Auriga：不訓練 policy，讓 agent harness 做 zero-shot 操作</h3>
+<p><a href="https://arxiv.org/abs/2611.01112">arXiv:2611.01112</a>｜作者指出 VLM 規劃能力和執行能力差距很大：在 RoboDojo 上拿掉手臂執行環節，GPT-6 Astra 的成功率從 22.5% 升到 76.2%。Auriga 提供校準過的 3D 量測、以手指為參考的雙臂控制、暫停模擬讓模型預覽軌跡，以及執行偏離時停下並回報誤差的機制，補回了 68.3% 的差距。凍結後在 RoboDojo 排行榜第一（57.7% 成功率），在 RoboCasa365 達 73.2%。和昨天的 AMP1 是同一路線，可以一起讀。</p>
+
+<h3>SPARK-VLA：不需要 3D 輸入就讓 VLA 懂空間</h3>
+<p><a href="https://arxiv.org/abs/2611.10443">arXiv:2611.10443</a>｜把凍結的 3D expert 的 attention 反應蒸餾到 LoRA 化的視覺分支，同時保留原本的視覺路徑。另外加一個 router，用 action loss 的梯度當監督，只把與動作相關的 visual token 送進語言模型。語言 backbone 只有 0.5B，可訓練參數約 53M，在 LIBERO、LIBERO-Plus、CALVIN 和真機上都有報告（摘要沒給數字）。</p>
+
+<h3>RoboMoCap：200 小時 egocentric 影片加光學動捕</h3>
+<p><a href="https://arxiv.org/abs/2611.10994">arXiv:2611.10994</a>｜14 位受試者、6 支頭戴相機、手腕視覺與 IMU，加上 120 Hz 的全身 marker 動捕，涵蓋變速行走、地形、搬物與邊走邊操作。重點在 egocentric 視角看不到的腿和落腳點。提供 egocentric 全身重建、foot contact 估計、human-to-humanoid retargeting 三個 benchmark，是 humanoid loco-manipulation 的好資料源。</p>
+
+<h3>ClearForm：讓 Gaussian splatting 處理玻璃</h3>
+<p><a href="https://arxiv.org/abs/2611.10370">arXiv:2611.10370</a>｜透明表面的顏色大多來自背後的場景，所以決定顏色的低 opacity 也會削弱它在幾何上的貢獻。作者把這稱為 compositing dilemma，用 dual-opacity 分開處理幾何與顏色，再加上依多視角幾何或 RGB 證據保留 Gaussian 的 lifecycle 規則。3D-FRONT-T 上 Chamfer distance 為 27.05 mm，PGSR 重現版本為 59.18 mm。</p>
+
+<h3>Tiresias：語言條件 world model 的統一 benchmark</h3>
+<p><a href="https://arxiv.org/abs/2611.10392">arXiv:2611.10392</a>｜LCWM-Bench 把導航、機器人、3D 遊戲和駕駛共 15 個資料集統一成同一套 action 介面，有 142,987 個 episode、428,961 條指令。Tiresias 先用 diffusion policy 提出候選軌跡，排序後再交給影片預訓練的 world model 想像結果，最後由 visual ranker 挑選。ablation 顯示軌跡排序和視覺驗證都有貢獻。</p>
+
+<h3>Spatial Harness：把空間推理交給物理引擎</h3>
+<p><a href="https://arxiv.org/abs/2611.11344">arXiv:2611.11344</a>｜不讓 VLM 在腦中轉視角，而是由 Perceiver 把物體和相機放進共同座標系，再由 Reasoner 在物理引擎中實際移動視角、量測和渲染。MindCube 上 Qwen3.5-27B 從 52.70% 升到 71.14%，比 pySpatial 高 7.52 個百分點；給定正確位姿時可達 98.25%，可見瓶頸主要在感知。</p>
+
+<h3>Training ViT to Focus：讓 DINO 的 attention head 自己分工</h3>
+<p><a href="https://arxiv.org/abs/2611.11890">arXiv:2611.11890</a>｜在自監督 ViT 訓練中加入兩個 visual focusing loss，讓各個 attention head 聚焦在不同區域，在沒有標註的情況下長出空間上的專門化。作者報告 head 的選擇性與多樣性提升，zero-shot segmentation 等 dense 任務也變好（摘要沒有數字）。</p>
+
+<h2>新聞與討論</h2>
+
+<h3>DeepMind AlphaProof Code：四週內形式化驗證 Signal 協議的實作</h3>
+<p><a href="https://deepmind.google/blog/introducing-alphaproof-code/">DeepMind blog</a>｜專家決定要證明什麼，多個模型把 Signal 的安全目標轉成形式規格、由人審核，再由 Gemini Carbon 驅動的 agent 寫出超過 600 萬行 Lean 證明，只有約 1% 被標記給人看。DeepMind 說這是第一次針對廣泛部署的密碼協議「實作」做形式驗證，而不只是協議設計；他們把兩個已修好的舊 bug 放回去，系統都產生了「此版本不安全」的機器證明。驗證成果已開源。<a href="https://news.ycombinator.com/item?id=50439193">HN 討論</a>（525 分）的主調是提醒：證明只涵蓋定義好的安全模型，有留言者指出密碼原語被 contract 取代、並發沒有建模，更根本的風險是 bug 會移到 spec 裡。</p>
+
+<h3>Blender 5.3 正式支援 Gaussian Splat</h3>
+<p><a href="https://www.blender.org/download/releases/5-3/">Blender 5.3 release notes</a>｜可匯入 PLY、SPZ、glTF 格式的 3DGS，存成專用的 point cloud 型別，scale、rotation、DC 顏色與 SH 係數都是屬性，可以用 Geometry Nodes 處理，在 EEVEE、Cycles 和 Workbench 中都能渲染。預設為 emissive shader，換成 Diffuse BSDF 就能做粗略的 relighting。官方也坦承效能還在優化，sRGB 與線性色彩空間的差異會在低 opacity、高亮度區域造成色偏。其他亮點包括 Cycles 的 dispersion、DLSS 4.5 denoiser，以及 EEVEE 的全景相機。<a href="https://news.ycombinator.com/item?id=50442426">HN 討論</a>中有人回報 4M splat 的場景在 beta 版就很流暢，另一串則在辯論 triangle splatting 與 beta splatting 等替代 primitive。對做 3DGS 的人來說，這代表結果終於能直接進入 DCC 工作流程。</p>
+
+<h3>Mozilla 用 2,500 萬名使用者量測瀏覽器指紋</h3>
+<p><a href="https://fingerprinting.study/">fingerprinting.study</a>｜Mozilla 與多倫多大學、UCSD 用 opt-in、透過 Oblivious HTTP 收集的 telemetry 研究 Firefox 使用者。防護上線前 75% 的使用者可被唯一識別，Firefox 143 的防護把比例降到 46%。只要 8 個指標就能識別 Fingerprint Pro 能認出的 80% 使用者；macOS 上光是限制螢幕解析度就減少 25.3 個百分點的唯一性。研究也發現 Shannon entropy 不是好的衡量指標，改用 cohort 集中度更能看出差異。<a href="https://news.ycombinator.com/item?id=50444684">HN 討論</a></p>
+
+<h3>智慧家庭在斷網時也應該能用</h3>
+<p><a href="https://docodethatmatters.com/home-automation-overnight-success/">原文</a>｜作者整理出 11 條規則：核心功能要能離線、保留實體開關、要有 log 和 API、設定要集中、用 MQTT pub/sub 而不是點對點連線、不用一年要換一次以上電池的裝置。硬體上用 Tasmota 加 ESP、Node-RED 和 Grafana。讀者回應中有冰箱因為 app 出 bug 而不能調溫、肉類溫度計因公司倒閉而失效的例子。<a href="https://news.ycombinator.com/item?id=50441707">HN 討論</a>（448 分）。這些原則對機器人系統設計一樣適用。</p>
+
+<h3>Val Town 宣布收攤，之後會開源</h3>
+<p><a href="https://blog.val.town/winding-down">Val Town blog</a>｜這個 serverless 小程式平台說自己在雲端運算市場競爭不過。11 月 10 日起停止新註冊，12 月 10 日轉為唯讀，2027 年 1 月 10 日服務全部結束，2 月 1 日開源。官方提供遷移到 Cloudflare、Vercel 等平台的指南，並說現在的 LLM 很擅長做這類遷移。<a href="https://news.ycombinator.com/item?id=50443427">HN 討論</a></p>
+
+<h3>Verisign 撤回刪除 22,000 個 .name 網域的計畫</h3>
+<p><a href="https://neil.fraser.name/news/2026/11/10/">Neil Fraser</a>｜經過一場漫長且昂貴的抗爭，Verisign 撤回了終止 22,000 個 .name 網域與 email 轉址的計畫，既有網域會無限期保留，但不再開放新的三級 .name 註冊。作者把勝利歸功於提出正式複議、寫支持信和到場倡議的眾人，以及 ICANN 內部願意挑戰官僚體系的人。<a href="https://news.ycombinator.com/item?id=50442736">HN 討論</a>（475 分，今早 HN 第一名）</p>
+
+<h3>推理到底在解什麼目標？</h3>
+<p><a href="https://alexwang.ai/posts/reasoning-as-pathfinding/">Alex Wang</a>｜這篇短文把 chain of thought 看成 token 空間中的路徑搜尋：成功機率是所有落進 verifier 接受集合的路徑機率總和，RLVR 本質上就是強化成功的路徑，類似 rejection-sampling fine-tuning。訓練時付出的搜尋成本被攤銷進權重，所以推論時取樣一次常常就能成功。作者也用這個框架解釋 CoT 為何會越來越長、為何不保證 faithful，以及 reward hacking 從何而來。<a href="https://news.ycombinator.com/item?id=50445013">HN 討論</a></p>
+</article>
+</body>
+</html>
