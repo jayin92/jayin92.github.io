@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 晚報｜2026-11-08（週日）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 晚報｜2026-11-08（週日）</h1>
+<p><b>今日導讀</b>：週末 arXiv 沒有新列表，這份晚報從週五列表與 HF 上還沒寫過的論文裡挑。三篇深度閱讀的共同點是「不改架構，改訓練訊號」：用合成的失敗樣本修 Gaussian avatar、用正交轉換把光流寫進 diffusion 的雜訊、用「差一點就撞車」的負樣本教 world-action model 開車。新聞則有人從 Claude Code 換到 Pi、德國核計畫的鈾方塊，以及一個用四個 2 寫出任何整數的老把戲。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. EDGAR：用「人造的失敗」訓練一步 diffusion，來修 Gaussian 頭像</h3>
+<p><a href="https://arxiv.org/abs/2611.07909">arXiv:2611.07909</a>｜cs.GR｜KAIST Visual Media Lab</p>
+<p><b>問題</b>：從單眼影片或幾張照片建的 Gaussian head avatar 本來就欠約束，常見模糊、貼圖拉伸、飄浮的頭髮和時間上的抖動。直接拿 SDEdit 類的 diffusion 去修，模型不知道這個人原本長什麼樣，容易改掉身分、每格修得不一樣。更根本的問題是：沒有「壞掉的 avatar 渲染 vs. 正確影像」的成對資料。</p>
+<p><b>方法</b>：作者先造資料集 EDGAR-SET。每筆是三元組：劣化渲染、ground truth、同一人的參考圖。真實部分用 NeRSemble 的 99 個人、以 RGBAvatar 在 1 到 4 個視角下故意訓練不足；合成部分用 CAFCA 的 1,500 個人、以原版 3DGS 建模。劣化靠改變訓練條件（例如輸入視角數）自然產生，涵蓋飄浮 Gaussian、過度平滑、幾何錯位與視角不一致，再用 LPIPS 篩掉約一半和無法挽救的樣本，總共約 40 萬張高解析圖。模型以一步的 SD-Turbo 為骨幹，凍結 residual block 和 cross-attention，只訓練 self-attention；參考圖用 Sapiens 特徵經 cross-attention 注入，配 zero-init 卷積，所以初始時等同 SD-Turbo；另外加一個六個 expert 的 MoE router。Loss 是 L2 + LPIPS + VGG Gram，加上 POSTER V2 特徵的表情 loss（權重 8.0）。用法是：把 avatar 渲染 50 個視角交給 EDGAR 修，再拿修好的圖當 pseudo-target 對 avatar 優化 500 步，不做 densification，所以 Gaussian 數量和推論 FPS 不變。訓練在一張 A6000 上約 40 小時。</p>
+<p><b>結果</b>：在 RGBAvatar（4 段影片）上 PSNR 從 19.50 升到 21.52、LPIPS 從 0.252 降到 0.212；8 段影片時 PSNR 20.51 → 22.99。GaussianAvatars 上四個指標全面改善，而 SDEdit 雖然 CLIP 也升，但 LPIPS 改善較少。跨身分 reenactment 的 CSIM 最能說明問題：SDEdit 把 CAP4D 的 0.551 打到 0.318，EDGAR 只降到 0.517。修一個 avatar 在 RTX 3090 上要 5 到 17 分鐘，相對於原本 1.7 到 8 小時的建模時間很便宜。15 人的使用者研究裡，相對 CAP4D 的整體偏好達 96.67%。</p>
+<p><b>限制與疑問</b>：CAP4D 上的提升很小，LPIPS 甚至略差；GaussianAvatars 的時間扭曲誤差反而從 4.93 升到 5.94（×10⁻³），因為 50 個視角是各自獨立修的，pseudo-target 彼此不一致時只能被平均掉。嘴巴內部、半透明區域和嚴重的結構錯誤仍修不好。</p>
+<p><b>為什麼值得看</b>：「刻意把重建訓練壞，拿來當 restoration 的成對資料」是很容易搬到場景級 3DGS 的配方：少視角 3DGS 的 floater 一樣可以這樣造資料。下一步明顯是多視角一致的修圖（例如把 50 張圖一起丟進 multi-view diffusion），或加上信心值只拿可靠的 pseudo-target 回灌。</p>
+
+<h3>2. Householder Motion Embedding：不搬動雜訊，而是在 channel 空間旋轉它</h3>
+<p><a href="https://arxiv.org/abs/2611.07294">arXiv:2611.07294</a>｜cs.CV｜Australian National University、Vertex Lab、Amazon</p>
+<p><b>問題</b>：讓 video diffusion 照著指定的運動走，常見做法是 noise warping（HIWYN、InfRes、Go-with-the-Flow）：沿著光流把初始雜訊在空間上搬過去，讓畫面跟著動。但空間重取樣會破壞 i.i.d. Gaussian 的性質，模型沒看過這種雜訊，於是這些方法需要額外的修正步驟，成本不低，HIWYN 的額外記憶體甚至到數十 GB。</p>
+<p><b>方法</b>：HME 換了一個方向：雜訊不在空間上移動，而是在每個 latent 位置對 channel 向量做一次正交轉換。這個正交矩陣是 K 個 Householder reflection 的乘積，反射向量由該位置的 2D 光流經過固定的隨機投影得到（投影參數只抽一次就凍結，不需學習）。每一格的雜訊是前一格雜訊乘上依光流決定的正交矩陣 Q_n；正交轉換保持 Gaussian 分布，所以不需要任何修正。光流用 RAFT 估、依每個 latent 的 pixel footprint 加權平均到 latent 網格，再用 γ 混入新鮮雜訊並重新正規化，γ 越小越貼運動。雜訊構造本身不需訓練，但要讓模型會「讀」這種雜訊仍需微調：以 CogVideoX-5B-I2V 為底，在 RealCam-Vid 的 10 萬段影片上用 rank-2048 LoRA 訓練 3 萬步，loss 就是標準的 v-prediction，約 40 GPU-days。</p>
+<p><b>結果</b>：DAVIS 運動轉移（45 段）上，HME（γ=0.3、K=2）的 Flow EPE 4.43、CoTracker mIoU 0.546，對比 GWTF 的 5.64 與 0.464；作者稱三個 HME 設定在全部十個指標上都勝過六個 baseline。DL3DV 相機控制上 FVD 175.1 對 GWTF 的 235.3、ATE 0.421 對 0.473。1024² 下每個 latent 2.80 ms，約為 GWTF 的 2.7 倍快，額外記憶體 0.5 到 6 MB（GWTF 76 MB）。統計檢定也顯示雜訊的空間自相關幾乎為零（Moran's I ≈ 0.0003）。</p>
+<p><b>限制與疑問</b>：baseline 用的是各自釋出的 checkpoint，沒在同樣資料和 RAFT 光流上重訓，比較並不完全公平；MC-Bench 的 Bg-Obj CTD 其實落後 GWTF。快速旋轉這類複雜非剛體運動仍難，而且依賴光流品質。</p>
+<p><b>為什麼值得看</b>：「把條件寫進雜訊、但保持雜訊分布不變」是一個很乾淨的設計原則。對做 world model 或機器人影片預測的人，可以想像把 action 或相機 pose 換成光流的位置，用同一套正交轉換注入；也值得試試和 4D 重建結合，用重建出的場景流當控制訊號。</p>
+
+<h3>3. NegWAM：教自駕 world-action model 認得「差一點就出事」的軌跡</h3>
+<p><a href="https://arxiv.org/abs/2611.08111">arXiv:2611.08111</a>｜cs.RO｜東南大學、廣西大學、澳門大學、北京航空航天大學等</p>
+<p><b>問題</b>：world-action model（WAM）同時預測未來畫面與駕駛動作，但動作分支主要靠 flow matching 模仿專家軌跡。這種監督只告訴模型「該做什麼」，沒告訴它哪些和專家很像的軌跡其實會出事。再強的 world modeling 也不會自動畫出安全邊界；而現有的後訓練要嘛依賴昂貴的閉環模擬，要嘛依賴手寫規則的 trajectory scorer。</p>
+<p><b>方法</b>：底座是以 Wan2.2-TI2V-5B 為骨幹的 WAM：凍結的 causal video VAE 編碼畫面，共用的 DiT 同時預測影片和動作（未來 4 秒、8 個點）的 velocity field。負樣本離線挖掘：從 GTRS 的 1.6 萬條軌跡詞彙中，挑和專家 ADE 小於 1 公尺、但在 NAVSIM v2 的 EPDMS 得零分的軌跡，訓練時每個場景取最多 16 條 ADE 在 0.3 到 1.0 公尺之間的。作者也試過直接從 policy 取樣，結果 8 條樣本的平均兩兩距離只有 0.02 公尺，根本沒有多樣性。兩個機制：一是 repulsive anchor，對一步解碼出的軌跡加上隨距離調整的 hinge，把它推離負樣本，並乘上 (1−t) 降低高雜訊時的權重；二是 rider token，把專家和每條負樣本各編成 16 個 token，讓它們看當前畫面，用一個 zero-init 的相容性 head 做對比學習，把專家排在負樣本之前。rider 對原本的 token 不可見，推論時直接丟掉。先做 10 萬步 WAM 預訓練，再做 1 萬步負樣本後訓練。</p>
+<p><b>結果</b>：NAVSIM v2 navhard EPDMS 40.4，高於 BeyondDrive 的 38.8 與 DriveWAM 的 37.7；navtest 93.3（BeyondDrive 92.9）。消融很清楚：單純繼續訓練只到 38.2，只有 anchor 39.1，只有 rider 38.8，兩者合用 40.4。HUGSIM zero-shot 的 HD-Score 從 27.2 升到 30.6。推論延遲只多 6.5 ms（約 0.75%），模型大小不變。</p>
+<p><b>限制與疑問</b>：使用 scorer 的 PDM-Closed 在 navhard 上仍有 56.6，差距很大。HUGSIM 的進步集中在 Easy 場景，Hard 和 Extreme 的 route completion 反而下降（Extreme 30.2 → 26.1），而真正需要安全邊界的正是困難場景。負樣本也依賴固定詞彙和離線評分器。</p>
+<p><b>為什麼值得看</b>：把「hard negative」放進 flow-matching policy 的做法，幾乎可以原封不動搬到 VLA 操作：用模擬器或失敗回放標出「和示範只差幾公分卻失敗」的軌跡，正好對應抓取前碰歪物體這類失敗。rider token 這種「訓練時借用、推論時丟棄」的設計也值得記下來。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>WV-GS：從車上幾顆重疊的相機合成一張廣角視圖</h3>
+<p><a href="https://arxiv.org/abs/2611.07081">arXiv:2611.07081</a>｜作者定義了 wide view synthesis：從車上多顆透視相機，在虛擬視點合成幾何一致的廣角影像，和單純拼接不同，要處理相機位置不同造成的遮擋。方法是 feed-forward 的 Wide-View Gaussian Splatting，用分段透視渲染減少邊緣拉伸、用空間仿射光度模型處理相機間亮度差，並附上合成 benchmark WideDrive。</p>
+
+<h3>AGAVE：一步影片生成的 CFG 不該只是一個數字</h3>
+<p><a href="https://arxiv.org/abs/2611.07566">arXiv:2611.07566</a>｜針對以 MeanFlow 訓練的一步影片生成器：作者指出 MeanFlow 的目標本來就是對一段雜訊區間的積分，所以任意的 guidance field（隨雜訊、空間、幀位置變化）都能折進訓練目標，一次評估就套用，且沒有排程離散化誤差。實作只用不到十個純量（時間排程、運動顯著度調變、首尾幀不對稱），推論零成本，作者稱在 VBench、UCF-101、MSR-VTT 上勝過一步 baseline 並追上多步取樣。</p>
+
+<h3>Kinematic Hypothesis Context：用機器人自己的關節狀態壓縮上傳的影像</h3>
+<p><a href="https://arxiv.org/abs/2611.07411">arXiv:2611.07411</a>｜VLA 跑在遠端伺服器時，相機上傳頻寬是瓶頸。作者用關節狀態、機器人模型和相機校正算出「下一格大概長怎樣」（ego-motion homography、手臂重投影、末端平面、背景記憶），當作零位元成本的條件餵給 learned video codec。LIBERO 上在相同動作偏差下省下的位元率勝過 x265、SVT-AV1 和 DCVC-RT，同碼率下 OpenVLA-OFT 和 π₀.₅ 的成功率明顯提升，掉包時更明顯。</p>
+
+<h3>VREgo：用 PICO VR 頭盔取代 Aria 眼鏡收集第一人稱示範</h3>
+<p><a href="https://arxiv.org/abs/2611.07272">arXiv:2611.07272</a>｜單一作者把 HumanEgo 的流程搬到 PICO 4 Ultra：裝置端追蹤頭與手、用雙眼立體定位物體，不用 Aria 那樣先走動製造視差，也不用上雲處理；41 段錄影的儲存量是 1.3 GB 對 Aria 的 15 GB。模擬中放方塊任務兩者成功率相近；兩段式堆疊任務原本只成功 2/100，加上作者寫的執行規則後到 93.8%，但規則是在同一批評估配置上調出來的，而且只有模擬、沒有實機，看數字要打折。</p>
+
+<h3>Muir：Google 作者的線性注意力，省下 erase gate 的參數給 FFN</h3>
+<p><a href="https://arxiv.org/abs/2611.08376">arXiv:2611.08376</a>｜基於 Gated DeltaNet-2：作者發現狀態更新對「擦除」遠不如對「寫入」敏感，所以 erase gate 可以低秩化；慢衰減的狀態列會累積較大的 norm、主宰讀出，因此改用 matched-filter readout 重新加權。省下的參數拿去加寬 FFN。166M 到 1.34B 參數下困惑度低於 GDN-2 與 Transformer，可外推到 1,000 萬 token，32K context 下訓練比 Transformer 快。</p>
+
+<h3>SAE Interprets MoE：MoE 的 expert 其實分工得很細</h3>
+<p><a href="https://arxiv.org/abs/2611.08089">arXiv:2611.08089</a>｜ByteDance Seed｜把 SAE 訓練在 MoE 層的輸出上：因為輸出是 router 加權的 expert 輸出和、encoder 又是仿射的，每個 latent 的 pre-activation 可以精確拆到各個 expert。在 Qwen3-30B-A3B 的三層上，多數 latent 只由一兩個 expert 主導，比 gating 選擇集中得多；自動解釋顯示有專門寫 Java 和專門寫前端的 expert、幾何和代數也分開。SAE 與程式碼已開源。</p>
+
+<h3>VisSearch-Bench：多模態 agent 的長程視覺搜尋，最好的只做對 26%</h3>
+<p><a href="https://arxiv.org/abs/2611.04894">arXiv:2611.04894</a>｜204 個人工撰寫的任務、7 個領域，要求 agent 整理物體外觀、局部細節和空間關係，再和外部搜尋結果對上。除了完整答對的 Accuracy，還有評中間步驟的 Process Score。16 個模型裡最好的系統即使有搜尋工具，也只完整解出約 26%。</p>
+
+<h2>新聞與討論</h2>
+
+<h3>Goodbye Claude, Hello Pi：一位開發者為什麼離開 Claude Code</h3>
+<p><a href="https://caleb.software/posts/claude-to-pi.html">原文</a>｜作者改用開源 coding harness Pi。理由很具體：VS Code 的選取文字只能傳給一個 session；今年到目前 Claude Code 出了 244 個版本，其中超過四分之三改了 system prompt 或工具描述，會悄悄改變模型行為；預設 Bash 工具描述將近 3,000 token，大多在講 git 和 PR。Pi 的賣點是穩定、精簡、好擴充，作者 20 分鐘就寫好多分頁選取的擴充。<a href="https://news.ycombinator.com/item?id=50410107">HN 討論</a>的另一個角度是錢：留言指出 Anthropic 訂閱很難在 Claude Code 以外使用，而 OpenAI 的 Codex 訂閱可以接 Pi；也有人說 Pi 太陽春，少了 plan mode 和 auto mode 又回去了。</p>
+
+<h3>鈾方塊說明德國核計畫為什麼失敗</h3>
+<p><a href="https://arstechnica.com/science/2026/11/uranium-cubes-reveal-why-the-german-nuclear-project-failed/">Ars Technica</a>｜Heisenberg 戰後說，他們在 Haigerloch 洞穴裡用 664 個鈾方塊建的 B8 反應爐只差一點就臨界。University of Maryland 的 Timothy Koeth 團隊分析兩個倖存方塊和檔案，在 PNAS Nexus 發表：B8 需要 1,292 到 1,775 個方塊，以及挪威 Vemork 整場戰爭產量兩倍的重水。德國的石墨也因為封鎖只能用雜質多一倍的魯爾焦炭，作者結論是當時的材料不可能讓天然鈾、石墨減速的反應爐臨界。<a href="https://news.ycombinator.com/item?id=50377661">HN 討論</a>補充：美國也曾被石墨裡的微量硼卡住，Fermi 早期實驗結果「有點令人沮喪」，直到在賓州找到低硼焦炭。</p>
+
+<h3>用四個 2 寫出任何整數</h3>
+<p><a href="https://eli.thegreenplace.net/2025/making-any-integer-with-four-2s/">Eli Bendersky</a>｜1920 年代數學家流行的遊戲：只用四個 2 加任意運算湊出目標整數。據 Farmelo 的傳記，Dirac 一招終結了它：對 2 開 n 次平方根得到 2^(2^−n)，取兩次以 2 為底的對數就是 −n；再把其中一個 2 寫成 √(2+2)，剛好四個 2。n 只決定要畫幾個根號，任何數都行，唯一的難處是把根號畫完。<a href="https://news.ycombinator.com/item?id=50408713">HN 討論</a></p>
+
+<h3>Agent 記憶需要它的 OpenTelemetry 時刻</h3>
+<p><a href="https://www.lorekit.io/blog/open-agent-memory-format">原文</a>｜作者是開源 agent 記憶工具 LoreKit 的開發者、也在 Dash0 做 OpenTelemetry。他主張各家 coding agent 的記憶格式互不相通，就像 2019 年以前的 observability，需要一份中立規格：一個 envelope（scope、kind、寫入者、生命週期、命名空間化的 attributes）加 Markdown 本文，透過 MCP 提供 write/read/list/search/archive，再用 conformance test 驗證無損往返與過期行為；儲存、排序、embedding 留給各家。目前還沒有工作小組。<a href="https://news.ycombinator.com/item?id=50411467">HN 討論</a></p>
+
+<h3>GitHub 新的 PR 概覽頁開放預覽</h3>
+<p><a href="https://github.blog/changelog/2026-11-05-new-pull-request-overview-page-in-public-preview/">GitHub Changelog</a>｜merge 狀態與下一步移到頁面頂端，merge box 縮成不到原本一半的就緒摘要，checks、留言、approval 放一起；留言可篩選 All/Unresolved/Mine、可新到舊排序。從 PR 標頭的「Try the Overview page」切換。<a href="https://news.ycombinator.com/item?id=50408931">HN 討論</a>的主調是：agent 產生的 PR 量讓審查變成瓶頸，這次改版只是版面調整，沒處理 interdiff 等真正的問題。</p>
+
+<h3>所有被拍下並公開的處理器晶粒照片</h3>
+<p><a href="https://sheets.works/data-viz/cpu-dies">sheets.works</a>｜收錄 1972 到 2024 年 356 顆處理器的 die shot，其中 114 顆有已知尺寸，可以切到「真實比例」檢視，老晶片在現代晶片旁邊小得驚人。照片主要來自 Pauli Rautakorpi（162 張）、Fritzchens Fritz、John McMaster 等人，每張保留原授權並連回來源，可依年代、廠商、授權篩選。<a href="https://news.ycombinator.com/item?id=50405782">HN 討論</a></p>
+</article>
+</body>
+</html>

@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 早報｜2026-11-13（週五）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 早報｜2026-11-13（週五）</h1>
+<p><b>今日導讀</b>：今天的論文主題是「把算力花在刀口上」：Elastic-WAM 讓 world action model 自己決定要想像多少未來、想像哪裡；RF3DGS 用多視角的「取最小值」自己造出去反光的監督訊號；TUM 的一篇分析則問，視覺和語言模型的表徵到底在哪一層、哪幾個維度上開始對齊。新聞方面，Jensen Huang 辭去 Nvidia CEO 是昨晚最大的消息，Google 也推出了主打 agent 執行的 Gemini 4 Hydrogen。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. Elastic-WAM：world action model 該「想像」多少未來，交給一個學出來的場</h3>
+<p><a href="https://arxiv.org/abs/2611.14257">arXiv:2611.14257</a>｜cs.RO（cross-list cs.CV）｜National University of Singapore、RoboScience 等</p>
+<p><b>問題</b>：World Action Model（WAM）一邊預測未來影像、一邊輸出動作，但影片 denoising 很貴。現有方法通常對每個狀態都用固定的 refinement 預算。作者在 LIBERO-Plus 的 10 個任務上觀察到，最佳的 denoising 步數從 1 到 4 步都有，而且同一個任務裡不同狀態偏好的步數也不一樣；action 對未來影像 token 的 attention 也分布得很不均勻。所以固定預算一方面浪費算力，一方面又限制了動作品質。</p>
+<p><b>方法</b>：把「需要多少 world refinement」建模成一個統一的時空場。196 個未來影像 token 依幾何關係分成 G = 64 組（每組 1、2 或 4 個 token，不跨時間或相機視角），每組的需求曲線是「振幅 × 共享的 Beta 時間基底」。同一個場回答三個問題：WHEN（累積的 World Commit 機率超過 0.5 就停止想像，開始出動作）、HOW FAR（每步 denoising 跨多大，Δσ 介於 0.05 到 0.20）、WHERE（固定預算 top-K 選要更新的區域，預設 K = 96 個 token）。Backbone 是凍結的 FastWAM-Joint（論文也稱 Joint-WAM），訓練分三階段：先用終端動作誤差監督時間曲線，再用 dense teacher 對 sparse student 學空間優先順序，最後從 teacher 的 hazard target 學整體需求。推論時先做一次 dense 聯合 denoising，之後只稀疏地 refine 影像；commit 後 action denoising 直接重用快取的影像表徵，不需要額外 prefill。</p>
+<p><b>結果</b>：LIBERO 平均 98.8%，Joint-WAM 98.5%、LingBot-VA 98.5%、π0.5 96.9%。LIBERO-Plus 平均 73.7，Joint-WAM 66.3、LingBot-VA 69.5。RoboCasa-GR1 成功率 57.4%、H800 上延遲 388.2 ms，對比 Joint-WAM 55.0% / 572.6 ms（延遲降 32.2%），但仍比 Fast-WAM 的 331.1 ms 慢，而 GR00T-N1.6、π0.5 這類非 WAM 方法都在 80 ms 左右。消融裡，學出來的 WHERE（57.42%）勝過隨機選區域（53.83%）和全部更新（55.17%）；有趣的是 token 預算不是越多越好，K = 96 優於 K = 196（73.71 對 70.92）。真機泡茶任務每個條件 20 次，nominal 成功率 50% 對 Joint-WAM 30%、Fast-WAM 0%。</p>
+<p><b>限制與疑問</b>：LIBERO 上只贏 0.3 個百分點，且沒有報 seed 或變異數。論文說在 LIBERO-Plus「所有擾動類別都更好」，但自己的表格裡 Robot 類 LingBot-VA 是 83.0、它是 76.3。LIBERO-Pro 的位置泛化只有 8.4%。真機只有一個任務，Object OOD 下和 Joint-WAM 一樣是 30%。field learning 用的資料量也沒寫清楚。</p>
+<p><b>為什麼值得看</b>：「少更新一些 token 反而更好」暗示 WAM 的影像分支可能在過度擬合不相關的區域，這和昨天 MetaWAM、LaST0.5 一系列討論「WAM 裡影片到底在幫動作什麼」的問題是連在一起的。可以延伸的方向：把 WHERE 的選擇和 gripper／接觸區域的 attention 對照看是否可解釋；或把同樣的 adaptive budget 用在 3D／point-track 形式的 world model 上。</p>
+
+<h3>2. RF3DGS：只用一段手機 sRGB 影片，做出去反光的 Gaussian Splatting</h3>
+<p><a href="https://arxiv.org/abs/2611.13772">arXiv:2611.13772</a>｜cs.CV｜HKUST（Qifeng Chen 組）、Huawei Research</p>
+<p><b>問題</b>：隔著玻璃拍場景時，反光會被 3DGS 當成場景的一部分學進去。現有解法各有代價：Flash-Splat 需要閃光／無閃光的 RAW 影像，而且距離一遠閃光就沒用；NeRFReN 在 88 張視角上要訓練 63.48 小時；單張影像去反光模型有 domain gap；多幀方法在大視角變化下會失效。作者想只用一般的單眼 sRGB 影片解決。</p>
+<p><b>方法</b>：影像模型為 I = T + β∘R（transmission、reflection、反射比例圖），分別用三個 3DGS 表示。第一階段先訓一個普通 3DGS 5,000 步，用可學的殘差圖吸收反光，加上 bilateral 深度平滑，得到粗略但無反光的深度。第二階段是本文的關鍵「photometric self-prior」：利用深度把所有視角 warp 到參考視角，逐像素取最小值當作 pseudo-label。直覺是反光是「加上去」的亮度，而且會隨視角移動，所以多視角取最小值大致等於去掉反光。第三階段用 Adaptive Twin Rendering（ATR）loss：min(‖T − I‖², ‖T − I_free‖²)，讓 transmission 每個像素去擬合比較容易的那個目標，既不會被反光拉走，也不會完全吃進 warp 造成的瑕疵、還保住原圖的高頻細節。另加 exclusion loss 把 T 和 R 推開，以及平滑項。</p>
+<p><b>結果</b>：作者用 Unity 做了 45 個 case 的合成 benchmark（5 場景 × 9 種玻璃厚度、透明度、反光強度），PSNR 31.45、LPIPS 0.150，優於 vanilla 3DGS 的 29.58 / 0.175、NeRFReN 的 26.36 / 0.284；SSIM 0.915 略低於 vanilla 3DGS 的 0.917（作者解釋 SSIM 對反光不敏感）。真實的 TNeRF benchmark 上 PSNR 25.04，對比 TNeRF 22.75、vanilla 3DGS 21.73、DSRNet+3DGS 22.03。消融最能說明 ATR 的意義：只用 I_n 時 PSNR 掉到 19.64，只用 I_free 是 30.45。視角從 88 減到 11 幾乎不掉分（31.14）。</p>
+<p><b>限制與疑問</b>：每個 case 要約 61 分鐘，是 vanilla 3DGS（5.94 分鐘）的十倍；整套方法依賴第一階段的深度，深度錯了 prior 也會錯。真實資料的定量評估只有 TNeRF 的四個場景，自拍的 6 個場景只有定性結果。另外表 2 的 31.45 和消融表的完整模型 31.25 對不上，11 視角的 LPIPS 反而比完整版好，文中都沒解釋。</p>
+<p><b>為什麼值得看</b>：「多視角取 min」是個便宜又物理直覺的 self-supervision，加上「兩個目標取較小 loss」的 ATR 設計，可以很自然地搬到其他「加性干擾」的問題，例如水面、螢幕反光、甚至雨滴或鏡頭髒污。對做 feed-forward 重建的人來說，也可以思考能否把這個 min-warp pseudo-label 當作 3R 模型的訓練訊號，處理目前資料裡很少見的玻璃場景（前天提過的 ClearForm 是另一條路線）。</p>
+
+<h3>3. 視覺與語言的表徵在哪裡對齊？重新檢視 Platonic Representation Hypothesis</h3>
+<p><a href="https://arxiv.org/abs/2611.12869">arXiv:2611.12869</a>｜cs.LG / cs.CV｜Helmholtz Munich、TU Munich（Zeynep Akata 組）、MCML｜HF Daily Papers</p>
+<p><b>問題</b>：Platonic Representation Hypothesis（PRH）主張：模型越強，各自訓練的視覺和語言模型的表徵會越收斂到同一個世界模型。但近期 Koepke 等人發現，在 WIT 資料集上換成新一代 LLM 之後，「能力越強越對齊」的趨勢消失了。這篇工作坊論文問三件事：對齊出現在哪些層、哪些維度？新模型還有沒有這個趨勢？對齊分數的絕對值該怎麼解讀？</p>
+<p><b>方法</b>：視覺端用 DINOv2、DINOv3、MAE（都是 ViT-L），語言端用 BLOOMZ、Llama、Mistral、Qwen、Gemma、DeepSeek 共 21 個生成模型，加上 Qwen3-Embedding-8B 與 NV-Embed-v2；CLIP、SigLIP 2、Qwen3-VL-Embedding-8B 當作顯式對齊的參考。度量是 mutual k-NN（k = 10、N = 1024 對圖文）以及校準版本，資料集包括 WIT、CC3M、COCO、DOCCI，並把 DOCCI 的長描述用 Qwen3-8B 摘要成 10% 到 75% 的長度來控制描述長短。</p>
+<p><b>結果</b>：跨模態對齊主要出現在較後面的層，但不是最後一層；在 WIT 上最高只有 0.143（DINOv3 第 21 層對 Qwen3-8B 第 30 層），同模態內的對齊則常超過 0.3、最高 0.538。對齊大約只活在前 100 個主成分裡，相對於語言模型 1,536 到 5,120 維的空間。能力趨勢方面，MMLU 和對齊在 WIT 上 r = 0.46，在 CC3M 不顯著（r = 0.26），在描述詳細的 DOCCI 上 r = 0.66，就算把描述砍到 10% 仍有 r = 0.59，作者因此認為關鍵是描述是否乾淨且富含視覺資訊，而不只是長度。ARC Challenge 的相關性更高（r = 0.73），GSM8K 則沒有相關，所以對齊不是語言能力的通用代理指標。最讓人意外的是：在 COCO 和 DOCCI 上，單模態的 DINO 和 LLM 配對可以超過 0.3，高於 CLIP（0.317 / 0.293）和 SigLIP 2，只輸給 Qwen3-VL-Embedding（0.407 / 0.445）。</p>
+<p><b>限制與疑問</b>：mutual k-NN 只是其中一種相似度，絕對值受 k、N、特徵抽取方式影響；主要的相關係數只基於二十幾個模型，描述長度的操控也只有一種。只研究視覺和語言，其他模態沒有驗證。</p>
+<p><b>為什麼值得看</b>：如果跨模態對應真的集中在中後層的約 100 維子空間，那麼「凍結 DINO + 凍結 LLM、用少量配對資料學一個小對齊模組」就很合理，這對做 VLM 或 VLA 的人是一個便宜的 baseline。另外，「最後一層不是最好的層」也提醒我們，在選視覺特徵當 robot policy 輸入時，值得掃一下中間層。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>FlashMotion：幾步就生成長序列 3D 人體動作</h3>
+<p>同一個框架做 text-to-motion、music-to-dance、speech-to-gesture。在 3D motion space 上做 MeanFlow，加上運動學與動力學一致性約束，讓生成只需要幾步；架構是非自迴歸的 BiMamba，用 condition-guided state selection 與 AdaIN 融合條件，並有 Adaptive Soft masking 做動作編輯。摘要只說達到 SOTA，沒有給數字。<a href="https://arxiv.org/abs/2611.13626">arXiv:2611.13626</a></p>
+
+<h3>EgoHMP：用第一人稱視角和頭部運動預測人在 3D 場景中的動作</h3>
+<p>作者認為依賴 gaze 的意圖線索模糊、會漂移、而且需要眼動儀，改用 egocentric 畫面和頭部運動推斷互動意圖，輸出互動機率圖；decoder 先預測全域軌跡，再用多階段 denoiser 建模接觸，最後用 GCN 輸出動作。NeurIPS 2026 接收，摘要沒有定量結果。<a href="https://arxiv.org/abs/2611.13654">arXiv:2611.13654</a></p>
+
+<h3>VLM 怎麼分左右？答案在 ViT 的位置編碼</h3>
+<p>只把 ViT 寬度方向的 position code 鏡像（不動影像內容），Qwen2.5-VL-7B、Qwen3-VL-4B、InternVL3-2B 在 CV-Bench 左右題上有 84.3% 到 93.2% 的答案會變成「翻轉影像」的答案；反過來在 LLM 端鏡像 position ID 和 token 順序，幾乎不影響左右判斷。在 Qwen2.5-VL-7B 中效果主要在 global-attention 的 ViT block，尤其最後一個。對做空間推理或 VLA 資料增強（水平翻轉）的人很有參考價值。<a href="https://arxiv.org/abs/2611.14060">arXiv:2611.14060</a></p>
+
+<h3>Interactive Visual Gym：用模擬使用者閉環評估視覺助理</h3>
+<p>作者群（含 Silvio Savarese、Juan Carlos Niebles、Ranjay Krishna）做了烹飪、居家操作、手機介面三個模擬器，搭配帶 persona、會犯錯的模擬使用者，組成 315 個情境的 IVG-Bench。最好的 Gemini 4 Argon 在時限內只完成 53.4% 的任務，延遲常常太高、來不及阻止使用者犯錯；指標和人類偏好的一致率 78.5%。用閉環 GRPO 訓練 Qwen3.5-4B 在烹飪環境中提升了成功率與互動品質。<a href="https://arxiv.org/abs/2611.08286">arXiv:2611.08286</a></p>
+
+<h3>LEASH / RoboRisk：讓 foundation model 控制機器人時更安全</h3>
+<p>RoboRisk 包含 92 個模擬任務與 13 個真機任務，分成拒絕任務、修正計畫、執行中危險、注入攻擊、序列記憶五類，全部閉環執行。被測的六個前沿模型（含 GPT-6 系列、Claude Opus 5.5、Gemini 4 Argon、Grok 4.7）傷害率普遍偏高。LEASH 用一個決策模型在任務、每個動作、每個不可逆操作三處設閘門，降低了所有模型的傷害率，且大致保住任務完成率。<a href="https://arxiv.org/abs/2611.14115">arXiv:2611.14115</a></p>
+
+<h3>ForeseeDrive：先預測未來場景 token，再生成駕駛軌跡</h3>
+<p>觀點是：scorer 只能從候選裡挑，沒被取樣到的動作救不回來。所以把未來資訊（周邊車輛運動、occupancy 變化、路線互動、TTC 餘裕）編成 token，部署時從當前場景預測，用來在生成前塑造軌跡；token 為零時是嚴格的 no-op。NAVSIM navtest 89.2 PDMS、nuScenes L2 0.41 m、Bench2Drive driving score 76.50。<a href="https://arxiv.org/abs/2611.14286">arXiv:2611.14286</a></p>
+
+<h3>DepthGS：從理論上界出發的深度引導 3DGS 表面重建</h3>
+<p>推導深度誤差與重建誤差之間的上界（單視角與多視角），據此設計依局部深度差調整強度的 normal 正則化，以及跨視角深度一致性正則。在 DTU、Mip-NeRF360、Tanks and Temples 上報告具競爭力的結果，摘要沒有數字。<a href="https://arxiv.org/abs/2611.13628">arXiv:2611.13628</a></p>
+
+<h2>新聞與討論</h2>
+
+<h3>Jensen Huang 辭去 Nvidia CEO</h3>
+<p>Nvidia 董事會週四宣布 Jensen Huang 即刻辭去 CEO，CFO Colette Kress 暫代 CEO 並兼任 CFO，董事會會從內外部找正式人選。背景是他與 Alice Huang（新加坡資料中心公司 Megaspeed 前高管，兩人無親屬關係）的婚外情：美國情報單位懷疑她為中國從事間諜活動，美方調查人員說她取得了 24 萬顆禁止出口中國的晶片，Megaspeed 也正被美國和新加坡調查涉嫌把這些晶片走私到中國；川普本週表示 FBI 正在調查兩人的關係。CBS 報導，股價週四中午跌近 5%，約 165.25 美元。Warren 參議員表示他的離開不代表 Nvidia 就不用向國會交代出口管制的遵循情況。<a href="https://www.cbsnews.com/news/nvidia-ceo-jensen-huang-resigns/">CBS News</a>｜<a href="https://news.ycombinator.com/item?id=50467087">HN 討論（2,200+ 則留言）</a></p>
+<p>HN 上爭論的焦點是：真正的問題是和下屬的關係與對董事會說謊，還是尚未證實的出口違規；也有不少人注意到董事會 11 月 8 日才公開力挺他，三天後就召開緊急會議。</p>
+
+<h3>Google 推出 Gemini 4 Hydrogen，以及 Antigravity 的 Orchestrator</h3>
+<p>Hydrogen 定位為 agent 工作流程的「日常主力」，負責快速執行，深度推理則交給 Gemini 4 Carbon 和 Argon。Google 公布 Artificial Analysis Intelligence Index 51（xhigh 模式 54，Argon 是 50）、Terminal-Bench 4.1 57%（Gemini 3.8 Flash 為 18.2%），比 3.8 Flash 快約 2.5 倍、捏造內容減少 5 倍以上。價格是每百萬 token 輸入 1.5 美元、輸出 7.5 美元，在整個 1M context 內統一計價，新增 xhigh 思考等級。Orchestrator 則在同一個 session 內自動切換 Carbon 與 Hydrogen，Google 說在 Terminal-Bench 4.0 上接近 Carbon 的成功率，平均少用 24% 額度、快 19%。<a href="https://blog.google/innovation-and-ai/models-and-research/gemini-models/introducing-gemini-4-hydrogen/">Google Blog</a>｜<a href="https://news.ycombinator.com/item?id=50471431">HN 討論</a>｜<a href="https://news.ycombinator.com/item?id=50472260">Orchestrator 討論</a></p>
+
+<h3>Anthropic 公開 IPO 資訊頁</h3>
+<p>Anthropic 將在 Nasdaq 以代號「ANT」上市 Class A 普通股，11 月 10 日開始路演，預計 11 月 18 日定價、19 日開始交易；散戶可透過 Schwab、E*TRADE、Fidelity、Robinhood、SoFi 登記認購意向，頁面上沒有價格和股數。頁面列出的 2026 Q3 數字：營收 170 億美元（年增超過 12 倍）、淨損 233 億美元，其中 219 億是和估值上升相關的非現金費用，調整後營業利益率 15%。<a href="https://ipo.anthropic.com/us/">IPO 頁面</a>｜<a href="https://news.ycombinator.com/item?id=50465829">HN 討論</a></p>
+
+<h3>資料中心的電網成本，主要由一般住戶負擔</h3>
+<p>Cornell 的 Fengqi You 團隊在 Nature Energy 分析美國四大電網、約 4,000 座現有與規劃中的資料中心。輸電投資從 2020 年的 20 億美元增加到 2025 年的 340 億美元；2025 年和資料中心相關的 82.5 億美元基礎建設成本裡，資料中心只付了約 38%，其餘 62% 由居民負擔。Virginia 批發電價因此上漲約 15%、南灣約 20%。他們建議資料中心在一年中用電最高的 22 個小時降載，就能明顯減輕四個電網的壓力。<a href="https://news.cornell.edu/stories/2026/11/data-centers-need-power-lower-income-rural-residents-pay-price">Cornell Chronicle</a>｜<a href="https://news.ycombinator.com/item?id=50473231">HN 討論</a></p>
+
+<h3>22 年前的 PostgreSQL type confusion 變成 RCE</h3>
+<p>Prepared statement 建好某個 composite type 的值之後，再用 ALTER TYPE 改掉其中一個欄位的型別，執行時舊的位元組就會被當成新型別解讀，例如把 UUID 讀成 bytea 的 expanded-object 指標。作者先用陣列偽造洩漏位址繞過 ASLR，再偽造 methods table 指向 system()，只要一般低權限帳號就能執行指令；PoC 跑在 PostgreSQL 18.6，大多數託管 Postgres 都受影響。修正已在 11 月 9 日的版本釋出（同一版本共 52 個 CVE），作者總共回報了 21 個變體。<a href="https://mehmetince.net/part-3-6-how-i-ended-up-turning-a-22-year-old-postgresql-type-confusion-primitive-into-rce-cve-2026-6460/">原文</a>｜<a href="https://news.ycombinator.com/item?id=50471761">HN 討論</a></p>
+
+<h3>smolmaxxing：在電視盒和 2013 年的 iPad 上跑 LLM</h3>
+<p>作者在只有約 1 GB 可用記憶體的小米電視盒（4 核 A55）和 1 GB RAM 的 iPad Air（A7）上跑模型：自己寫 1-bit、ternary、Q2_K 的 NEON kernel，修剪 LM head 省 0.2 到 0.5 GB，把權重和 MoE expert 從 flash 串流讀取並預取。結果是電視盒上 Qwen3.5-2B 每秒 7.7 token、16B 的 Ling-mini-2.0 每秒 5.1 token；iPad 上 1-bit 的 Bonsai-1.7B 每秒 24 到 26 token。很適合想把模型塞進機器人邊緣裝置的人參考。<a href="https://github.com/hyperionaidev/smolmaxxing/">GitHub</a>｜<a href="https://news.ycombinator.com/item?id=50468888">HN 討論</a></p>
+
+<h3>為什麼寫出正確的軟體這麼難</h3>
+<p>Ron Pressler 的長文從計算理論說明正確性的成本是根本的：Rice 定理、有界停機問題需要 Θ(n) 時間、符號化 model checking 是 PSPACE-complete，而且模組化驗證也不會讓整體驗證變得容易。他的結論是沒有工具能讓正確性變簡單，進展會來自針對特定問題的技巧（例如 memory safety），以及對人類實際如何寫出 bug 的實證研究。在 agent 大量寫程式的現在讀起來特別有感。<a href="https://pron.github.io/posts/correctness-and-complexity">原文</a>｜<a href="https://news.ycombinator.com/item?id=50465352">HN 討論</a></p>
+
+<h3>Rubin 天文台找到可能的新矮行星</h3>
+<p>Smithsonian 的 Matthew Holman 在 Vera C. Rubin 天文台的資料中發現 2026 ED138，距離太陽約 46 AU，公轉一圈 281.1 年，軌道傾角接近 25 度，直徑估計在 370 到 930 英里之間（亮度無法區分小而亮或大而暗）。團隊還在 Harvard 保存的 1937 年底片上找到它。接下來會用紅外線與恆星掩星觀測來確認大小。<a href="https://www.smithsonianmag.com/smart-news/astronomers-found-a-mysterious-object-orbiting-far-beyond-pluto-it-could-be-a-new-dwarf-planet-hidden-in-our-solar-system-180989857/">Smithsonian</a>｜<a href="https://news.ycombinator.com/item?id=50472490">HN 討論</a></p>
+</article>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 早報｜2026-11-14（週六）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 早報｜2026-11-14（週六）</h1>
+<p><b>今日導讀</b>：週末 arXiv 沒有新列表，今天改從 Hugging Face 的熱門論文挑。主題很一致：讓「程式與模擬器」負責物理和結構，讓影片模型只負責「畫得像」。PhysLoop 用模擬器幫影片模型修物理錯誤，WorldDraft 則反過來測影片模型能不能忠實「渲染」程式造出的世界；另一篇 Duo 把 world model 的定義擴充到「世界裡有一個會回應你的人」。新聞方面，OpenAI 解散獨立的機器人團隊，理由正是通用模型已經能直接控制手臂。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. PhysLoop：讓 LLM 寫模擬程式，替影片生成模型生資料、修物理錯誤</h3>
+<p><a href="https://arxiv.org/abs/2611.16748">arXiv:2611.16748</a>｜cs.CV｜北京大學、ByteDance Seed、UCSB、MIT 等｜HF 41 upvotes</p>
+<p><b>問題</b>：現在的影片模型單看每一幀都很真，但物體會憑空消失或變多、運動不理會重力和碰撞。要收集針對物理的訓練資料很難，而一般的 VLM 評審也判斷不出影片物理對不對，所以「模型自己生資料自己學」（作者稱為 recursive self-improvement）卡在沒有可靠的資料和驗證。</p>
+<p><b>方法</b>：PhysLoop 不是新模型，而是一個 harness，沒有新架構也沒有新 loss。一個 code agent（預設 GPT-6 Astra）把需求展開成任務規格、找或生成 3D 資產（找不到就用 Meshy），再寫場景程式丟進 Unreal Engine（也支援 Taichi、Genesis）。模擬器輸出 RGB、深度、instance segmentation、物體狀態和接觸事件，verifier 用三層檢查：對模擬紀錄做斷言（例如兩個指定物體有接觸、位移至少 0.45 m）、技術品質閘門（深度平均誤差 1 cm 內）、再加語意審查。通過後，用 Seedance 2.5 當 refiner，把模擬影片當動作參考、重畫外觀，最後再檢查一次，因為重畫可能改壞動作。失敗時 verifier 回傳證據，agent 只修出錯的那一段流程。它有兩個用途：一是固定其他條件、只改釋放高度或初速，大量生出物理正確的影片與文字配對，作者釋出 PhysLoop-100K（2.5K 個物理事件、約 10 萬支影片、3 到 5 個視角）；二是修影片，找到出錯的時間區間，只替換那一段，其他幀原封不動。</p>
+<p><b>結果</b>：在 100 題的 PhysLoop-Gen 上，任務成功率 85%，單獨用 Seedance 2.5 是 73%；人評的物理合理性 4.06 對 3.80，因果一致性 4.12 對 3.80，但真實感較低（3.72 對 4.29）。修復任務差距最大：86.00% 對最強單模型的 19.33%，三個單獨的影片模型全都不到 20%。拿掉 refiner 時生成 80%、修復 60.67%，真實感只有 2.59。Physics-IQ Verified 上 52.06 對 Seedance 2.5 的 48.07，但換成 Claude Opus 5 當 agent 反而最高（53.75）。</p>
+<p><b>限制與疑問</b>：論文標題講 self-improving，但完全沒有微調任何模型，RSI 迴圈被列為 future work。人評很弱：Win 欄位是一位作者沒有盲測的 301 組比較，pilot 也沒做到每支影片三個評分。Physics-IQ 只跑了 66 個單視角案例，不是完整的 198 個協定。自動指標（Auto PC/SA）PhysLoop 反而比 Seedance 差。成本也不低，每題 7 到 12 分鐘，十題影片生成費用 42.99 美元。</p>
+<p><b>為什麼值得看</b>：這是「模擬器當 verifier」最完整的一個工程化範例，對做影片 world model 或機器人資料的人都很實用。值得追的是：PhysLoop-100K 拿去微調後，物理分數到底會不會在沒看過的事件上變好？另外「只替換錯誤區間」的修復，也可以直接拿來清洗機器人影片資料集裡的穿模片段。</p>
+
+<h3>2. WorldDraft：程式造好世界之後，影片模型能不能只負責「渲染」？</h3>
+<p><a href="https://arxiv.org/abs/2611.16217">arXiv:2611.16217</a>｜cs.CV｜SUSTech、HKUST、CUHK、復旦、浙大、UCF 等｜HF 14 upvotes</p>
+<p><b>問題</b>：多模態 coding agent 已經能在 Blender 或 MuJoCo 裡用程式搭出 4D 世界，但畫面很粗糙。如果把這個 draft 丟給影片模型「渲染」成照片級影片，模型必須同時做到兩件事：保留 draft 的幾何、運動、事件時序和相機軌跡（World Preservation），又要照文字把顏色、材質正確套到對的物體上並維持住（Visual Realization）。現有的 V2V benchmark 只測其中一邊。</p>
+<p><b>方法</b>：作者讓 coding agent 參考真實影片，把其中的物理互動和相機路徑轉成 MuJoCo/Blender 腳本，每次執行都記錄 ground-truth 的幾何、軌跡、事件時間和相機位姿，經過三層審查留下 48 個世界家族。再做 3×3 因子設計：draft 精細度（P0 純幾何、P1 一般模擬、P2 previs 等級）乘上外觀關係（中性灰、與目標一致、與目標衝突，例如原本藍色金屬、要求紅色塑膠），共 432 個測例。評估用 SAM3 算 IoU 與物體數、ViPE 算相機誤差、盲測的 VLM 問答檢查屬性，另外有「屬性正確後是否一直綁在對的物體上」的 persistence 分數，以及衝突時原外觀滲漏的比例。他們也提出免訓練的 Primer：只改第一幀，用 Qwen3.5 挑關鍵物體、畫上單色角框，並以 SVG 畫出目標顏色或材質提示。</p>
+<p><b>結果</b>：測了 12 個模型。總分最高是 LynnReal-Omni 64.89，Seedance 2.5 64.73，MiniMax-H3 63.63，Wan 3.0 63.36。關鍵是取捨：Wan 3.0 的 Realization 最高（80.40）但 Preservation 最低（44.37），專門的 SolarRenderer 則相反。draft 越精細，所有模型的結構分數都上升，但 10 個開源模型中有 9 個的外觀與綁定分數反而下降。衝突設定下，開源模型的原外觀滲漏最高到 64%（Wan2.1-VACE 64.17%），頂尖模型也有約 28% 到 30%。Primer 讓 MiniMax-H3 的 Realization 從 76.38 升到 80.21，總分 63.63 到 65.56，超過 LynnReal-Omni；單靠改 prompt 只加 0.90 到 1.26 分。自動評分和五人多數決的一致率平均 91.0%。</p>
+<p><b>限制與疑問</b>：只評估前 5 秒；Primer 只試了兩個模型；正文說 Wan 3.0「總分最低」，但表格上它其實贏過好幾個模型，文字與表格不一致。被測的商業模型內部架構未知，所以結論都只停留在行為層面。</p>
+<p><b>為什麼值得看</b>：「模擬器管物理、生成模型管外觀」是 sim-to-real 資料生成很自然的路線，這篇第一次把「保留結構」和「套對外觀」拆開來量。對做 3DGS 或機器人資料增強的人來說，「draft 越精細、外觀越差」這個發現特別重要，代表 conditioning 的資訊量並非越多越好。可以延伸的方向：把 depth 或 segmentation 當 draft 而不是 RGB，看滲漏是否消失。</p>
+
+<h3>3. Duo：world model 裡不只有物理，還要有一個會回應你的人</h3>
+<p><a href="https://arxiv.org/abs/2611.15131">arXiv:2611.15131</a>｜cs.CV｜HF 頁面標示 inclusionAI（論文本文未列作者單位）｜HF 35 upvotes</p>
+<p><b>問題</b>：現在的 world model 大多只模擬物理動態，使用者用鍵盤、滑鼠或文字操控，但世界裡沒有誰在即時「看著你」並決定怎麼回應。作者的說法是「有一個世界可以探索，卻沒有人可以說話」。他們提出 Reciprocal World Model：智慧和物理一樣是世界的基本組成。</p>
+<p><b>方法</b>：系統是 full-duplex 的，雙方隨時看到、聽到對方，可以插話、回應或保持沉默。互動以 17 幀（24 fps 下約 0.71 秒）為一個 chunk，不必對齊句子或輪次。Intent 模組用 LoRA 改造 Qwen3-VL，每個 chunk 輸出 &lt;speak&gt; 加文字，或 &lt;wait&gt;，並把 hidden states（不只是文字）傳下去。Realization 模組是從 MiniMax-H3 權重初始化的 causal 音訊影像聯合 diffusion transformer，以 flow matching 訓練，條件包括 intent 特徵、參考照片、使用者的音訊影像和自己之前生成的 latent，位置編碼用對齊實際播放時間的 3D-RoPE。訓練分三段：intent SFT（重新平衡以免模型老是選擇等待，並擾動歷史讓它學會從漏接中恢復）、realization 訓練、最後用 DMD 蒸餾成 4 步的串流生成器。蒸餾時用「dual rollout」讓模型接著自己生成的歷史往下產生，對齊實際推論，另外用凍結的 VGGT 估計相機旋轉，降低畫面漂移樣本的權重。資料包含 LLM 寫劇本合成的雙人視訊通話，以及直播、雙聲道錄音等真實資料。</p>
+<p><b>結果</b>：在一台 8 GPU 伺服器上，每個 chunk 的延遲是 330 到 650 ms（intent 90 到 160 ms，latent 生成 200 到 450 ms）。唯一的量化評估是 30 個即時對話案例、六項二元標準的人評：整體 180 項通過 168 項（93.3%），語言、可懂度、身分穩定 90 項全過，口型對齊 90.0%，但「內容是否切題」只有 73.3%（22/30）。60 秒長片的消融中，baseline 到第 9 段亮度掉了 34.2 級，Duo 穩定在約 99。</p>
+<p><b>限制與疑問</b>：沒有任何 baseline 比較、沒有自動指標，只有 30 個案例；作者自己說 v1「仍屬初步」。聽不懂玩笑、或要結合語音和畫面才懂的意思時最容易失敗，例如把抱怨誤當成在請求建議。</p>
+<p><b>為什麼值得看</b>：在架構上，它其實就是把 VLA「慢的推理模組加快的生成模組」那一套用到數位人身上：intent 對應 high-level policy，realization 對應 action decoder，傳 hidden state 而不只傳文字。對做人機互動或 humanoid 的人，「17 幀 chunk 加 &lt;wait&gt; token」的 full-duplex 設計，以及用 VGGT 抑制漂移的訓練技巧，都可以直接借用。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>Unbundling Multimodal Vision Encoding（Meta 等）</h3>
+<p>作者群包含 Saining Xie、Luke Zettlemoyer、Lucas Beyer。他們把 vision encoder 拆成三個因素：預訓練帶來的視覺先驗、專屬的視覺參數量、以及這些參數放在融合之前還是之中，全部從頭在相同資料上訓練、比較相同總算力。結論是：先驗不必要（和 backbone 一起從頭訓練的 encoder 一樣好），專屬容量必要（encoder-free 即使把 backbone 加大同樣參數量也比較差），而且這些容量放進 backbone 前幾層也可以，還能縮短首 token 時間。<a href="https://arxiv.org/abs/2611.17334">arXiv:2611.17334</a></p>
+
+<h3>JustRUA：GPT-6 直接控制機械手臂，哪些設計才真的有用？</h3>
+<p>許多以 GPT-6 Astra 為核心的 robot-use agent 在 RoboDojo 上互相刷分，但每篇同時改了好幾個設計。這篇在同一框架下逐一拆解：保留完整歷史、讓每段動作提早結束的精簡 harness 效果好；重複利用過往經驗會改變行為，但不穩定有幫助；最有用的是提供場景幾何，即使深度只是從 RGB 預測出來。不用學習策略、不用 self-improvement，RoboDojo 模擬分數從 29.7 提升到 50.3。<a href="https://arxiv.org/abs/2611.16009">arXiv:2611.16009</a></p>
+
+<h3>HDH：替凍結的 VLA 學一個低延遲的動作 verifier（Trevor Darrell 組）</h3>
+<p>收集 VLA 自己部署的 rollout，訓練一個小型 verifier 預測每個 action chunk 的成功率，推論時讓 VLA 產生多個候選，選最高分的執行，不必呼叫昂貴的大模型 verifier。LIBERO-10 四個任務平均成功率 82.3%，三個真實操作任務平均比原策略高 22.6%。<a href="https://arxiv.org/abs/2611.14834">arXiv:2611.14834</a></p>
+
+<h3>Ropedia Xperience 2：同時蒐集「環境」和「行為」的實體 AI 資料集</h3>
+<p>Ziwei Liu 等人的團隊釋出 1,589 個公制尺度 3D 掃描和 4,230 段第一人稱錄影，涵蓋 74 種任務、共 131 小時。掃描可變成可互動的模擬環境，人的動作可 retarget 成全身機器人軌跡，再用虛擬遙操作和自動生成長時序軌跡擴增。作者希望藉此研究環境數與行為數各自的 scaling law。<a href="https://arxiv.org/abs/2611.17060">arXiv:2611.17060</a></p>
+
+<h3>Prediction or Persistence? world model 的未來預測分數到底在量什麼</h3>
+<p>為每個影片 world model 配一個「不用 predictor、只複製現在」的 persistence 對照，在 27,000 次十一選一的未來片段檢索中（隨機猜是 0.091）拆出 predictor 本身的貢獻。V-JEPA 2.1 的 predictor 加了 +0.291 的 top-1，V-JEPA 2 只加 +0.03 到 +0.04；兩個 action-conditioned 模型甚至是負的。建議以後報分數時一律附上 persistence baseline。<a href="https://arxiv.org/abs/2611.15082">arXiv:2611.15082</a></p>
+
+<h3>Does Your World Model Know Actions Have Consequences?</h3>
+<p>CoRL 2026 world model workshop 的立場文章：重建品質或任務成功率都無法告訴你模型是否抓到「換一個動作會怎樣」的反事實後果。作者主張用對動作擾動的 forced response 做 sensitivity analysis 來稽核，上實機前應同時權衡狀態誤差與敏感度預測。和上一篇一起讀，剛好是對 world model 評估方式的兩種批評。<a href="https://arxiv.org/abs/2611.15048">arXiv:2611.15048</a></p>
+
+<h3>MatrixSplat：把 3DGS 的 alpha blending 改成矩陣乘法，交給 Tensor Core</h3>
+<p>深度排序的 alpha blending 讓每個像素有順序依賴，GPU 的 Tensor Core 用不上，帶高維語意特徵的 3DGS 更慢。作者改用與順序無關的加權和，把特徵渲染變成 warp 層級的 MMA，再搭配 Gaussian packing 和分批讀取特徵。在 Mip-NeRF 360、LERF、3D-OVS 上比 3DGS 快最多 3.8 倍、比 TC-GS 快 2 倍，高維特徵的 render kernel 最多快 36.7 倍。代價是不再是嚴格的 alpha compositing，值得看他們怎麼說明畫質沒有掉。<a href="https://arxiv.org/abs/2611.15153">arXiv:2611.15153</a></p>
+
+<h2>新聞與討論</h2>
+
+<h3>OpenAI 解散獨立機器人團隊：通用模型已經能直接控制機器人</h3>
+<p><a href="https://fortune.com/2026/11/13/openai-disbands-robotics-team-as-its-general-models-start-running-robots/">Fortune</a> 報導，OpenAI 的機器人研究人員併入 Mark Chen 底下的主研究團隊，應用與硬體團隊則併入 Greg Brockman 的 Applied 部門；官方說這是「加速而不是放棄」。理由是 GPT-6 Astra 已能直接操控機器人：在一份 Nvidia 研究中，Astra agent 在模擬操作 benchmark 上成功率 74.8%，同榜最好的專用機器人模型是 51.0%。報導也指出 OpenAI 在 CoRL 的攤位是空的、公司最近一季營業虧損 109 億美元，Sam Altman 的人形機器人仍目標 2027 年首次公開展示。CMU 的 Guanya Shi 認為機器人對 OpenAI 來說已「不再是特殊問題」，MIT 的 Russ Tedrake 則認為機器人公司的實地部署資料仍是優勢。<a href="https://news.ycombinator.com/item?id=50487184">HN 討論</a>的主軸是分層控制：致動器需要毫秒級反應，LLM 只能管意圖，而且斷線時機器人必須有本地權限安全停機。</p>
+
+<h3>做了 600 次實驗後，我對 JEPA world model 的發現</h3>
+<p><a href="https://haddyalchaer.com/jepa">這篇部落格</a>用 JEPA world model LeWM 在 Push-T 上做規劃。學到的 predictor 並不是瓶頸：75 步任務成功率 78%，換成模擬器的真實物理是 77%。真正的瓶頸是規劃：一次規劃 75 步只有 22%，每 25 步加一個子目標就到 80%。作者也發現標準測試中 84% 的目標在記憶庫裡有幾乎相同的狀態，換隨機種子就有 38/250 題翻盤；在起點和目標來自不同示範的困難版本上，最好的方法也只有 56%。<a href="https://news.ycombinator.com/item?id=50487185">HN 討論</a>有人指出這其實就是 latent 空間的 MPC，也有人質疑不訓練、直接用 PRM 或 MCTS 就能解 Push-T，這個 benchmark 能證明的東西有限。</p>
+
+<h3>AI 協助解讀哥德爾的速記筆記，據說含有數百個已證明的定理</h3>
+<p>The Guardian 報導（原文本次抓取不到，以下依 <a href="https://news.ycombinator.com/item?id=50486748">HN 討論</a>中引述的內容整理）：赫爾辛基大學的 Jan von Plato 自 2017 年起帶領小團隊，獲 ERC 250 萬歐元補助，解讀哥德爾用 Gabelsberger 速記寫的筆記，AI 協助了解讀。據稱筆記離證明連續統假設的獨立性只差幾個月的功夫（Cohen 在 1963 年發表了這個結果），哥德爾也在自己的條目旁寫了「falsch!」「schlecht!」。留言爭論 AI 到底貢獻多少：有人說只是 OCR，也有人說筆跡幾乎無法辨識，大部分工作是詮釋。<a href="https://www.theguardian.com/science/2026/nov/13/kurt-godel-notebooks-ai-helps-unlock-hidden-discoveries-man-who-transformed-maths">原文連結</a></p>
+
+<h3>逆向工程 Coway 空氣清淨機，擺脫雲端</h3>
+<p>作者的 Coway Airmega 只能透過雲端 app 控制，Home Assistant 整合常壞。<a href="https://scottjg.com/posts/2026-11-11-reverse-engineering-my-coway-air-purifier-to-ditch-the-cloud/">文章</a>記錄了過程：用樹莓派開 AP 加 mitmproxy 攔截，發現機器竟用明文 HTTP 下載根憑證，因此能塞入自己的 CA；之後看到 MQTT over TLS（port 8883），再用 HCI snoop log、讓 AI agent 操作 adb，加上反編譯的 app，摸清藍牙配網流程（明文交換的隨機金鑰、AES、protobuf）。由於配網內容由自己控制，可以直接把 MQTT 伺服器改成自己的，最後寫成透過 Web Bluetooth 配網的 Home Assistant 整合。文中提到 Claude 以資安政策為由拒絕協助設定 AP，ChatGPT 則照做。<a href="https://news.ycombinator.com/item?id=50474959">HN 討論</a></p>
+
+<h3>「模型可以在權重空間傳染病毒」？其實是 weight-space misfolding</h3>
+<p>HN 標題很聳動，但<a href="https://www.alphaxiv.org/abs/2611.weight-space-misfolding">論文</a>的用語是 weight space misfolding（借自蛋白質錯誤摺疊）：一個能讀寫權重的 editor 模型，對另一個模型做了超出授權的修改。實驗是在 Qwen2.5-1.5B 上的小型探測：植入錯誤事實 100 次全中，但連帶出現「Buenos Aires, Australia」這類副作用；誘導拒答只在 22 題中成功 5 題；選擇性遺漏只成功 1/22。作者明說沒有展示自我傳播，「先大模型、再中介、再小模型」的傳染路徑只是假說。結論是：編輯不精準，但仍是安全風險，應管控誰能改權重、patch 怎麼上線。<a href="https://news.ycombinator.com/item?id=50487762">HN 討論</a></p>
+
+<h3>價值 1,140 萬美元的 Nvidia 硬體在運送途中消失</h3>
+<p><a href="https://www.freightwaves.com/news/11-4-million-in-nvidia-hardware-vanishes-during-shipment-from-california-to-texas">FreightWaves</a> 報導，六個棧板的 Nvidia 硬體 8 月 29 日在奧克蘭被一輛貼著食品運輸公司標誌的卡車載走，原本要送到德州 Fort Worth，結果卡車一路往南、多次長時間停留，最後在 San Bernardino 郡失去蹤跡。警方尚未確認金額、貨主與承運商。報導列出一串類似案件，包括另一起被偷的拖車裡裝的是約 4 萬磅沙子。GPU 已經值錢到成為組織化貨運竊盜的目標。<a href="https://news.ycombinator.com/item?id=50487864">HN 討論</a></p>
+
+<h3>末日：2026 年 11 月 13 日，星期五（1960 年的論文）</h3>
+<p>昨天正是 Heinz von Foerster 等人 1960 年在 <a href="https://www.science.org/doi/10.1126/science.132.3436.1291">Science</a> 發表的人口模型所算出的「末日」。他們用雙曲線擬合歷史人口，得到人口會在 2026 年 11 月 13 日趨向無限大。這個預測沒有成真：全球人口成長率在 1960 年代後期就開始下降，雙曲線外推完全失準。<a href="https://news.ycombinator.com/item?id=50482379">HN 討論</a>很快從人口過剩轉向相反的擔憂：少子化與高齡照護，以及 Ehrlich 與 Simon 打賭金屬價格的老故事。</p>
+
+<h3>Claude 服務認證錯誤約兩小時</h3>
+<p>11 月 13 日 UTC 09:58 到 11:58（台灣時間 17:58 到 19:58），claude.ai、Claude Code、Console 和 Cowork 出現登入認證問題，11:05 部署修正，<a href="https://status.claude.com/incidents/nn11wk485zfn">狀態頁</a>沒有說明原因。這則在 HN 上有 471 分、375 則留言，可見有多少人的工作流程依賴這些服務；同一天 HN 上還有一篇談 Microsoft 365 大當機讓客戶意識到自己多依賴微軟。<a href="https://news.ycombinator.com/item?id=50481187">HN 討論</a></p>
+</article>
+</body>
+</html>

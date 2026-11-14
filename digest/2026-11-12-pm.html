@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 晚報｜2026-11-12（週四）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 晚報｜2026-11-12（週四）</h1>
+<p><b>今日導讀</b>：今晚的主題是「不改大模型本體，只改它和世界之間的介面」。CIALLO 把動作壓成跨機器人共用的 intent，換新手臂只要校準 10 秒錄影；ExRL 不動 VLA 的動作，只用 RL 學「每個 chunk 要執行幾步」；JiT 的後續研究則在預訓練好的像素擴散模型上補一個小小的卷積頭，只在最後 20% 的去噪步驟啟用。新聞部分有 Google 的 Gemini Decisions API、United 禁止 AI agent 訂機票，以及 Apache HTTP/2 的嚴重 RCE。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. CIALLO：把動作壓成跨機器人共用的「intent」，新手臂只要 10 秒錄影</h3>
+<p><a href="https://arxiv.org/abs/2611.13732">arXiv:2611.13732</a>｜cs.RO｜清華大學</p>
+<p><b>問題</b>：跨 embodiment 學習時，不同機器人的動作座標、維度、控制頻率、單雙臂都不一樣。作者指出，即使有 embodiment-conditioned 的 encoder/decoder，單靠動作重建並不會讓「不同機器人做出相似行為」落在相近的表徵上。</p>
+<p><b>方法</b>：CIALLO 是一個 action codec，把短時間的行為壓成共用的 intent（兩個 token）。三條路徑產生同一種 intent：動作 encoder（把每個控制數值連同執行時間、軸類型、手臂 ID 當成 token，再用 Query Pooling 壓縮）、視覺 encoder（凍結的 DINOv2 比較現在與未來畫面，再過兩層 ConvNeXt）、以及文字 encoder（凍結的 BERT，用當前畫面 grounding 指令）。三路用對稱 InfoNCE 對齊，並共用同一個 decoder 重建動作，所以視覺和語言的 intent 也必須帶有足夠的控制資訊。機器人身分由一個 essential vector 加上 arm/axis embedding 表示，透過條件式 normalization 在 encoder 端「解調」、在 decoder 端「再調變」。decoder 的輸出頭對每個控制數值預測一組 bin 的 logits，再取 softmax 期望值成為連續動作。換新機器人時，只用一段最多 10 秒的錄影擬合新的 essential vector 和 embedding（單 GPU 約 30 分鐘），共享權重全部凍結。之後再接 Qwen3.5-4B 預測 intent，組成 Qwen-CIALLO。</p>
+<p><b>結果</b>：在 8 種 embodiment、125,434 段 episode 上預訓練後，action 與 vision intent 的雙向 top-1 檢索準確率是 96.68%。把 encoder 的 essential vector 換成別台機器人的，重建誤差從 0.00761 升到 0.04506，換掉 decoder 的則升到 0.19124。LIBERO 平均 97.3%（只用 10k 步，CLAP-RF 用 30k 步是 97.2%，OpenVLA-OFT 是 97.1%）。同一個 checkpoint 不再訓練，在 LIBERO-Plus 拿到 80.8%，高於 DreamWAM 的 74.6%。RoboTwin 2.0 的 50 個任務用單一 policy 拿到 52.7%，StarVLA co-train 是 46.5%。實機部分，SO-101 和單臂 Piper 各 3 個任務、每任務 20 條示範，平均 76.7%，全量微調的 π0 是 70.0%。差距主要來自需要夾細螺絲起子去敲木魚的任務（SO-101 上 70% 對 35%），擺水瓶的任務反而是 π0 較好。</p>
+<p><b>限制與疑問</b>：LIBERO 的領先只有 0.1 到 0.2 個百分點，而且是單一 seed，基線數字來自不同論文、不同統計方式。實機只有兩台低成本手臂、三個任務，每個任務 20 次試驗。Piper 在預訓練時其實出現過（模擬的雙臂版本），所以不算完全沒見過的身體。</p>
+<p><b>為什麼值得看</b>：「校準 embodiment」和「學任務」分開，是很實用的分工：實驗室換新手臂時，不必重做大規模 action 預訓練。讓視覺變化當跨機器人共用的錨點，也和 latent action、從人類影片學動作的方向接得上；作者也說下一步要把人類第一人稱影片和 humanoid 動作對齊到同一個 intent 空間。</p>
+
+<h3>2. ExRL：不改 VLA 的動作，只用 RL 學「這個 chunk 要執行幾步」</h3>
+<p><a href="https://arxiv.org/abs/2611.13482">arXiv:2611.13482</a>｜cs.RO｜電子科技大學、同濟大學、香港理工大學</p>
+<p><b>問題</b>：現在的 VLA 和 world action model 常一次預測 20 到 50 步的 action chunk。用 RL 在線上微調這類 policy 時，要優化的空間會隨 chunk 長度變大，在實機上很難收集足夠的互動資料。</p>
+<p><b>方法</b>：ExRL 把可調的東西換成一個離散的純量：每個 chunk 要執行前幾步再重新規劃。base policy 完全凍結，只加一個看「狀態加上預測出來的 chunk」的小型 adapter，選擇執行長度 k。critic 用 duration-aware 的 TD target（獎勵累加 k 步、折扣 γ^k），本質上是 semi-MDP 的 Bellman backup。作者給了兩個 off-policy 版本：純 value-based 的 ExRL-Q，以及 discrete SAC 的 ExRL-SAC，兩者都加上 CQL 抑制高估。另外有兩個選配：把成功的 rollout 用 BC 蒸餾回 base policy（Online BC），以及把任何離線軌跡的片段當成「虛擬 chunk」，用它的各種前綴長度當 replay 經驗。</p>
+<p><b>結果</b>：在 Robomimic、Adroit 和 LIBERO 上，適用於 Diffusion Policy、ACT、flow-based 的 π 系列 VLA、π0-FAST，以及 world action model Cosmos Policy。在 LIBERO 上，ExRL 很快就從接近 0 爬到高成功率；Tool Hang 上 ExRL-SAC 搭配 DP 明顯勝過其他基線。實機的四個任務中，ExRL-Q 的成績是疊方塊 17/20、摺衣服 17/20、插電源 22/25、零件整理 104/125 個階段。表中其他方法最好分別只有 9/20、12/20、10/25、69/125。疊方塊大約 10 分鐘的實機互動就接近全對。消融實驗顯示，adapter 若只看觀測、不看預測的 chunk，成功率會大幅下降。</p>
+<p><b>限制與疑問</b>：上限受 base policy 會提出的動作限制；實機實驗沒有開 Online BC，而且每個任務分開調適，沒有測多任務或未見任務，也還沒和 real-time chunking 這類非同步推論一起測。數字多半在圖裡，正文給的精確值不多。</p>
+<p><b>為什麼值得看</b>：學到的行為很直觀：靠近物體時執行長度大約減半（實機插電源時降到四分之一），自由移動時就放長。這等於讓 RL 決定「何時要閉迴路」，而且和 policy 架構無關，幾乎可以直接套在任何 chunked policy 上。想在實驗室用少量互動改善現成 VLA 的人，這是成本最低的起點之一。</p>
+
+<h3>3. JiT + Late-Stage Pixel Refinement：像素擴散的最後 20% 交給卷積</h3>
+<p><a href="https://arxiv.org/abs/2611.13120">arXiv:2611.13120</a>｜cs.CV｜Ruhr University Bochum</p>
+<p><b>問題</b>：JiT（Just Image Transformer）證明了只要預測乾淨影像（x-prediction），一個普通的大 patch transformer 就能在像素空間訓練擴散模型，不需要 VAE。但它把每個 token 獨立線性解碼成不重疊的 16×16 patch，輸出偏糊，而且有隱約的 patch 邊界。</p>
+<p><b>方法</b>：把原本的線性輸出層換成幾個 ConvNeXt 風格的卷積 block 組成的 pixel head。它同時吃 backbone 特徵和原始的雜訊影像，並在整張圖上運作，所以能跨越大 patch 的邊界傳遞資訊。訓練分兩階段：用現成的 JiT checkpoint，先凍結 backbone 只訓練 pixel head 15 個 epoch，再一起微調 85 個 epoch，沒有加 REPA 或感知損失。第二階段改用均勻的 timestep 取樣加 Soft-Min-SNR 加權，因為 JiT 原本的 logit-normal 取樣幾乎不會抽到最接近乾淨影像的區段。更進一步，他們訓練兩個頭：前期用便宜、會重疊的線性頭，最後 20% 的去噪步驟才切到卷積頭。這只在 x-prediction 下可行，因為早期的預測本來就是模糊的平均。</p>
+<p><b>結果</b>：作者發現 JiT 程式碼在取樣時會 clamp 一個分母，等於在非零雜訊處就停下來，殘留的雜訊反而讓 FID 變好看：JiT-B 拿掉 clamp 後 FID 從 3.64 升到 4.61。在修正後的取樣下，JiT-B 加卷積頭得到 3.42，雙頭版本 3.41；JiT-L 從 3.51 降到 2.20。最大的 JiT-H/16 修正取樣後重現值是 2.34，加上雙頭後到 1.78，低於原論文回報的 1.86。參數增加不到 3%。延遲啟用幾乎不掉品質，但切換點若延得太晚，JiT-B 的 FID 會升到 5.39。</p>
+<p><b>限制與疑問</b>：只在 ImageNet 256 上做，沒有 text-to-image，也還不清楚訓練中何時加入 pixel head 最好。和用了 REPA 的 PixelDiT（1.61）、PixelU（1.63）相比仍有差距。</p>
+<p><b>為什麼值得看</b>：clamp 這個發現本身就值得記住：比較像素擴散模型的 FID 時，取樣器的細節可能比架構差異還大。「粗結構交給大模型、細節只在後段交給局部模組」的想法，也可以直接借到影片生成或 3D 生成上，用來省掉高解析度細節頭的大部分運算。</p>
+
+<h2>快速瀏覽</h2>
+<ul>
+<li><b>WAM is capable in BEHAVIOR-1K</b>（<a href="https://arxiv.org/abs/2611.13818">2611.13818</a>）：2026 BEHAVIOR Challenge 第二名的解法，以 world action model Cosmos 3 為基礎，加上更長的視覺歷史、任務進度條件、依任務群和技能分開的 LoRA。為了達到每秒 1 幀的推論要求，不用任何閉源模型或 agent harness。官方私有測試集的 Q-score 0.615，完整任務成功率 41.2%。</li>
+<li><b>PhysMoE</b>（<a href="https://arxiv.org/abs/2611.13000">2611.13000</a>）：給 embodied VLM 的空間 grounding 用。上層依模態分成像素與文字兩種 expert；每個座標用視覺 encoder 的位置嵌入編成單一 token；pointing 用可微分的 SDF 監督，以處理多接觸點的 affordance。在 9 個座標類 benchmark 上比 base model 平均高 15.7%，吞吐量快 8.31 倍。</li>
+<li><b>RoboACE</b>（<a href="https://arxiv.org/abs/2611.13034">2611.13034</a>）：在凍結的 foundation model 周圍，讓「出題的 curriculum harness」和「解題的 execution harness」輪流演化。在 LIBERO-PRO 上達到 74.0%，比初始版本高 15.0 個百分點，比直接用 VLA 控制器高 13.5 個百分點。</li>
+<li><b>AHEADance</b>（<a href="https://arxiv.org/abs/2611.13370">2611.13370</a>）：讓 humanoid 跟著串流音樂即時跳舞。難處在於每段動作都得在聽到對應的音樂前就決定好，所以用一個凍結的音樂模型預測接下來的拍點，並用 Commit Forcing 從自己已執行的片段接續訓練，把「幾乎不動」的比例從 83.5% 降到 10.3%。在實體 Unitree G1 上跳完全程沒有跌倒。</li>
+<li><b>Curie's Jarvis</b>（<a href="https://arxiv.org/abs/2611.13251">2611.13251</a>）：讓 Franka 手臂看著一張印出來的實驗步驟單，在沒有固定位置、沒有 fiducial marker 的一般實驗桌上做化學實驗。它從四個視角讀容器標籤，分辨長得一樣的瓶子。兒童化學套組的兩個流程分別成功 5/5 和 4/5，160 次標籤定位全部正確。</li>
+<li><b>PhyRubric</b>（<a href="https://arxiv.org/abs/2611.13576">2611.13576</a>）：評估 text-to-video 模型的物理常識。看影片前先把每條 caption 拆成語意和物理的評分項目，每項都要附上帶時間戳的證據。涵蓋 5 個物理領域、34 類，並用 3,788 支影片訓練開源的 PhyRubric-Judge，它和人類評分的相關性比現有評審方法高。</li>
+<li><b>RetinexGS</b>（<a href="https://arxiv.org/abs/2611.13280">2611.13280</a>）：在 RAW 域做低光 3DGS。把顏色拆成與視角無關的基底色，加上共用的、隨位置與視角變化的調變場，再用 DNG 的雜訊 metadata 加權損失。在 5 個場景上的 sRGB PSNR 比 LE3D 高 2.18 dB、比 RawNeRF 高 2.71 dB。</li>
+<li><b>GTAGym</b>（<a href="https://arxiv.org/abs/2611.13028">2611.13028</a>）：今天 HF 上 CV 相關中最熱門的一篇，用 GTA V 主線任務建構了 103 個線上任務和 47 個射擊任務，由遊戲引擎狀態自動判定成功與否。最佳設定在 GTAVBench-AGI 上達到 70.9%，但空中導航、閃避和攔截仍然很難。用 LoRA RL 訓練 Qwen3.8-27B，原生任務成功率從 15% 提升到 23%。</li>
+</ul>
+
+<h2>新聞與討論</h2>
+
+<h3>Google 推出 Gemini Decisions API</h3>
+<p><a href="https://blog.google/innovation-and-ai/technology/developers-tools/gemini-decisions-api/">Google 部落格</a>：一個專門做「封閉式決策」的端點，模型是 gemini-decision-1。一次輸入（文字、圖、音訊、影片或 PDF，最多 256K token）可以附最多 1,000 個是非題、選擇題或評分題。模型在一次 forward pass 裡給候選答案打分，不逐字生成，每個答案附 0 到 1 的信心分數。價格是每百萬輸入 token 0.10 美元、輸出免費，端到端延遲 150 到 250 ms。Google 說內部拿它做 model routing、工具選擇和 MCP 工具的安全檢查。HN 上的重點是：LLM 的 token 機率本來校準就差，這個產品的價值大半在校準，但也有人提醒，它不見得比一個不思考的小模型準。（<a href="https://news.ycombinator.com/item?id=50456791">HN 討論</a>）</p>
+
+<h3>United Airlines 禁止 AI agent 代訂機票</h3>
+<p><a href="https://www.cbsnews.com/news/united-airlines-bans-ai-agents-booking-flights/">CBS News</a>：United 11 月 11 日宣布修改訂位規則，禁止第三方個人 AI agent 訂位，並會從自家平台和旅行社、比價網站兩端限制存取。理由是把帳號憑證交給 AI 助理可能導致誤購、帳號被改或哩程被用掉，而且讓 agent 代辦報到，可能牴觸要求旅客親自確認行李沒有違禁品的聯邦規定。分析師則認為，航空公司不想再多一層中介，而且機器人查價本身就有成本。HN 上有人建議航空公司乾脆提供 API 或 MCP server，這樣就能限流、控制 agent 存取。（<a href="https://news.ycombinator.com/item?id=50458900">HN 討論</a>）</p>
+
+<h3>Apache HTTP Server 的 HTTP/2 模組出現嚴重 RCE</h3>
+<p><a href="https://www.wiz.io/blog/cve-2026-119618-rce-apache-http-server-vulnerability">Wiz</a>：CVE-2026-119618 影響 2.4.55 到 2.4.70，問題出在 mod_http2 的 <b>assign_headers()</b> 有 race condition，未經驗證的遠端攻擊者可以破壞 heap 並執行任意程式碼。目前還沒有公開 exploit，也沒有在野利用的報告。修補版是 2.4.71；無法升級時，可以把 Protocols 設成只有 http/1.1，關掉 HTTP/2。Wiz 的統計是 64% 的雲端環境有受影響的資源，但這個數字沒有考慮實際設定。實驗室有自架 Apache 的話值得檢查一下。（<a href="https://news.ycombinator.com/item?id=50462177">HN 討論</a>）</p>
+
+<h3>Apple：用小網路學「該去哪個 cluster 找」，加速 RAG 檢索</h3>
+<p><a href="https://machinelearning.apple.com/research/faster-retrieval">Apple ML Research</a>：做法是離線訓練小網路，取代 IVF 索引的 centroid routing。SupportNet 用 input convex network 學每個 cluster 的 support function；KeyNet 則直接把 query 改寫成最可能匹配的 key，再丟給 FAISS。在 Natural Questions（約 260 萬段落）上，KeyNet 達到 99% recall 只要 0.23 ms，原始 query 要 1.8 ms，需要掃描的 key 最多少約 11 倍。對做大規模視覺檢索或 retrieval-augmented policy 的人來說，「把查詢分佈攤銷進小模型」是可以直接借用的想法。（<a href="https://news.ycombinator.com/item?id=50455633">HN 討論</a>）</p>
+
+<h3>華為開源 MACaQ 量化工具</h3>
+<p><a href="https://github.com/huawei-csl/MACaQ">GitHub</a>：一個不限模型種類的校準量化工具，Apache 2.0 授權。它可以輸出 llama.cpp 用的 2、3、4-bit GGUF，也支援在 vLLM、Diffusers 上做 W4A4，涵蓋 FLUX.2-klein、Wan2.2-TI2V-5B 這類影像與影片模型。據稱 122B 模型 64 分鐘就能量化完。Qwen3.6-35B-A3B 在同樣 22.36 GB 的大小下，對 FP16 的 KL divergence 是 0.0134，Unsloth 的同級量化是 0.0157。Qwen3.8-27B 用 W4A4 時，prefill 快 2.33 倍、decode 快 2.58 倍。（<a href="https://news.ycombinator.com/item?id=50458166">HN 討論</a>）</p>
+
+<h3>Utah Teapot 的官方新家與 2026 新版</h3>
+<p><a href="https://graphics.cs.utah.edu/teapot/">University of Utah</a>：紀念茶壺在 SIGGRAPH 亮相 50 週年。頁面整理了歷代版本：1975 年 Newell 用 28 個 Bézier patch 建模、1976 年 Blinn 把它壓扁成今天熟悉的比例、1987 年 Crow 加上底部，一路到 2026 年 Cem Yuksel 的新版。新版有 62 個 patch，曲率連續、反射更平滑。網頁上可以自選三角或四邊形網格、y-up 或 z-up、UV 配置後下載，商用也免費，只要求標明出處。（<a href="https://news.ycombinator.com/item?id=50457618">HN 討論</a>）</p>
+
+<h3>陶哲軒的 Lean Grimoire</h3>
+<p><a href="https://terrytao.wordpress.com/2026/11/11/lean-grimoire/">Terence Tao 部落格</a>：陶哲軒用 coding agent 重寫了他 2018 年的互動式邏輯教材 QED，把命題與一階邏輯包裝成「合成遊戲」：從給定的假設出發，套用推論規則推出目標。新版可以同步顯示目前狀態對應的 Lean 證明，還有把命題變成藥水、把式子變成卷軸的「奇幻模式」。他正在徵求試玩回饋，留言中已經有人指出 intro tactic 對新手太難懂。（<a href="https://news.ycombinator.com/item?id=50462375">HN 討論</a>）</p>
+</article>
+</body>
+</html>
