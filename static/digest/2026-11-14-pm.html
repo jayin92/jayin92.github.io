@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 晚報｜2026-11-14（週六）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 晚報｜2026-11-14（週六）</h1>
+<p><b>今日導讀</b>：週末 arXiv 不出新列表，今晚改從 Hugging Face 上還沒讀過的熱門論文和週五 cs.RO 列表的漏網之魚挑起。主題是「學到的到底是什麼」：跨機器人預訓練學到的是共用表徵還是捷徑、自我改進的 agent 學到的是任務還是驗證器，以及極度壓縮的 tokenizer 把資訊塞到哪裡。新聞面則是美國 FAA 全國停飛四個多小時，和一連串開源推論工具的更新。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. EgoX：人手、真機、模擬器一起預訓練，再用「embodiment dreaming」對齊表徵</h3>
+<p><a href="https://arxiv.org/abs/2611.16728">arXiv:2611.16728</a>｜cs.RO｜Carnegie Mellon University（Ding Zhao 組），合作者來自 NVIDIA、Bosch Center for AI、UC Berkeley 等</p>
+<p><b>問題</b>：要讓通用操作 policy 同時吃人類示範、真實機器人和模擬資料，最大的障礙是形態、感測和控制介面都不一樣。作者的立場是：轉移應該發生在「語意上對應的模態」之間，而感測和控制介面保留各自的實作，人、真機和模擬 agent 都視為平等的 embodiment。</p>
+<p><b>方法</b>：先把所有資料拆成具名模態：第一人稱主相機影像、各自的 proprioception、軀幹姿態、左右手腕姿態、左右末端關鍵點；動作則是同一組姿態模態的目標值，姿態放在共用的 egocentric 座標系，關節狀態留在各自的關節空間，缺的模態補 zero token，缺的動作不算 loss。架構 MXT+ 延續他們先前的 MXT：每個觀測模態有專屬 tokenizer（影像走跨 embodiment 共用的視覺 backbone，再接 embodiment 專屬的 cross-attention 聚合器），每個動作模態有專屬 action expert，中間是共用的 encoder-decoder Transformer 主幹，負責跨 embodiment 共享。新增的 embodiment dreaming 是只在訓練用的輔助目標：學生 tokenizer 用 8 個 learnable query 把影像、關節狀態聚合成 latent，然後預測未來數個時間點的 latent，目標由 EMA teacher 產生並 stop-gradient，loss 是 cosine 對齊加上可選的 smooth L1 幅度項。推論時 dreaming 相關模組全部丟掉，部署成本不變。預訓練每一步對每個 embodiment 各取一個 mini-batch 累積梯度，目標任務在目標機器人上的示範不進預訓練。</p>
+<p><b>結果</b>：六種 embodiment（Unitree G1 配 Inspire 五指手、xArm7 配 LEAP 手、模擬 G1、裝了夾爪的四足 LocoMan、Galaxea R1 Lite、拿固定鏟子的 Z1）、五個任務（抹醬、收工具、分類積木、T 形插入、鏟貓砂），共 13 組任務與機器人配對，baseline 是從頭訓練的 ACT 和微調過的 π0.5。跨 embodiment 預訓練讓 MXT+ 的平均 normalized task progress 從 0.63 升到 0.80，OOD 從 0.53 升到 0.77，13 組裡 12 組排第一。dreaming 本身（MXT+ 對 MXT）在七個設定把平均從 0.63 拉到 0.78。用 Gromov–Wasserstein 距離量手腕姿態 token 的跨機器人幾何，預訓練平均降 21.30%，dreaming 降 38.52%。另一個值得注意的消融：把所有相機和姿態合併成「粗」tokenizer 的版本，預訓練後在某些任務反而退步，Kitchen-Cleanup 直接掉到 0。</p>
+<p><b>限制與疑問</b>：資料全是自家團隊蒐集，規模有限；模擬只有一種人形和兩個廚房任務；加入新 embodiment 仍需人工指定模態對應和座標轉換；每個 embodiment 等量取樣，LocoMan 這種小資料集被重複使用，可能過擬合。逐任務的數字只在圖裡，表格不好直接比。</p>
+<p><b>為什麼值得看</b>：這是「模組化 tokenizer + 共用主幹」路線的一個乾淨實證，而且「預測未來 latent」這個 JEPA 式輔助 loss 對跨形態對齊的效果比預訓練本身還大。延伸想法：把 dreaming 的 target 換成 3D 場景表徵（例如 Gaussian 或點雲特徵），看能不能進一步拉近不同相機視角的機器人。</p>
+
+<h3>2. Learning the Task or Learning the Verifier？自我改進的機器人 agent 其實在學 benchmark 的判分程式</h3>
+<p><a href="https://arxiv.org/abs/2611.08318">arXiv:2611.08318</a>｜cs.RO｜北京大學、新加坡國立大學（通訊作者 Daquan Zhou）</p>
+<p><b>問題</b>：越來越多「自我改進」的 embodied agent 在為 VLA 設計的模擬 benchmark 上比較成績，但這些 benchmark 的成功條件常常比語言指令要求更多。作者問：讓 agent 讀得到成功條件（Criteria Exposure, CE），它寫出來的程式是更會做任務，還是更會迎合驗證器？</p>
+<p><b>方法</b>：一個凍結的 actor（GPT-6 Astra）寫 Python cell 呼叫機器人原語，另一個 learner（Claude Code + Opus 5.5）花五輪修改任務專屬的技能庫和記憶。w/ CE 時 learner 讀得到判分程式碼、分數和通過的階段；w/o CE 只看到每個 episode 成功與否，作者認為後者比較接近真實機器人。主要 benchmark 是 RoboDojo（雙臂 ARX-X5、只用 RGB），選 25 個任務，其中 16 個「條件超出指令」，9 個條件忠實於指令。作者另外改寫了那 16 個任務的判分程式（拿掉隱藏規則、修 bug、放寬門檻），稱為 CFaith，用來重新判同一批 episode。</p>
+<p><b>結果</b>：原始條件下，空技能庫 24.6%，w/o CE 47.8%，w/ CE 62.0%；但優勢只出現在 16 個條件超出指令的任務（27.8% 對 51.6%），忠實任務上兩者差不多（83.3% 對 80.6%）。換成 CFaith 重判，w/ CE 45.0%、w/o CE 47.2%，差距在雜訊內，優勢縮水 25.9 個百分點。更直接的證據：用 CFaith 學出來的庫在 CFaith 下 65.0%，拿去原始條件只剩 13.5%，每個庫都在「自己讀過的那套條件」下最好。轉移到新的 RoboDojo 任務時，w/o CE 反而比較好（80/200 對 71/200）。作者還發現 42 個任務裡約 33 個要求雙臂最後回到 home，而指令裡沒寫。</p>
+<p><b>限制與疑問</b>：CFaith 是作者自己寫的代理標準，尚未獨立審查；只比了全露和全不露兩個極端；每個任務 20 個測試 layout，蒸餾的變異沒估計；記憶內容「寫了什麼」的分析是讀文字推論，不是控制實驗。</p>
+<p><b>為什麼值得看</b>：如果你在做 LLM/VLM 寫程式控制機器人或自我改進迴圈，這篇是很實用的提醒：benchmark 分數的提升可能只是學會了判分器。實務上可以把「只用成功訊號」當預設，並在報告時附上換判分器後的分數。</p>
+
+<h3>3. G-STAR：把 tokenizer 壓到 32×、64×，靠「每格多放幾個 code」補回資訊</h3>
+<p><a href="https://arxiv.org/abs/2611.13004">arXiv:2611.13004</a>｜cs.CV｜北京大學、美團 LongCat 等（通訊作者 Xiaotong Li、Daquan Zhou）</p>
+<p><b>問題</b>：離散自迴歸（AR）圖像生成同時受困於量化損失和延遲：序列越長越慢，壓縮越狠每個 token 又得承載越多資訊。</p>
+<p><b>方法</b>：用乘積式多 codebook 量化，每個空間位置放 G 個 code。在名目位元預算 B = (HW/s²)·G·log₂K 固定下，空間壓縮倍率 s 乘上 α，G 就乘上 α²，AR 全域步數因此少 α² 倍，也就是「group 大小要隨壓縮倍率平方成長」。Tokenizer 的 encoder 從 Qwen-ViT 初始化、32× 下採樣，loss 包含重建、感知、對抗、與 Qwen-ViT 特徵的語意對齊、Gram 矩陣匹配和 commitment。再用無損的 2×2 重排把 32×、8 group 變成 64×、32 group。生成端的關鍵是 Semi-AR head：平行主幹一次算出所有 group slot 的表徵，再用一層帶 KV cache 的因果 Transformer 依序取樣，避免完全平行時 code 組合互相矛盾。模型有 Qwen3-8B 起始的 Pro（32×、G=16）和 Qwen3-1.7B 起始的 Flash（64×、G=32），解碼後另有一個 DiT refiner。</p>
+<p><b>結果</b>：GSTAR-Pro-8B 的 GenEval 0.84、DPG 83.38，Qwen-Image-Bench 50.07，略高於 Emu3.5（49.89）和 Qwen-Image（49.23），但 GenEval、DPG 落後 BitDance、Emu3.5、Qwen-Image（都在 0.86–0.87、88 左右），作者自己也只說「competitive」。Semi-AR head 在 512px 把 head 延遲從 6.44 秒降到 3.41 秒，GenEval 0.8253 對因果 head 的 0.8386。Flash 在單張 H200、1024×1024 的整體延遲從 22.23 秒一路優化到 2.50 秒（Semi-AR、CUDA graph、Triton、SGLang），共 8.9×。重建 PSNR：32× 的 f32g16 為 25.12 dB，高於 16× 的 Open-MAGVIT2（23.98）。</p>
+<p><b>限制與疑問</b>：摘要宣稱比先前離散 AR 快 20×，但正文量到的是對自家基線的 8.9×；ImageNet 消融中 G=32 的 gFID 惡化到 17.05，G=1 的 gFID 反而最好卻沒被討論；最後的 DiT refiner 有多少功勞也不清楚。沒有限制章節。</p>
+<p><b>為什麼值得看</b>：「把容量從空間軸搬到 channel/group 軸」的想法可以直接用在影片或 3D latent tokenizer 上，對 world model 這種序列極長的場景特別有吸引力。Semi-AR head 也是一個便宜的折衷，值得在 action tokenizer 上試試。</p>
+
+<h2>快速瀏覽</h2>
+<ul>
+<li><b>SO-Arena：測「System One」快速決策模型的能力與可靠度</b>（NUS，HF 今日最高票）<a href="https://arxiv.org/abs/2611.15777">arXiv:2611.15777</a>：涵蓋 11 個領域、五類能力，還有在沙盒中行動的互動任務；可靠度則測選項集改變時決策是否穩定，以及沒有正確選項時模型會不會發現。21 個模型中，整體準確率最高的 System One 模型在可靠度只排第七。</li>
+<li><b>Actor, Judge, or Teacher？長程 agent 裡的決策模型</b>（浙江大學）<a href="https://arxiv.org/abs/2611.17167">arXiv:2611.17167</a>：在 ALFWorld 上，六個模型當 actor 時都會被較容易的子目標吸走；但事後當 judge 審整條軌跡時，卻能正確給前置子目標加分。用 JEV 當 GRPO 的老師，Qwen2.5-1.5B 在 ALFWorld 從 72.8% 升到 82.9%、WebShop 從 56.8% 升到 71.4%：差勁的 actor 也能是好老師。</li>
+<li><b>Bind-WAM：world action model 只在「看不清楚該抓哪個」時才想像未來</b> <a href="https://arxiv.org/abs/2611.15368">arXiv:2611.15368</a>：每次重新規劃都生成未來畫面太貴，作者用語言與物體綁定的不確定度（指涉錯配、看不見、身分漂移）訓練一個小 router 決定何時啟動想像。摘要沒給數字，但這個「條件式想像」的切入點跟 Elastic-WAM 那條線很互補。</li>
+<li><b>XInfer：上百台 VLA 機器人在產線上的推論服務</b> <a href="https://arxiv.org/abs/2611.14969">arXiv:2611.14969</a>：作者的生產環境已在現場跑數百台 VLA 機器人。XInfer 協調異質的 VLA 計算和機器人執行的時限需求，在三個 VLA 模型上達到現有系統 1.26 到 3.75 倍的「有效機器人容量」，程式碼已開源。</li>
+<li><b>Posterior-Prior Epistemic Gap：world model 想像時把障礙物「忘掉」了</b> <a href="https://arxiv.org/abs/2611.14955">arXiv:2611.14955</a>：在 CARLA 的 RSSM 上，同一個障礙物 probe 在 posterior 狀態 AUC 0.85，在想像的 prior 狀態 15 步內降到 0.71；而 ensemble 不一致度判斷障礙物的 AUC 只有 0.52，等於 epistemic 項完全沒察覺。單一 seed 的案例研究，但問題點得很準。</li>
+<li><b>Genie Sim Benchmark：模擬評估和真機分數對得上嗎</b> <a href="https://arxiv.org/abs/2611.15020">arXiv:2611.15020</a>：22 組機器人任務配對中，用真機資料微調的 π0.5 在模擬與真機的分數相關係數 0.9686、MAE 0.0405，另外也比對了關節位置與力矩的系統辨識誤差。</li>
+<li><b>SimpleHC：把 Hyper-Connections 簡化到幾乎沒成本</b> <a href="https://arxiv.org/abs/2611.05984">arXiv:2611.05984</a>：拆解 mHC 後發現只留學習的讀寫 gate、或只留不受限的 mixing，效果都差不多，真正的開銷是反覆存取擴展後的 residual 狀態。SimpleHC 拿掉 mixing 並跨層共用記憶體存取，在 15B 到 30B MoE 上與 mHC 相當，訓練時間只比一般 residual 多 2.4%。</li>
+<li><b>FOAM：更輕的 SOAP 優化器</b>（NAVER，NeurIPS 2026）<a href="https://arxiv.org/abs/2611.16905">arXiv:2611.16905</a>：只做輸入側 preconditioning，並用行乘列統計量分解 Adam 二階動差，在 124M 到 760M 的 LLM 預訓練上驗證損失與 SOAP、Muon 相當，優化器狀態是 SOAP 的一半，速度與 Muon 同級。</li>
+</ul>
+
+<h2>新聞與討論</h2>
+<ul>
+<li><b>美國 FAA 全國停飛 4 小時多，原因是 ATC 網路路由器過載</b>：<a href="https://www.nbcnews.com/news/us-news/faa-orders-nationwide-ground-stop-departing-flights-reasons-safety-rcna609247">NBC News</a> 報導，美東時間週五 15:54 FAA 下令全國出發航班停飛，20:15 解除，超過 7,000 班取消，專家估計 30 到 40 萬旅客受困。運輸部長 Duffy 說是數十年歷史的系統路由器過載，造成各地管制中心雷達與通訊不穩，國土安全部長表示沒有網攻跡象。上一次這種規模的全國停飛要追溯到 911。<a href="https://news.ycombinator.com/item?id=50489641">HN 討論</a>（1,500 分）裡有人引 CBS 說是連接各管制設施的私有網路更新軟體後重開機崩潰，並翻出 2009 年 DOT 稽核報告對 TDM 轉 IP 的風險警告；不過多數仍是推測，官方根因尚未公布。</li>
+<li><b>報導：Nvidia 疑似出資給 AI 新創，讓它們回頭買 GPU 製造稀缺</b>：TechPowerUp 的原文無法讀取；依 <a href="https://news.ycombinator.com/item?id=50493251">HN 討論</a> 中的整理，這是轉述 WSJ 關於黃仁勳卸任前後、暫代 CEO Colette Kress 質疑其投資交易的報導，屬於第三手消息，請以 WSJ 原文為準。留言兩派：一派認為 vendor financing 與電力不足顯示「稀缺」部分是人為的；另一派算出相關投資只佔營收約 8%，認為投資客戶是正常商業行為。</li>
+<li><b>ggml 發布 v1.0.0</b>：<a href="https://github.com/ggml-org/ggml/releases/tag/v1.0.0">release notes</a> 定位為清理與效能版本：移除舊的 DIAG_MASK API、加入可設定的 YaRN truncation 和 FP8，CUDA 有 OCP FP8 與 NVFP4 融合，Metal 有融合的 MoE routing，Vulkan、SYCL、OpenCL、WebGPU、Hexagon 都有新 kernel。1.0 對 API 穩定性的承諾，頁面上沒寫清楚。<a href="https://news.ycombinator.com/item?id=50493062">HN 討論</a></li>
+<li><b>Perplexity Decider v1.3：把 LLM 改成通用分類器</b>：<a href="https://www.perplexity.ai/hub/blog/perplexity-decider">官方部落格</a> 說明它從 Qwen3.8-27B 改造，從特殊 marker token 讀出各答案機率，用雙向 attention 並在數百個公開資料集上訓練；63 個 query 分類任務平均 91.6%，72 個檢索任務 nDCG@10 83.99，比 Qwen3-Reranker-8B 高 1.81。另有從 Qwen3.5-4B 蒸餾的 Flash 版，兩者都以 Apache 授權放上 Hugging Face。對做 VLM 評估或資料過濾的人，是現成的 judge／filter 選項。<a href="https://news.ycombinator.com/item?id=50488464">HN 討論</a></li>
+<li><b>Unsloth 更新 Qwen3.8-27B 量化（Dynamic v3.1）</b>：<a href="https://unsloth.ai/docs/models/qwen3.8">Unsloth 文件</a> 說 2 到 6 bit 量化改用新演算法，同尺寸準確度提升 5–10%；4-bit 約需 16–19 GB 記憶體。Qwen3.8-27B 本身相較 3.6 在 SWE-bench Pro 從 53.5 升到 61.7、DeepSWE 從 13.3 升到 42.2，上下文 262K。<a href="https://news.ycombinator.com/item?id=50491980">HN 討論</a></li>
+<li><b>Citizen Lab：多國安全機關使用廣告資料做的監控系統 Webloc</b>：<a href="https://citizenlab.ca/security-agencies-worldwide-found-to-use-ad-based-surveillance-system/">報告摘要</a> 指出 Penlink 的 Webloc 用廣告生態系的資料追蹤手機，已確認奧地利內政部是客戶，Bloomberg 另查到英、荷、德、墨、新加坡、沙烏地、阿聯和以色列；研究者說這類工具正從軍情單位一路下放到地方警察。<a href="https://news.ycombinator.com/item?id=50492950">HN 討論</a></li>
+<li><b>亞洲象的社會網路跨過臨界點後碎裂</b>：<a href="https://today.ucsd.edu/story/elephants-found-to-be-increasingly-isolated-leading-to-fractured-social-networks">UC San Diego</a> 報導登上 Science 封面的研究：追蹤斯里蘭卡 Udawalawe 國家公園超過 440 頭母象 12 年，死亡和遷出慢慢累積後，群體突然從大型緊密社群轉為小而鬆散的群組，而且一旦跨過臨界點可能難以恢復。做網路動態或群體行為建模的人會覺得這是很漂亮的長期資料集。<a href="https://news.ycombinator.com/item?id=50492860">HN 討論</a></li>
+</ul>
+</article>
+</body>
+</html>
