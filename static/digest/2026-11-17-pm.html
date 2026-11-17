@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 晚報｜2026-11-17（週二）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 晚報｜2026-11-17（週二）</h1>
+<p><b>今日導讀</b>：今晚的主軸是「模型到底知道多少世界」。一邊是把 552B 的 MoE 整個凍起來當 VLA backbone，結果大模型的表徵真的換來樣本效率；另一邊，DeepMind 的 Flip Test 發現十一個 video world model 幾乎都不會因為場景的關鍵狀態改變而改變預測。中間夾一篇把 3DGS 抽成乾淨三角網格的 TOG 論文，以及一串 world-action model 的新作。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. ScaleVLA：把 552B 的 MoE 凍起來當 VLA backbone</h3>
+<p><a href="https://arxiv.org/abs/2611.21607">arXiv:2611.21607</a>｜cs.RO｜清華、北大、上海交大、Galbot（王鶴、弋力等）｜HF Daily Papers 17 upvotes</p>
+<p><b>問題</b>：現在的 VLA 多半用小 VLM 當 backbone，例如 GR00T N1.7 用的是 2B 的 Cosmos-Reason2。這篇問一個直接的問題：frontier 等級的 VLM 表徵，能不能換來更好的樣本效率、泛化和精細操作？延遲又會差多少？</p>
+<p><b>方法</b>：backbone 是 552B 參數的稀疏 MoE（DeepSeek-V4.1-Flash），視覺與語言部分全部凍結。它只跑 20 層 causal encoder，在 encoder 與 decoder 的介面取 5120 維的 token 特徵，decoder 從頭到尾不跑，也不生成文字。action head 沿用 GR00T N1.7 的設計並隨機初始化：LayerNorm 加兩層投影到 2048 維，再接四層 self-attention 的 adapter；各 embodiment 有自己的 state/noisy action MLP 編碼器；主體是 32 層交錯 self-/cross-attention 的 action DiT，用 adaptive LayerNorm 注入 flow time。訓練只用 flow matching 的速度 MSE，backbone 特徵預先算好，只更新 action head（64 張 H200，batch 640）。推論每個 chunk 只跑一次 backbone、四步 flow。</p>
+<p><b>結果</b>：LIBERO 平均 96.1%，π0 是 94.2%；同樣 action head 換成 dense backbone，Cosmos-2B 為 90.7%、Cosmos-32B 為 94.0%。最亮眼的是樣本效率：LIBERO-Goal 每任務 10 條示範時 87.8% 對 Cosmos-2B 的 55.0%，後者要 50 條示範才到 85.6%；LIBERO-Long 只給 5 條時 62.2% 對 24.0%。LIBERO-PRO 平均 45.1%，最好的 dense backbone 是 31.3%。RoboCasa Gen-100 為 54.9%，其他 backbone 落在 42.8% 到 45.6%。延遲方面，四張 GPU 上每 chunk 中位數 215.8 ms，Cosmos-2B 單卡 114.7 ms：參數多約 276 倍，延遲只多 1.9 倍。真機雙臂插充電器任務，in-domain 10 次成功 9 次（π0.5 為 8 次），OOD 15 次成功 8 次（π0.5 為 7 次），插入時間 58.1 秒對 81.2 秒。</p>
+<p><b>限制與疑問</b>：需要四張 H200 才跑得動，部署成本不是一般實驗室負擔得起。每個設定只跑一個 seed，真機只有 10 加 15 次試驗，由操作員判定成功。作者自己也承認固定訓練步數不等於收斂，2B 模型多訓幾步還在進步，所以「大模型更省資料」的幅度可能被放大。DexJoCo 全隨機化下組裝任務所有方法都在 1.3% 以下。</p>
+<p><b>為什麼值得看</b>：這是目前把「凍結的超大 LLM 表徵」用在 VLA 上最乾淨的對照實驗：backbone 不微調、action head 相同，只換表徵來源。對做 VLA 的人，值得追問的是增益究竟來自參數量，還是來自 568 個 token 的更長上下文；另外，既然 decoder 不跑，能不能把 encoder 蒸餾到小模型，同時保住樣本效率？</p>
+
+<h3>2. The Flip Test：video world model 學到的不是世界狀態</h3>
+<p><a href="https://arxiv.org/abs/2611.19822">arXiv:2611.19822</a>｜cs.CV｜Google DeepMind（Ming-Hsuan Yang、Ed Chi 等）、UT Austin、UC Berkeley（Alex Dimakis）</p>
+<p><b>問題</b>：現有 world model benchmark 多半單獨評每段生成影片「看起來合不合理」。但一個模型可能對兩個真實未來相反的場景，產生一模一樣、同樣逼真的 rollout。例如箱子剛好超出桌緣幾毫米會掉、差幾毫米就不會。作者要測的是：當現在的微小改變翻轉了結局，模型的預測有沒有跟著翻轉？</p>
+<p><b>方法</b>：FlipTest 用 1,680 張初始影格，來自 10 個 MuJoCo 模擬任務和 15 個真實任務，涵蓋靜力與傾倒、尺寸與卡合、摩擦與滾動、碰撞、拋體、流體六類，每個場景的結局由一個 margin m(s) 是否跨過零決定。分三層：Level 1 是 300 組 visual minimal pair，兩張都對才算對；Level 2 在 −3δ、−δ、+δ、+3δ 四點取樣，只有中間一步跨界，用 selective sensitivity（跨界翻轉率減同側翻轉率）衡量；Level 3 在邊界附近密集掃描 30 個狀態，畫出反應曲線對照理想的階梯函數。評測 11 個模型，包括 Gemini Omni Flash 1.1、Wan2.2、HunyuanVideo-1.5、Cosmos3 系列、VPP2 等，共兩萬一千多段 rollout，由兩個 Gemini Flash 判讀，兩者都同意才算正確。</p>
+<p><b>結果</b>：Level 1 的 pair accuracy 只有 5.7% 到 18.3%，最好的 Gemini Omni Flash 1.1 也低於 25% 的隨機水準；模擬場景沒有任何模型超過 5.3%。主因是 mode collapse：72% 的真實 pair、89% 的模擬 pair，兩張圖的預測完全相同。Level 2 所有影片模型的 selective sensitivity 都在 −0.07 到 +0.07，信賴區間包含零；同一題 VLM（Gemini 3.6 Flash）是 +0.46。關鍵對照：把正確結局寫進 prompt，Gemini Omni Flash 1.1 從 18.3% 跳到 73.7%。也就是說，模型會「演」，但不會「推」。讓 Gemini 4 Argon 寫 Python 量測影像的 agent，在真實 pair 上達 93.3%，掃描題超過 99%。</p>
+<p><b>限制與疑問</b>：Level 2 與 3 只用模擬任務；每張影格只跑一段 rollout；判讀依賴 VLM，人工標註一致率約 79%。真實場景部分含反事實編輯與擺拍，可能帶有和自然影片不同的視覺線索。作者提出的出路是「agent 估狀態、模擬器算結果、影片模型負責渲染」，這其實等於承認目前的 video model 不適合直接當 planner。</p>
+<p><b>為什麼值得看</b>：對拿 video model 當 robot world model 或做 policy evaluation 的人，這是很直接的警訊：逼真不代表條件敏感。這套 minimal-pair 加 margin sweep 的設計很容易搬到自己的任務上，例如抓取前後的接觸狀態。另一個值得做的方向是：訓練時刻意加入這種跨界成對樣本，看能不能逼出對狀態敏感的表徵。</p>
+
+<h3>3. TopSDF：讓 3DGS 抽出來的網格不再有爛三角形</h3>
+<p><a href="https://arxiv.org/abs/2611.18708">arXiv:2611.18708</a>｜cs.CV｜Trinity College Dublin、Cardiff University（Binh-Son Hua、Yu-Kun Lai）｜標示為 TOG 2026</p>
+<p><b>問題</b>：從 3DGS 抽出乾淨、水密的三角網格仍然很難。現有方法（Gaussian Opacity Fields、MILo 等）在四面體網格的每個頂點只存一個 SDF 純量，共用頂點在銳角和薄結構處互相拉扯，作者稱為 geometric frustration；目標函數也不管三角形形狀，因此容易產生退化三角形。</p>
+<p><b>方法</b>：把四面體頂點上的 SDF 建模為多變量 Gaussian random field，用可學的共變異數表達頂點間的拓撲相關。透過 RKHS 與 Representer Theorem 得到閉式解：h*(x) 等於一個可學的偏移，加上四個頂點 SDF 的加權和，權重是學出來的座標映射內積再過 sigmoid，所以不需要內層迭代。自由度從每個四面體 4 個提高到 20 個。流程是每個 Gaussian 學一個法向量，在兩側放 pivot，對 pivot 做 Delaunay 四面體化，再用 Marching Tetrahedra 抽網格並可微分光柵化回來監督 Gaussian。損失包含 SSIM 與 LPIPS 的新視角損失、Gaussian 與網格間的法向與深度對齊，加上 Optimal Delaunay Triangulation 的局部網格能量和全域體積能量；densification 也改用 ODT 能量來挑要分裂的 Gaussian。</p>
+<p><b>結果</b>：Mip-NeRF 360 上以網格做新視角合成，PSNR 25.96，Gaussian Wrapping（GW）25.10、MILo 25.07、GOF 24.25，訓練 50 分鐘，MILo 要 150 分鐘。Tanks &amp; Temples 表面重建平均 F1 為 0.55，CoMe 0.52、GW 0.48、MILo 0.34。平均三角形品質從 GW 的 0.46 提升到 0.62；GW 加上 isotropic remeshing 雖可到 0.60，但多花約 20 分鐘，頂點數也膨脹到 2432 萬。</p>
+<p><b>限制與疑問</b>：Mip-NeRF 360 上頂點數是 MILo 的將近兩倍（1182 萬對 673 萬），也比 GW 多訓練 20 分鐘。ScanNet++ 上只比 GW 高 0.01；前景重建平均 F1 為 0.50，略輸 PGSR 和 TopoSurfel 的 0.52。文中和表格的微調數字（25.75 對 25.52）也對不上。</p>
+<p><b>為什麼值得看</b>：網格品質直接影響下游模擬、物理與機器人碰撞檢查，「三角形好不好」常被重建論文忽略。這個閉式 Gaussian random field SDF 宣稱可隨插即用，論文也示範套在 GW 和 CoMe 上微調 1,000 步就能提升，很適合拿來當自己 3DGS pipeline 的後處理模組。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>ResWAM：world-action model 只學「會變的部分」</h3>
+<p><a href="https://arxiv.org/abs/2611.19559">arXiv:2611.19559</a>｜Jason Corso、Sijia Liu 等。作者指出 action chunk 內畫面變化很小，監督完整未來影格等於在學複製背景，所以改成只監督凍結 DINOv3 空間中「現在到未來」的特徵殘差，注意力自然集中在手臂和物體上。整體 2.3B、其中 0.5B 的雙分支 DiT，不用額外 robot 預訓練，在 LIBERO-Plus 81.1%、RoboTwin 2.0 93.8%，真機三項任務平均 80.0%，比 π0.5 高 10 個百分點，延遲 92.7 ms。</p>
+
+<h3>JEPA4R：在點雲 latent 空間裡做規劃的 JEPA world model</h3>
+<p><a href="https://arxiv.org/abs/2611.19771">arXiv:2611.19771</a>。輸入改成單一深度相機的點雲，預測與規劃都在其 latent 空間進行，policy head 接在凍結的 latent 上。另外訓了一個 decoder 把「想像」解回 4D 點雲，200 步內平均點誤差在 1.1 cm 以內。MetaWorld 98.4%、Adroit Relocate 88.0%，第二名 R3M 分別為 96.0% 與 65.3%；只在 digital twin 訓練就能 zero-shot 上真機，夾爪和靈巧手都可以。</p>
+
+<h3>Ego2Sim2Humanoid：用眼鏡錄的第一人稱影片，教 G1 做 loco-manipulation</h3>
+<p><a href="https://arxiv.org/abs/2611.19196">arXiv:2611.19196</a>｜Chen Liu、Nikolaus Correll。Agentic real-to-sim 從眼鏡的 RGB-D 與頭部軌跡重建碰撞與貼圖資產，預測物體上的接觸帶，再用抓取規劃、站位最佳化、全身運動生成與 RL tracking 轉成物理上驗證過的機器人軌跡，並從機器人視角重新渲染。GR00T N1.7 只用這份轉換資料微調，沒有任何真機示範，就能在 Unitree G1 上自主完成任務。</p>
+
+<h3>MovieRoll：串流影片生成拉到 60 秒</h3>
+<p><a href="https://arxiv.org/abs/2611.21339">arXiv:2611.21339</a>｜Li Yuan、Qi Tian 等。把 window-wise teacher forcing、分層 KV-cache 壓縮（淺層留全部歷史、深層只留 sink 加近期，記憶體最多省 78%）、以及長 rollout 的 DMD 蒸餾串成一套流程，訓練時固定參數走完整段 self-rollout 再平均梯度。只用 15 秒影片訓練，Base 版在 30 秒仍有競爭力，蒸餾版在 HeliosBench 60 秒單事件與多事件評測總分都最高。</p>
+
+<h3>PanDWM：把六路相機拼成一條 360° 全景帶的駕駛 world model</h3>
+<p><a href="https://arxiv.org/abs/2611.19857">arXiv:2611.19857</a>。與其讓模型學六個針孔相機之間的一致性，不如把它們拼成一張全景帶，一致性就變成影像連續性。causal student 四步生成每個視窗，再由 feed-forward decoder 沿相機射線把每幀抬成 3D Gaussian，合成 4D 場景。nuScenes 上 FID、FVD 都低於多相機基線，速度快 8 到 46 倍。</p>
+
+<h3>沒有 LiDAR 的手機也能做共享 AR</h3>
+<p><a href="https://arxiv.org/abs/2611.18679">arXiv:2611.18679</a>。用 MoGe-2 從每幀預測 metric point map，再對齊尺度、存進會過期的 voxel map，多台裝置靠互相看到對方來解共同座標系。這是一篇少見的真實部署報告：309 個無 LiDAR session 中，80% 在 10 秒內拿到第一張稠密深度，ARKit 同時間只有 25% 偵測到牆面。剩下的主要問題是逐幀尺度漂移，相鄰幀中位數變化 9%，LiDAR 只有 0.4%。</p>
+
+<h3>Refinement vs. Replanning：VLA 的推論算力該花在哪</h3>
+<p><a href="https://arxiv.org/abs/2611.19034">arXiv:2611.19034</a>。固定一個 SmolVLA，在 LIBERO 上比較「多跑幾步 denoising」和「更常重新規劃」。執行 2 步就重規劃時，denoising 2 步成功 139/160，5 步反而只有 122/160，算術量還少 5.9%。實驗設計刻意區分事前指定與事後觀察的比較，方法論本身也值得參考。</p>
+
+<h2>新聞與討論</h2>
+
+<h3>CMU 把資工課程免費放上 YouTube</h3>
+<p><a href="https://www.cs.cmu.edu/learn/">CMU CS Learn</a> 推出完整課堂錄影，本週陸續上線：Tianqi Chen 與 Zhihao Jia 的 15-442 Machine Learning Systems（今天首播）、Daniel Fried 與 Graham Neubig 的 11-768 AI Agents（11/19）、Kästner 的 Machine Learning in Production 等；2027 年 1 月還有 Morency 的 11-777 Multimodal Machine Learning 與 Harchol-Balter 的 Probability and Computing。之後會推出可拿 badge 的自學教材和 AI 助教。這則以 1,500 分登上 HN 首頁第一。<a href="https://news.ycombinator.com/item?id=50522980">HN 討論</a></p>
+
+<h3>Optimizely 被入侵，Zoom、BBC、GitLab 等 178 家網站一天內送出惡意程式</h3>
+<p>根據 <a href="https://blog.report-uri.com/worlds-largest-brands-infected-with-malware-via-optimizely/">Report URI 的分析</a>，攻擊者在 11/16 改寫了客戶可編輯的「Project JavaScript」，透過 Optimizely 自己的 CDN 送出。惡意碼會替換加密貨幣地址、側錄信用卡欄位、在付款頁截圖偷 cookie，還對 iPhone 載入 iOS exploit kit。payload 一天內改版 26 次，入侵途徑仍不明。作者建議嚴格的 CSP，並提醒 <b>strict-dynamic</b> 會連帶信任 snippet 插入的腳本。HN 留言的重點是：行銷團隊用 tag manager 繞過工程審查才是根源，而且 SRI 保護不了天天在變的第三方腳本。<a href="https://news.ycombinator.com/item?id=50524767">HN 討論</a></p>
+
+<h3>Windows 11 在記錄你用哪些 coding agent</h3>
+<p><a href="https://xusheng.dev/posts/windows-coding-agent-telemetry/">作者逆向</a> DiagTrack 底下的 MissionControlAggregator.dll，發現它會以 bitmap 回報是否執行過 claude.exe、codex.exe、cursor.exe、copilot.exe 等 coding agent（含 WSL 版本），以及 node、python、gcc 等開發工具。不含 prompt 或程式碼，屬於「選用診斷資料」。把 cmd.exe 改名成 codex.exe 就能觸發對應的位元，可在設定的「診斷與意見反應」關閉。HN 討論後來大多轉向「現在換 Linux 的障礙還剩什麼」，答案多半是遊戲的 kernel anti-cheat 和專業軟體。<a href="https://news.ycombinator.com/item?id=50524736">HN 討論</a></p>
+
+<h3>Microsoft 365 信箱斷線一天，元凶是七月就埋下的 bug</h3>
+<p><a href="https://www.theregister.com/saas/2026/11/16/microsoft-blames-monster-email-outage-on-software-defect-introduced-in-july-fix/5310026">The Register 報導</a>，11/12 起 Exchange Online 停擺約一天。七月部署到網路閘道的修改在 Windows 內部程序造成 lock contention，壓力測試只在核心數較少的舊硬體上做，所以沒被抓到；等到 Teams failover 加上 14% 閘道容量離線，問題連鎖擴散，最糟時超過 80% 伺服器沒有回應。因為 bug 已經存在好幾個月，無法直接 rollback，只能另寫更新把該段程式恢復原狀。這是一個「測試硬體不具代表性」的典型教訓。<a href="https://news.ycombinator.com/item?id=50517321">HN 討論</a></p>
+
+<h3>讓 coding agent 用你的憑證，但不把憑證交給它</h3>
+<p><a href="https://blog.antonio.cx/running-agents-with-lend">lend</a> 是作者為遠端 VM 上的 agent 寫的工具：VM 拿到的是轉發的 socket，而不是真正的 SSH agent。需要簽章、執行 gh 或讀 1Password 祕密時，請求會回到筆電，經 default-deny 政策檢查後用 Touch ID 核准，祕密只注入那一條被核准的指令。作者也誠實列出漏洞：一旦核准 shell 或直譯器，就等於核准任何東西。跟 Windows 那則放在一起看，可以感受到 agent 正在變成作業系統層級要處理的身分問題。<a href="https://news.ycombinator.com/item?id=50526152">HN 討論</a></p>
+
+<h3>化學其實是幾何</h3>
+<p><a href="https://chillphysicsenjoyer.substack.com/p/chemistry-is-actually-geometry">這篇長文</a> 介紹 chemical reaction network theory：不靠一堆擬合出來的速率常數，只用反應向量、化學計量子空間與網路結構，就能預測系統的定性行為。核心是 deficiency zero theorem：弱可逆且 deficiency 為零的網路，在 mass action 下每個相容類恰有一個漸近穩定的正平衡點。文中用 Belousov–Zhabotinsky 振盪器和 Michaelis–Menten 當例子。做 dynamics 或 RL 的人會覺得很親切：先看結構能排除哪些行為，再去調參數。<a href="https://news.ycombinator.com/item?id=50522643">HN 討論</a></p>
+</article>
+</body>
+</html>
