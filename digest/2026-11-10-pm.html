@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 晚報｜2026-11-10（週二）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 晚報｜2026-11-10（週二）</h1>
+<p><b>今日導讀</b>：今晚的主題是「機器人該把什麼當成輸入」。LingBot-Touch 用 5,000 小時觸覺資料訓練出跨感測器的觸覺 encoder，另一篇同日論文則說手指上的觸覺陣列可以取代 wrist camera；Stanford 的 VLA 研究提醒我們，比較模型時要看「幾筆示範能學會」，而不只是 full-data 成績；NUS 的 ObjectWorld 則把 world model 的輸出換成整個物體表面的 3D flow。新聞方面，Amazon 用小型決策模型取代 Sonnet 做工單分類，Notion 因 AI 供應商 Fireworks 遭入侵而外洩部分 AI 對話。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. LingBot-Touch：一個 encoder 吃下三種觸覺感測器</h3>
+<p><a href="https://arxiv.org/abs/2611.12806">arXiv:2611.12806</a>｜cs.RO｜Robbyant（HF Daily Papers 今日最高，81 upvotes）｜程式與 Tiny/Small checkpoint 預計公開</p>
+<p><b>問題</b>：觸覺一直沒有像視覺一樣 scale 起來，作者歸結為三個缺口：沒有共同輸入格式（piezoresistive、magnetic、visuotactile 的通道、解析度、取樣率都不同）、沒有大型語料、也沒有公認的訓練配方。但「指尖壓在邊緣上」這件事本身與感測器無關，所以只要把感測器特有的物理拿掉，表示法就能共用。</p>
+<p><b>方法</b>：資料是 4,983 小時、464K episodes、1.33B frames，約三分之二來自人戴觸覺手套的第一人稱錄製（piezoresistive 2,197 小時、magnetic 1,136 小時），三分之一來自 Sharpa Wave 靈巧手的遙操作（visuotactile 1,650 小時），橫跨 24 類任務，只有 episode 層級的類別標註。每顆 taxel 被映射到一個「canonical fingertip space」，得到 (時間, 手指, 3D 位置) 的五維位址，只透過 5D RoPE 進入模型，因此不需要固定 token 數或感測器專屬的位置表。三種感測器各有一個兩層 MLP tokenizer（每個 token 是單一 taxel 的連續兩幀），後面共用 Haptic Transformer。訓練目標是 Tactile-JEPA：在 latent space 預測被遮住 taxel 的表示，遮罩在整段 clip 中固定，最終遮 80%，但前 300 步從 40% 線性升上去，否則常整段 clip 看不到接觸而梯度爆炸。另外做 layout augmentation：多種取樣密度，加上不超過最近鄰距離一半的 taxel 位置擾動，避免模型背下三種固定排列。</p>
+<p><b>結果</b>：凍結 encoder 只訓練 attentive probe。在預訓練看過的 Sharpa Wave 上，指尖力誤差 0.81 N（FTP-1 加 sensor-specific adapter 為 2.31 N），接觸中心 0.12 mm 對 2.19 mm，觸覺到影片的 top-5 retrieval 從 16.5% 升到 72.6%；在預訓練沒看過的 XHand1 磁性感測器上，五項 probing 也全部勝過 FTP-1。下游部分，26 個真實雙臂任務、每任務 20 次試驗，加上凍結的 5.46M 參數 Tiny encoder 後，Diffusion Policy 從 21.6% 到 35.6%，π0.5 從 48.1% 到 69.9%，LingBot-VLA 從 48.3% 到 73.1%，T-Rex 從 45.4% 到 68.6%；直接餵原始觸覺訊號的增益最多約一半。模擬中 12 個 PPO 任務成功率 69%，task-specific CNN 為 46%，無觸覺 21%。重建式目標（VAE）資料越多反而越差。</p>
+<p><b>限制與疑問</b>：作者承認手的種類還不夠多、沒有 capacitive 感測器，而且只涵蓋指尖，手掌與指節的接觸沒有被表示。真實實驗的 baseline 都是同一組 200～500 筆示範，raw tactile 版本的融合方式是否已經調到最好，值得追問。</p>
+<p><b>為什麼值得看</b>：這是「觸覺 foundation model」第一次在資料量上接近能談 scaling 的規模，而且 token 能直接插進 π0.5 這類 VLA，參數只多 0.15%。對做靈巧操作的人來說，canonical fingertip space 加 RoPE 的設計可以直接借來處理任意新感測器；也可以想想同樣的思路能否把手掌、手臂皮膚一起納入。</p>
+
+<h3>2. How Many Demonstrations Does a VLA Need?：full-data 成績會掩蓋 3 倍的差距</h3>
+<p><a href="https://arxiv.org/abs/2611.09964">arXiv:2611.09964</a>｜cs.CV｜Stanford University、Cal Poly</p>
+<p><b>問題</b>：VLA 實際部署前幾乎都要在目標場景 post-train，但論文比較模型時只報 zero-shot 或用完整資料 fine-tune 的成功率，兩者都量不到「適應的成本」。在 LIBERO-Spatial 上，六個模型中有五個 full-data 成績擠在 97～99%，但只給 50 筆示範時卻分布在 31～94%。</p>
+<p><b>方法</b>：純粹的大規模測量。六個模型：openpi 的 π0、π0.5，以及 GR00T N1、N1.5、N1.6、N1.7，全參數 fine-tune；四個 LIBERO suite（Spatial、Object、Goal、Long）；示範數從 5 筆起跳（整個 suite 合計，不是每個任務）且小預算是大預算的子集；有效 batch size 一律 48，讓 step 數可以直接比較運算量。共 120 次 fine-tune、近 1,400 個 checkpoint、超過 55 萬個模擬 episode。另做兩個診斷：凍結 VLM 只訓練 action head，以及檢查 held-out action MSE 能否代替閉環評估。</p>
+<p><b>結果</b>：π0.5 在每個 suite、每個預算都勝過 π0，需要的示範少 2～5 倍：Spatial 上 π0.5 用 25 筆（75.0%）勝過 π0 用 50 筆（63.0%）；Long 上 π0.5 用 25 筆（63.5%）就勝過 π0 用 100 筆（49.8%）。GR00T 家族中，零樣本更強、action head 更大的 N1.6、N1.7，在 Spatial/Object/Goal 的每個預算都輸給 N1.5（25 筆時 N1.5 為 44.8%、46.5%、35.8%，新版為 4.5～27.5%），只有 Long 例外。凍結 VLM 讓 π 系列在 Long 從 85%（π0）和 98%（π0.5）掉到 30% 和 47%，GR00T 則變動不超過 6 點，作者對應到兩家預訓練時是否一起訓練 VLM。validation loss 在同一 suite 內能排出正確順序（75 對中 70 對），但 1.25 倍的 loss 差距可能對應 12.0% 對 71.0% 的成功率。</p>
+<p><b>限制與疑問</b>：全部在 LIBERO 模擬，沒有真機；GR00T 部分預算因算力不足還沒跑完；兩個家族的學習率排程不同，跨家族比較只能當參考；每個設定只有一個 seed。</p>
+<p><b>為什麼值得看</b>：如果你在實驗室挑一個 VLA 來收自己的資料，這篇給了很實際的答案：π0.5 是最省示範的起點，只能更新 action head 的話則該選 GR00T。也建議以後的 VLA 論文報「成功率對示範數」的曲線，這很適合直接加進自己的 benchmark。</p>
+
+<h3>3. ObjectWorld：world model 不預測像素，改預測整個物體表面的 3D 軌跡</h3>
+<p><a href="https://arxiv.org/abs/2611.11085">arXiv:2611.11085</a>｜cs.RO｜National University of Singapore、RoboScience（Lin Shao 團隊）</p>
+<p><b>問題</b>：world model 要能拿來控制機器人，需要一個既能大規模監督、又能直接轉成動作的中間表示。影片太間接，keypoint 太稀疏，6-DoF pose 無法描述形變，現有 object flow 只涵蓋看得到的表面。</p>
+<p><b>方法</b>：提出 3D full-object flow，替重建出的完整物體表面上每個點給出一條 3D 軌跡，包含被遮住的部分，剛體與可形變物體都適用。標註管線不需要機器人動作、深度、相機校正或事先掃描的 mesh：Gemini 2.5 Pro 找目標物、寫任務描述並切出單次接觸的片段，Track4World（Depth Anything 3）估相機與點雲，SeC 傳播 mask，SAM 3D 重建完整 mesh，Any6D 與 FoundationPose 估計並追蹤 pose，再把 mesh 上取樣的點轉到各時刻。用投影 IoU 過濾品質。資料共 1,210.1 小時：454.5 小時來自七個模擬資料集（ManiSkill 3、RoboTwin 2.0、MetaFold 等），755.6 小時來自 AgiBot World、Something-Something V2、EPIC-KITCHENS。模型以 Qwen2.5-VL 取圖文特徵、PTv3 編碼物體與場景點雲，用 x-prediction 的 flow matching 一次產生所有未來幀；執行時用接觸區域的局部剛性假設，以 IRLS 加權 Kabsch 把 flow 轉成末端執行器軌跡。</p>
+<p><b>結果</b>：在 RoboTwin 上對照模擬真值，標註成功率 98.0%，最終 flow EPE 3.71 cm。預測方面，全幀 EPE 6.22 cm、最終幀 11.17 cm，勝過 ObjectForesight（10.24 / 21.18）、TraceGen 與 im2Flow2Act；物體幾何加 2 cm 雜訊幾乎不影響。執行上，ManiSkill/LIBERO 四個任務拿到 10/10、10/10、9/10、10/10（TraceGen 與 ObjectForesight 介於 4～7/10），真機四個任務共 18/20，Dream2Flow 為 14/20。</p>
+<p><b>限制與疑問</b>：真機每個任務只有 5 次試驗；模擬成功的判準是軌跡和真值的吻合度，不是任務本身完成；整條管線串了六、七個 foundation model，錯誤會一路累積，經過 Golden gate 過濾後真實資料只剩 288.7 小時。</p>
+<p><b>為什麼值得看</b>：這是把 3D 重建工具鏈（SAM 3D、FoundationPose、DA3）變成 world model 資料引擎的完整示範。做 3D vision 的人可以想想怎麼把 Gaussian splatting 或 4D 重建接進這條管線，讓形變物體的 flow 更準；做 policy 的人則可以把 full-object flow 當成 VLA 的 subgoal。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>Tactile Sensors Are an Effective Substitute for Wrist Cameras</h3>
+<p><a href="https://arxiv.org/abs/2611.10490">arXiv:2611.10490</a>｜Aijia Yang、Sergey Zakharov、Krishna Murthy Jatavallabhula 等。在 ACT policy 裡加兩片低成本觸覺陣列、完全不用 wrist camera。三個接觸密集任務中，加 wrist camera 讓成功率提升 18.3～28.3 個百分點，改加觸覺則提升 31.7～60.0 點，而且三個任務都比有 wrist camera 的純視覺 policy 更好。可以和上面的 LingBot-Touch 一起讀。</p>
+
+<h3>BAT-WAM：在 world-action model 裡把動作和觸覺接起來</h3>
+<p><a href="https://arxiv.org/abs/2611.10967">arXiv:2611.10967</a>｜Dong Fang、Xiaosong Jia、Yu-Gang Jiang 等。觀察到手部狀態與觸覺高度相關，為觸覺與動作分別學 codebook，再用一個以 RGB 為條件的連續 latent bridge 雙向連接。在 HTBench 上，觸覺完全被遮住時重建 RMSE 比 HandTouch 低 34.73%，未來觸覺預測比 OpenWAM 低 85.56%，真機靈巧操作也勝過其他 WAM。</p>
+
+<h3>DreamVLA：用生成的人體動作教 humanoid VLA</h3>
+<p><a href="https://arxiv.org/abs/2611.10872">arXiv:2611.10872</a>｜UC Berkeley（Shankar Sastry）。先生成人體動作軌跡，用它引導模擬中的 RL 產生可執行軌跡，再拿這些軌跡訓練 VLA，不需要新的遙操作資料。核心是 reference-conditioned DAgger：learner 失敗後，從它當下的狀態重新啟動 RL expert，收集修正軌跡。任務包括從平台拿物、開抽屜、按按鈕，以及走過去再拿。</p>
+
+<h3>WorldFoundry：給 world model 一套統一的推論與評測基礎設施</h3>
+<p><a href="https://arxiv.org/abs/2611.10771">arXiv:2611.10771</a>｜作者含 Ming-Hsuan Yang、Felix Heide、Enze Xie 等（HF 38 upvotes）。先定義「生成式 world model」必須有持續狀態、能回應動作、能做反事實預測，再提供涵蓋影片、3D/4D、embodied 與互動系統的開源框架，目錄收錄 270 個模型、74 個 benchmark、62 種 metric，並把「能跑」與「評測宣稱」分開記錄。如果你要比較一堆 world model，這可能省下很多搭環境的時間。</p>
+
+<h3>JoVox：一起生成整個 voxel 階層</h3>
+<p><a href="https://arxiv.org/abs/2611.10690">arXiv:2611.10690</a>｜KAUST（Peter Wonka）。階層式 voxel 生成的問題是粗層級最早決定、資訊最少、之後也不會修正。JoVox 用 discrete flow matching 學所有層級的聯合分布，一次預測兩層，並在細層生成後回頭修正早期的決定。和 TRELLIS.2 相比，訓練吞吐量高 8 倍、forward FLOPs 只有 1/15、用 4 張 GPU 對 32 張，Chamfer distance 還低 11%。</p>
+
+<h3>WARC：world model 需要看幾次才學會新遊戲規則？</h3>
+<p><a href="https://arxiv.org/abs/2611.12324">arXiv:2611.12324</a>｜Third Intelligence。在 ARC-AGI-3 上標了 20 個遊戲裡的 69 種機制，訓練一個 35M 參數的 ViT world model，每次轉移後更新所有參數。在沒看過的遊戲上，五分之四的機制能在受影響的 cell 上達到 80% 準確率，一半在約 80 次接觸內學會；不做 test-time update 則只有七分之一能學會。搭配圖探索器後，官方效率分數從 0.15 提升到 0.46。</p>
+
+<h3>RigidGS：把物體身分與幾何解耦的 object-aware 3DGS</h3>
+<p><a href="https://arxiv.org/abs/2611.10199">arXiv:2611.10199</a>｜先修正 SAM2 在細結構與深度多峰物體上的 mask 錯誤，再用 COLMAP 投影投票在上游決定每個 Gaussian 屬於哪個物體並凍結，讓 mask 監督只用來優化幾何。在 LLFF/NVOS 上分割 IoU 與 boundary IoU 分別提升 7.7 與 14.5 點，並能在 Meta Quest 2 上即時操作剛體，不需要先抽出 mesh。</p>
+
+<h3>From Video to Digital Twin：拿一段新聞影片做倉庫的數位分身</h3>
+<p><a href="https://arxiv.org/abs/2611.10013">arXiv:2611.10013</a>｜一篇誠實的探索報告。只用一段公開的食物銀行倉庫導覽影片，商用 world model 用 20 幀恢復出三個區域的相機與 metric depth，融合成約 74.7 萬個 splat，花費 20 美分；本地優化的 splat 在 held-out 幀上有 21.2～23.1 dB PSNR，但只給 8 幀時掉 3.8～5.4 dB；請 world model 生成沒拍到的區域則兩次都在供應商端失敗。附帶如何轉成 OpenUSD 的細節。</p>
+
+<h2>新聞與討論</h2>
+
+<h3>Amazon 用 Strands Decider 取代 Sonnet 4.6 做工單分類</h3>
+<p><a href="https://strandsagents.com/blog/amazon-saves-millions-replacing-sonnet-with-strands-decider/">Strands 部落格</a>：兩位 Amazon 工程師把內部工單系統的 20 類標籤分類，從 Sonnet 4.6 換成 Strands Decider（一個只輸出各選項機率與信心分數的決策模型，用 Gemma 4 E4B 版本，跑在單張 A10G 上）。每筆延遲從 4,215 ms 降到 897 ms，每百萬筆成本從約 22,200 美元降到約 500 美元，便宜約 44 倍。一個實用細節：JSON key 的順序會讓輸出機率變動達 0.19，所以他們改成固定排序。<a href="https://news.ycombinator.com/item?id=50436640">HN 討論</a>中不少人指出這篇像產品宣傳，也問為什麼不先換 Haiku，或乾脆用 BERT/SVM 這類傳統分類器。</p>
+
+<h3>Notion 的 AI 供應商 Fireworks AI 遭入侵，部分 AI 對話外洩</h3>
+<p><a href="https://www.notion.com/help/security-incident-involving-a-third-party-ai-vendor">Notion 公告</a>：Notion 用 Fireworks 做 Insights 功能的分類工作，也透過它跑 open-weight 模型。Fireworks 在 11 月 6 日通知可能有人存取資料，11 月 8 日確認範圍：部分用於 Insights 的 Notion AI 對話紀錄可能外洩，沒有標註作者或 workspace，影響少於 1% 的 workspace。Notion 已停用 Insights，並要求曾在 Notion AI 貼上密碼或 API key 的人立刻 rotate。這提醒我們，把資料交給 AI 產品時，資料也會流到一連串推論供應商。<a href="https://news.ycombinator.com/item?id=50437106">HN 討論</a></p>
+
+<h3>CoreWeave 債券殖利率突破 16%，AI 信用壓力升高</h3>
+<p><a href="https://www.cnbc.com/2026/11/06/coreweave-bond-yield-tops-16percent-as-ai-credit-stress-rises.html">CNBC</a>：CoreWeave 2032 年到期、票面 9.625% 的債券殖利率超過 16%，五年期 CDS 一度超過 1,289 bps；Nvidia 的 CDS 一個月上升 76%（約 139 bps）。原因之一是俄亥俄、德州、喬治亞新選出的民主黨州長可能推動資料中心暫停令，Goldman 估計可能影響 45% 的美國規劃容量。Goldman 也指出 hyperscaler 整體在 Q3 的自由現金流為負。對要租 GPU 的研究者來說，算力價格未必會一路往下。<a href="https://news.ycombinator.com/item?id=50435660">HN 討論</a></p>
+
+<h3>Simon Willison 用五台裝置三角定位一個神祕的嗶聲</h3>
+<p><a href="https://simonwillison.net/2026/Nov/9/mysterious-beeps/">原文</a>：搬家後滿是紙箱的房間裡不時傳出嗶聲。他讓 Claude Code 寫了一個「Beep Locator」：兩台 iPad、手機、MacBook 和 Surface 透過瀏覽器 WebSocket 連到 Python 伺服器，各自用 FFT 偵測嗶聲，再播放 chirp 對齊時間並三角定位，方法參考 2007 年的 BeepBeep 聲學測距論文。最後誤差約 40 cm，找到一個需要換電池的舊一氧化碳偵測器。<a href="https://news.ycombinator.com/item?id=50434310">HN 討論</a>中有人解釋純音很難用耳朵定位，因為兩耳之間沒有可以對齊的波形特徵，寬頻雜訊反而容易得多。</p>
+
+<h3>用 AI agent 在 Lean 裡形式化 CPython</h3>
+<p><a href="https://broyojo.com/python-formalization/">專案頁</a>：從 10 月 29 日開始，agent 逐行把 CPython 3.15.2 的 C 函式改寫成 Lean，和真正的 Python 對拍至少 5 萬組輸入，再證明性質，最後由另一個 agent 審查並試圖找漏洞。目前 26,004 個函式中有 4,071 個通過，產出 61 萬行 Lean、18,898 個定理，並回報了 418 個 CPython bug，其中約 55 個可以用一般 Python 程式讓直譯器 crash 或破壞記憶體。作者也坦白，早期很多證明是 trivially true 的。<a href="https://news.ycombinator.com/item?id=50435105">HN 討論</a></p>
+
+<h3>USPS 開始提供官方 ZIP Code 邊界多邊形</h3>
+<p><a href="https://postalpro.usps.com/zcb">USPS PostalPro</a>：ZIP Code 原本是投遞路線而不是面積，過去大家用的多半是人口普查局近似出來的 ZCTA。現在 USPS 依自己的投遞地址資料推出官方邊界，有 GeoJSON 範例，分內部、企業、出版三種授權，每季更新；價格要看授權文件。<a href="https://news.ycombinator.com/item?id=50431058">HN 討論</a>（619 points）很熱烈，做地理資料或都市分析的人可以看看。</p>
+</article>
+</body>
+</html>

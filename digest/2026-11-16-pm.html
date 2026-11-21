@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 晚報｜2026-11-16（週一）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 晚報｜2026-11-16（週一）</h1>
+<p><b>今日導讀</b>：週一的 arXiv 新列表出來了，今晚的主線是「把 agent 接到真實的控制迴路」：米哈遊讓一個 8B VLM 用鍵盤滑鼠玩完《崩壞：星穹鐵道》的長支線，TeleAI 讓 coding agent 從一張照片搭出能受力、會變形的物理場景再交給影片模型渲染。另一條線是「少一點模組」：JVT 不用 VAE、不用 skip connection，直接在像素空間做影片 diffusion。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. Gamer：用鍵盤滑鼠玩 3D 遊戲的 generalist VLA，從預訓練一路做到即時 RL</h3>
+<p><a href="https://arxiv.org/abs/2611.18397">arXiv:2611.18397</a>｜cs.AI / cs.CV｜米哈遊 Honkai AI R&amp;D Team｜HF 61 upvotes</p>
+<p><b>問題</b>：多數遊戲 agent 依賴遊戲內部狀態或特製 API，換一款遊戲就不能用；而即時遊戲裡，推論延遲會讓動作在送出時已經過時，也會拖垮 online RL。作者想做一個只看像素、只用標準鍵盤滑鼠介面的通用 agent。</p>
+<p><b>方法</b>：以 Qwen3-VL-8B 為主幹。每 200 ms 取一張畫面（5 Hz），每個區間切成六個約 33 ms 的鍵鼠區塊，等效約 30 Hz 的動作率；動作直接序列化成文字，不加額外 head。訓練分三段：(1) continued pre-training，用 VPT、D2E、OpenP2P 等約 2.4K 小時遊戲資料，混入 15% 一般 VL 資料；加上「每條軌跡隨機重映射按鍵」避免記住鍵位，以及因為超過 85% 的步驟只是重複上一個動作，對重複動作的 loss 乘上 0.9 的次方衰減。(2) SFT，用約 1K 小時精選的星穹鐵道軌跡，條件分成操作、子目標、任務三層，並且只在決策點才產生推理或記憶摘要。(3) TA-GRPO：把長 rollout 切成以記憶串接的片段，同一任務同一階段的片段互相比較，分數來自遊戲環境可驗證的結果，不用 reward model 也不用 critic。配套的 Streaming-vLLM 跨回合保留 KV cache、記憶壓縮後增量更新 RoPE 相位，並在整段輸出完成前先把動作串流出去。</p>
+<p><b>結果</b>：在 MCU、ViZDoom、OmniGameArena、GameWorld 四個公開 benchmark 的即時設定下，Gamer-8B-CPT 平均 29.5、35B-A3B-CPT 平均 31.5，表中最強的通用模型 GPT-5.6-Sol 平均 17.6（但它在 GameWorld 拿 44.3，高於 Gamer）。星穹鐵道支線「Bestial Ferocity」的里程碑完成率從 base 的 13.9% 一路到 CPT 47.9%、SFT 69.1%、RL 83.6%，最強 baseline Gemini-3.8-Flash 為 45.5%；七類小遊戲平均從 3.2% 升到 49.7%。Streaming-vLLM 在 H200 上把 35B-A3B 的端到端延遲從 1306 ms 降到 65 ms（20.1×）。</p>
+<p><b>限制與疑問</b>：最亮眼的數字都在同一款遊戲內；作者自己的 scaling study（120 組設定、約 45K H200 GPU-hours）顯示，對差異大的未見過遊戲，增加預訓練資料幾乎沒有幫助（within-mixture R² 只有 0.079）。所以這比較像「單一大型遊戲的專家 + 可移植的訓練配方」，而不是真正通用的遊戲 agent。</p>
+<p><b>為什麼值得看</b>：action chunk 的時間切法、重複動作的 loss 衰減、片段級 GRPO、邊生成邊送出動作的 serving 設計，都能直接搬到 VLA 與真實機器人；「預訓練對遠域不 scale」的負面結果也是機器人資料 scaling 討論很需要的對照。</p>
+
+<h3>2. JVT：純 Transformer、純像素空間的影片 diffusion</h3>
+<p><a href="https://arxiv.org/abs/2611.18549">arXiv:2611.18549</a>｜cs.CV｜浙江大學、上海創智學院、上海 AI Lab｜HF 15 upvotes</p>
+<p><b>問題</b>：影片生成幾乎都是 latent DiT，像素空間的模型則依賴 U-Net skip connection 或多級 cascade。latent 路線有三個代價：autoencoder 的重建誤差、額外的訓練與推論成本，以及很難把 RGB 以外的模態一起建模。作者問：一個平凡的 DiT 直接在像素上能做到哪裡？</p>
+<p><b>方法</b>：沿用 JiT 的作法，讓網路從加噪像素預測乾淨影片，用 rectified flow 的 velocity MSE 訓練，沒有 cascade 也沒有 skip connection。關鍵改動在 patch embedding：把 3D 卷積的 tubelet embedding 加上通道瓶頸（C_b = 32）並做時空分解；另外在第 9 層後插入 32 個 register token。推論時提出 register guidance：同時算有、無 register 的預測，用兩者的差做類似 CFG 的引導。因為沒有 RGB 專屬的 VAE，深度（disparity）可以直接在通道維度和 RGB 串接一起生成。</p>
+<p><b>結果</b>：FVD@2048 上，UCF-101 條件生成 JVT 為 136.5、加 register guidance 為 129.2，對照 latent DiT 的 Latte 是 477.97；SkyTimelapse 46.58 對 59.82，Taichi-HD 119.1 對 159.60。RealEstate10K 相機條件生成（8 幀），RGB 版 FVD 27.0，比 DFoT 的 35.3 好；RGB+disparity 聯合生成雖然 FVD 稍差（27.5），但 RTA@5 從 72.4 升到 79.5、AUC@30 達 88.6，是表中最好的相機軌跡一致性。</p>
+<p><b>限制與疑問</b>：實驗都在 256×256、16 幀（相機任務 8 幀）的小資料集上，8 張 GPU 訓練；register guidance 只在 UCF-101 有明顯幫助，另外三個資料集沒有一致收益。深度標註來自凍結的 Pi3X，不是真值。能不能 scale 到高解析度、長影片，正是 latent 路線存在的理由，這篇還沒回答。</p>
+<p><b>為什麼值得看</b>：最有意思的是「RGB+幾何一起生成會讓相機控制更準」，這對 world model 與 3D-aware 影片生成是很乾淨的訊號。少了 VAE 之後，把深度、法向、語意甚至動作通道直接拼進去聯合生成，成本很低，值得在自己的資料上試。</p>
+
+<h3>3. TelePhysica：從一張照片讓 agent 搭出可受力、可變形的物理場景</h3>
+<p><a href="https://arxiv.org/abs/2611.18078">arXiv:2611.18078</a>｜cs.CV｜中國電信人工智慧研究院（TeleAI），通訊作者李學龍</p>
+<p><b>問題</b>：直接 image-to-video 把像素和隱含的運動纏在一起，沒有持續存在的 3D 力學狀態，無法在中途施力或做反事實控制；而單張照片的一次性 3D 重建在深度與支撐關係上欠約束，場景放進模擬器常常互相穿透或在重力下垮掉。</p>
+<p><b>方法</b>：一個 vision-language coding agent 根據照片與文字寫出場景，然後通過兩關驗證才算數。第一關是視覺比對：渲染輪廓與參考 mask 的 IoU、72-bin 的徑向輪廓、Sobel 內部邊緣重疊。第二關是「零外力平衡預檢」：不施任何力，在重力下模擬 1 秒，檢查初始穿透、漂移、終端速度、姿態漂移（≤5°）與角速度，失敗就把結構化診斷丟回給 agent 重寫。物理端在 MuJoCo 上統一處理剛體、164 節的耳機線、布料殼、四面體軟體（坐墊、海綿）。模擬結果再以 Canny 或 shaded RGB 作為逐像素控制，交給 Wan2.1/2.2-VACE 生成 512×512、81 幀的影片。</p>
+<p><b>結果</b>：100 個桌面場景中，相對於 agent 的第一次提交，閉迴路把視覺對齊率從 2.0% 拉到 85.0%、通過平衡檢查從 0% 到 81.0%、完整 5 秒受力 rollout 通過從 0% 到 49.0%，平均要提交 9.21 次。影片方面，直接 I2V（A14B）的 mask IoU 0.267、軌跡誤差 13.97%，而 VACE 1.3B 加 RGB 控制達到 0.867 與 0.86%；在毛巾「拉另一個角」的反事實上，直接 I2V 的方向餘弦是 −0.17，物理控制版本是 +0.91 到 +0.96。</p>
+<p><b>限制與疑問</b>：質量、摩擦、彈性參數都來自材料先驗，不是從互動資料辨識出來的；變形場景只有三個，反事實影片評估每個案例只有一次。baseline 的「open-loop」其實就是 agent 的第一次提交，不是另外調好的單次重建系統，所以 2% → 85% 的落差有一部分是比較方式造成的。</p>
+<p><b>為什麼值得看</b>：這和最近幾天 WorldDraft、BWM-Forge 那條「程式搭世界、影片模型負責渲染」的路線一致，但這篇把「平衡預檢」做成 agent 的回饋訊號，很容易拿去生成可互動的 real-to-sim 操作資料；下一步自然是用機器人的幾次推碰來估材料參數。</p>
+
+<h2>快速瀏覽</h2>
+<p><b><a href="https://arxiv.org/abs/2611.18562">Training Reasoning Models in Simulation to Natively Use Real Robots</a></b>（Song Han 等）：完全在模擬中、不用示範資料，以 RL 訓練一個開放權重的 27B 推理模型，讓它看場景、逐步推理後輸出下一個末端執行器位姿。LIBERO 成功率從 1.6% 到 74.4%；LIBERO-Pro 的新任務上 π0.5 只有 0.75%，它是 57.4%；真實雙臂機器人上 60% 成功，原模型為 0，九個推理、程式、視覺 benchmark 沒有可量測的退化。</p>
+<p><b><a href="https://arxiv.org/abs/2611.17394">Agentic-Teacher</a></b>：找出 VLA rollout 失敗的狀態，讓 coding agent 從那些狀態寫閉迴路程式策略示範成功行為，再用時間相關的動作雜訊、去除閒置幀、以 base model 的 flow-matching loss 篩選後拿來 post-train。π0 在 LIBERO-10 從 79.4% 到 87.8%，MetaWorld-10 從 80.4% 到 90.6%，三個 RoboCasa 任務從 0% 到 30.0%（皆為模擬）。</p>
+<p><b><a href="https://arxiv.org/abs/2611.17831">V-JEPA-LM</a></b>：線性探針能從凍結的 V-JEPA 特徵以 87% 準確率讀出速度，但接上 LLM 後同樣的問題卻是亂猜。作者用像素變換製造「只差在被問的那個變化」的反事實影片來監督，4.53M 公開樣本單階段訓練；4B 模型在 11 個影片 benchmark 平均 72.1，同尺寸最佳開源模型 61.1、8B 最佳 64.8。結論很精煉：encoder 決定能讀到什麼，監督決定實際讀了什麼。</p>
+<p><b><a href="https://arxiv.org/abs/2611.16439">HALO</a></b>：全身移動操作的資料蒐集系統。操作者以 kinesthetic teaching 帶著末端執行器，推一個低阻力平台代替真正的底盤，事後校正平台與真實底盤的時間與運動，並把示範者的手 mask 掉再 inpaint。比 Mobile ALOHA 和 VR 遙操作快最多 2.9 倍，六階段長程任務的 policy 成功率 73.3%。</p>
+<p><b><a href="https://arxiv.org/abs/2611.17619">TouchTwin</a></b>：指出 real-to-sim-to-real 只從視覺重建手部動作，會有「力的落差」：模仿手部姿態的 policy 握力只有記錄值的 0.31 倍，物理重播視覺追蹤結果則是 1.55 倍。改用 880 個感測點的觸覺手套，在 MuJoCo 中由觸覺決定每根手指的接觸與握力，握力回到 0.99 倍，留出測試 20/20 成功。</p>
+<p><b><a href="https://arxiv.org/abs/2611.18099">EcoVGGT</a></b>：不需訓練的長影片前饋重建推論法。固定 31 張均勻取樣的「pinned key」幀，所有幀都只對它們做 attention，於是可以分批、每幀成本固定。1,000 幀 ScanNet 上與 π³ 成功率相同但快 13.8 倍，單張 GPU 能重建 4,000 幀，串流模式 18.6 fps。</p>
+<p><b><a href="https://arxiv.org/abs/2611.18256">Deep Bundle Adjustment</a></b>（Daniel Cremers 組）：用只有 2.04M 參數的 GNN，從任意數量視角的 2D 匹配迭代估計相機位姿、內參與結構，可從冷啟動收斂，並用尺度不變監督混合不同單位的資料集。作者稱它優於先前的 learned SfM，在中等精度門檻上與傳統 SfM 相當，接近 VGGT 等大得多的模型。</p>
+<p><b><a href="https://arxiv.org/abs/2611.17903">Zoom In, Scale Out</a></b>：用數位變焦測試單張 metric depth 模型：裁切放大不會移動任何東西，距離應該不變。在 KITTI、NYUv2、DIODE 的 800 張圖上，Depth Anything V2 幾乎把變焦當成走近；會估相機的模型只改善一部分，因為焦距估計隨變焦上升太慢。Depth Pro 與 DA3-Nested 給真實內參時就穩定，問題出在焦距估計器。</p>
+
+<h2>新聞與討論</h2>
+<p><b>Qwen4-Max 發布</b>：阿里巴巴推出 <a href="https://qwen.ai/blog?id=qwen4-max">Qwen4-Max</a>（官方頁面無法讀取，以下是 <a href="https://news.ycombinator.com/item?id=50513215">HN 討論</a> 中的轉述）。有留言指出這次的 Max 不開放權重，較小的開源版本尚未釋出；據轉述，它在 Artificial Analysis 指數拿 43 分，GPT-6.1 Sol（medium）為 46，但每任務平均成本約 3.27 美元，比後者的 0.36 美元高得多。討論另一條主線是：不同廠商的 reasoning effort 標籤無法直接比較，應該用相同成本下的表現來比。</p>
+<p><b>uBlock Origin 的 universal XSS</b>：<a href="https://iter.ca/post/ubo-uxss/">這篇文章</a> 說明 Firefox MV2 版 uBO 的元素選取器（picker）接受任何來源的訊息，惡意網站先從預設過濾清單觸發的請求中偷出擴充功能 UUID，用隱藏 iframe 嵌入 picker，再利用 opt 欄位未清理的換行插入受信任的 scriptlet 過濾器，使用者只要點一下，就能在任意網站執行 JavaScript。已修補（picker 須攜帶 content script 給的秘密 token）。作者說漏洞由 GPT-5.6 Sol 找到、經人工驗證，PoC 多半是 Claude 寫的。<a href="https://news.ycombinator.com/item?id=50513160">HN 討論</a></p>
+<p><b>舊的 Bitly 短網址被搶註</b>：<a href="https://ransomnews.com/burger-king-tweet-bitly-link-hijack-2026/">Ransomnews</a> 發現 11 月 15 日，Burger King、McDonald's 2011 年推文裡的 Bitly 連結被人重新建立，分別導向 Wikipedia 的納粹集中營列表與 911 條目；川普 2009 到 2013 年推文中的 97 個 Bitly 連結，有 49 個被重建、7 個指向無關網站。Bitly 承認問題、停權相關帳號並停用連結，儘管其說明頁寫著 back-half「不能重複使用」。<a href="https://news.ycombinator.com/item?id=50511395">HN 上</a> 的共識是：引用連結請用自己網域的轉址，第三方短網址遲早會斷或被接管，論文與投影片裡的連結也一樣。</p>
+<p><b>只用智慧手錶追蹤全身姿態</b>：Cornell SciFi Lab 的 <a href="https://news.cornell.edu/stories/2026/11/researchers-track-whole-body-movement-just-smartwatch">EchoMotion</a> 讓市售手錶的喇叭發出超音波，以麥克風收肢體反射的回聲，再用可在手錶上跑的輕量模型估 12 個關節的姿態。未改裝的 Galaxy Watch 6 對新使用者每關節平均誤差不到 4 吋，12 分鐘校正後約 2.4 吋；同一模型不重訓也能用在 Galaxy Watch 7 與 Pixel Watch 3，感測耗電約 12 mW。發表於 UbiComp/ISWC 2026，受試者只有 10 到 15 人。<a href="https://news.ycombinator.com/item?id=50486745">HN 討論</a></p>
+<p><b>Skydio 的不對稱固定翼無人機 F10</b>：<a href="https://spectrum.ieee.org/skydio-f10-lightrunner-asymmetrical-drone">IEEE Spectrum</a> 報導，固定翼繞圈追蹤目標時，機翼或尾翼常擋住相機；Skydio 乾脆把相機裝在一側翼尖，代價是只能往左轉。為了不加配重（會讓航時幾乎減半），他們加長相機那側的機翼、把兩具馬達不對稱擺放來抵銷阻力，並用單一 MPC 控制從懸停到最高速，不分模式。最高時速 100 英里、航時 2 小時，由機械手臂在基地站起降與充電。<a href="https://news.ycombinator.com/item?id=50512296">HN 討論</a></p>
+<p><b>Steve Blank：黃仁勳之後的 Nvidia</b>：<a href="https://steveblank.com/2026/11/15/whats-next-for-nvidia/">這篇評論</a> 以 Ballmer 時代的 Microsoft、Cook 時代的 Apple 為例，認為重塑公司的創辦人常被重執行的接班人取代，後者守住現有生意直到過時；黃仁勳曾三次重塑 Nvidia（CUDA、深度學習、Mellanox 後的整櫃資料中心），有約 60 個直屬部屬、不相信接班計畫。他預期訂單與 CUDA 能撐兩三年，但每年出新晶片、約 500 億美元投資 AI 實驗室這類賭注，可能最先被砍。<a href="https://news.ycombinator.com/item?id=50512235">HN 討論</a> 有人反駁：大客戶自研晶片至今沒有明顯減少採購，真正的瓶頸是電力與先進製程產能。</p>
+<p><b>自架地圖圖磚變便宜了：Protomaps</b>：<a href="https://bruceroettgers.eu/blog/protomaps/">這篇教學</a> 介紹 PMTiles：整個地圖圖磚包成單一檔案，前端用 HTTP Range request 讀取，所以丟到任何 storage bucket 加 CDN 就能服務，再用 MapLibre GL 搭配 pmtiles 套件嵌入。作者用 Bunny.net 架設，全球地圖 139 GB，五倍備援每月約 5 美元；縮放到一個歐洲城市大約傳輸 5 MB，作者估算比 Mapbox 每千次載入 5 美元便宜約 100 倍（文章含 Bunny.net 推薦連結）。做機器人導航或資料集視覺化需要底圖時，這是不必綁商業 API 的選擇。<a href="https://news.ycombinator.com/item?id=50509837">HN 討論</a></p>
+<p><b>MIT「How to Make (almost) Anything」2026</b>：MIT Center for Bits and Atoms 這門經典數位製造課的 <a href="https://pub.cba.mit.edu/863.26/site/">2026 課程網站</a> 公開了，從 CAD、雷射切割、嵌入式程式、3D 掃描與列印、電路設計與製作、CNC，到輸入輸出裝置、機器設計與網路通訊，每週一個主題。今年的 recitation 加入了 AI agents 和 edge AI。做機器人硬體的人可以把它當成一份很完整的自學清單。<a href="https://news.ycombinator.com/item?id=50514470">HN 討論</a></p>
+</article>
+</body>
+</html>

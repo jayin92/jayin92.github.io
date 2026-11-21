@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 晚報｜2026-11-07（週六）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 晚報｜2026-11-07（週六）</h1>
+<p><b>今日導讀</b>：週六沒有新的 arXiv 清單，這期改從 Hugging Face 本週熱門與週五清單裡還沒談過的論文挑。今晚的共同主題是「把隱性的東西變成顯式的狀態」：Embodied Agent Arena 把「做到一半」和「真的完成」分開計分，Wizard 把遊戲世界拆成骨架、幾何與戰鬥狀態再交給影片模型去畫，HIBS 則把 splat 的「實心程度」當成一個看得見的信心值。新聞部分有 METR 對 Anthropic 研發加速的報告、Anthropic 談 agent 記憶與「dreaming」、Unitree 工廠參訪記，以及 libghostty 1.0。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. Embodied Agent Arena：前沿 VLM agent 準備好當機器人通才了嗎？</h3>
+<p><a href="https://arxiv.org/abs/2610.00854">arXiv:2610.00854</a>｜cs.RO｜HKUST（廣州）、香港中文大學、Knowin AI｜Hugging Face 本週熱門第一（106 票）</p>
+<p><b>問題</b>：機器人通才不只要看懂場景，還要讓任務的「每一個條件」都成立。把東西放到指定位置的任務裡，找到並抓起物體只是中間步驟。現有 benchmark 多半只報平均準確率或最終成功率，前者會把「軌跡很像但終點錯」算成高分，後者則看不出 agent 其實完成了哪些子目標。作者想回答：前沿 VLM agent 在不外掛額外感知或控制模組的情況下，離機器人通才還差什麼。</p>
+<p><b>方法</b>：把 32 個既有來源加上自建的 GeoProbe 組成 1,000 個案例，分五個領域：Geometry（內參、相對位姿、深度、尺寸、位移）、Spatial Reasoning、Affordance（接觸點與功能區域）、Task Planning（157 個，ALFRED、ALFWorld、ScienceWorld、VirtualHome 等）與 Manipulation（182 個，RLBench、CALVIN、RoboTwin 等）。GeoProbe 有 168 個案例，在 Blender 裡分別控制相機運動、物體運動與尺度參考。harness 刻意做得很薄：沿用每個來源原生的觀測與操作介面，Python runtime 保留變數讓 agent 能接續前一步的計算，決策全交給模型。agent 宣告完成不算數，評估器會獨立檢查最終環境狀態是否滿足所有 predicate。共評估十個模型，包括 Astra、Sol、Fable、Opus 5.5、Gemini 3.8 Flash、Gemini 4 Argon、Qwen-Max，以及開放權重的 Qwen-397B、Qwen-27B 和 DeepSeek-1017。</p>
+<p><b>結果</b>：閉源模型五個領域全部領先，但輪廓各不相同。Qwen-Max 的 Spatial Pass@1 是 68.9%，幾乎追上 Astra 的 69.4%，Planning 卻只有 36.9%，Astra 是 80.3%。Manipulation 由 Opus 5.5 以 47.8% 領先 Gemini 4 Argon 的 44.0%，但若 13 個來源等權重，順序反過來（44.5% 對 47.4%），因為 RoboTwin 佔了 182 個任務中的 50 個而且偏向 Opus。開放權重模型 Spatial 有 48.0% 到 51.6%，Planning 卻只有 19.1% 到 31.2%，Manipulation 只有 9.9% 到 20.9%。157 個 Planning 任務中只有 8 個被十個模型全部解出，15 個沒有任何模型解出。診斷部分很有料：GeoProbe 深度上 Gemini 4 和 Qwen-397B 的 AbsRel 相近（0.299、0.312），做完 oracle 尺度對齊後卻是 0.065 對 0.203，前者主要是整體尺度偏差，後者是形狀扭曲。CALVIN 上 65 個出現執行錯誤的 episode 有 62 個之後程式能跑通，卻只有 3 個真的通過任務驗證。Astra 在 HumanCLAW 的 8 個「坐下」任務上就燒掉了 63.7% 的失敗 token。</p>
+<p><b>限制與疑問</b>：Planning 和 Manipulation 每個任務只跑一個 episode，單一任務層級的比較變異很大。harness 刻意極簡，所以結果反映的是「原生能力」，不代表加上專用感知工具後的上限。來源權重就能翻轉排名，這本身也提醒我們整體排行榜要謹慎讀。</p>
+<p><b>為什麼值得看</b>：這篇最有價值的不是排行榜，而是把失敗拆開的方法：尺度偏差與形狀誤差、點對但區域錯、程式能跑但狀態沒達成、self-review 修好座標卻把正確的左右關係改錯。做 VLM-as-planner 或 code-as-policy 的人，可以直接拿「執行錯誤修好後仍沒完成」這類指標檢查自己的系統。延伸方向：既然不同模型擅長的任務互補（Astra 單獨 126 題，加上 Gemini 4 就到 137），按任務類型路由模型會是很實際的下一步。</p>
+
+<h3>2. Wizard：用骨架與幾何代理，即時操控任何遊戲世界</h3>
+<p><a href="https://arxiv.org/abs/2610.40339">arXiv:2610.40339</a>｜cs.CV｜Tencent、NUS、NTU｜<a href="https://wyzardwu.github.io/wizard/">專案頁</a></p>
+<p><b>問題</b>：影片 world model 讓「用滑鼠鍵盤玩生成出來的遊戲」變得可行，但 action-conditioned 模型通常只支援預先定義的動作集，prompt-conditioned 模型則依賴訓練時見過的動作模式。近期的 agentic 框架會維護顯式世界狀態，再轉成深度圖、語意圖或 3D bounding box 等代理去引導生成，但示範多停在開車或角色走路，少有細緻的肢體動作，也很難零樣本換場景、換角色。</p>
+<p><b>方法</b>：資料方面，作者組了 50.3 小時、750 個場景、178 個角色的「代理–影片」配對：8.8 小時 Elden Ring 實錄（直接從遊戲程序抽出相機、骨架與深度）、11.6 小時程序化合成、3.3 小時 Unreal Engine 模擬、26.6 小時 WildWorld 公開資料。代理影片用 RGB 三個通道編碼幾何而非顏色：R 是高度，B 是相機前向深度，G 同時編碼角色的 slot 與朝向，讓模型從參考圖而不是固定外觀去認角色。推論時，使用者給一張場景圖，MoGe-2 估出點雲做成 2.5D 高度場；給一張角色圖，Qwen3-VL 判斷身體結構，SAM2 分割、TripoSG 重建網格、UniRig 綁骨架，再從動作庫檢索相容動作並 retarget。一個 Qwen3-VL-8B 驅動的 world agent 把自然語言指令轉成幾何操作程式（例如升起平台、翻轉世界），另有規則式控制器處理血量、hitbox、無敵幀和技能冷卻。生成器以 Wan2.2-TI2V-5B 為底，代理 latent 沿通道串接，角色參考圖當額外 token，並用由骨架算出的區域遮罩限制每張參考圖只能被對應角色的區域 attend，減少角色外觀互相滲透。最後依 Causal Forcing++ 做三階段：teacher forcing 轉自回歸、consistency distillation、DMD，得到 2 步去噪、24 FPS 的即時串流。</p>
+<p><b>結果</b>：論文只有定性結果：未見過的場景、角色與動作的戰鬥 rollout，角色變身、場景翻轉與新增地形等示範，全部用同一個模型、不做微調。每局開始前的初始化（重建場景、綁骨架、建動作庫）不到 5 分鐘。</p>
+<p><b>限制與疑問</b>：沒有任何量化指標或與 Marionette、GameDirector 等方法的對照，「零樣本泛化」的程度只能從挑選過的圖判斷。作者也承認身體結構罕見的角色很難找到相容動作，長時間 rollout 時場景代理與畫面的一致性會下降。使用 Elden Ring 錄影訓練，論文註明僅供研究。</p>
+<p><b>為什麼值得看</b>：這是「顯式狀態 + 神經渲染器」路線很完整的一次工程實作，跟前幾天談過的 PlayGen2 思路相近，但把重點放在有關節的角色。對機器人研究者，最值得借的是兩件事：用 RGB 通道編碼幾何的統一代理格式，以及用骨架算出的遮罩把參考外觀綁到特定實體上，這兩個設計都可以直接搬到多物體的操作影片生成。</p>
+
+<h3>3. HIBS：把 beta kernel 帶進線上 3DGS，讓「實心程度」變成信心值</h3>
+<p><a href="https://arxiv.org/abs/2611.08288">arXiv:2611.08288</a>｜cs.CV｜University of Würzburg（Linus Franke）｜<a href="https://linus-franke.com/hibs">專案頁與程式碼</a></p>
+<p><b>問題</b>：線上（邊拍邊建）的 3DGS 跟離線版本完全相反：每張 keyframe 只生成一次 primitive，接著只優化幾十個 iteration，沒有時間做 clone/split densification 或 opacity reset，生成時放了什麼基本上就是最後的樣子。Gaussian 只有中心是不透明的，要表示實心表面得疊很多個，而這正是線上設定負擔不起的。</p>
+<p><b>方法</b>：改用 Deformable Beta Splatting 提出的 beta kernel，它的形狀參數 b 能在柔軟的類 Gaussian 與平頂、近乎不透明的 surfel 之間連續變化。DBS 把 b 當成離線學的緊緻度參數，HIBS 則把它當作幾何信心的旋鈕。Confidence-aware spawning 結合兩個獨立線索：MVS 深度與對齊後單眼深度先驗的一致性，以及深度的可觀測性（基線相對深度太小時許多深度都說得通）。有把握的地方直接生成實心 primitive，不確定的保持柔軟、容易被修正，之後由 lifetime controller 隨更多視角把確認過的幾何逐步「實心化」。取代 densification 的是 error-driven relocation：把快死掉的 primitive 以保持渲染結果的方式搬到光度誤差熱點。beta kernel 的有界支撐讓 tile culling 有精確上界，作者寫了融合的 rasterizer；另外推導出保持形狀統計量的閉式 merge，用來建大場景的 LOD 階層。每張 keyframe 的優化只有 30 個 iteration。</p>
+<p><b>結果</b>：依 On-the-Fly NVS 的線上協定，在 Mip-NeRF 360、TUM、StaticHikes 上，相較最接近的 i3DGS 都更好（TUM 時間除外），PSNR 最多提升 0.8 dB，時間最多省 40%。TUM 上 LongSplat 的 PSNR、SSIM 略高，但慢約 50 倍。大場景 CityWalk 上 PSNR 25.81，On-the-Fly NVS 是 21.71、i3DGS 是 22.03，Octree-GS 只有 17.33 且要約 2.5 小時；SmallCity 上 Octree-GS 的 SSIM、LPIPS 略好，但要約一小時，HIBS 不到 4 分鐘。消融裡，從 Gaussian 換成 beta 再加信心生成約多 0.2 dB，fused rasterizer 省約 16% 時間，moment merge 在 CityWalk 上比 opacity 加權的 merge 多 2.27 dB。</p>
+<p><b>限制與疑問</b>：在標準 3DGS benchmark 上仍落後完整離線優化的方法，作者認為差距主要來自線上位姿精修。merge 對跨頻帶群組與渲染貢獻是近似，輸入順序打亂也會降低品質。九個場景平均的各元件增益多在 0.1 到 0.2 dB，單獨看都不大。</p>
+<p><b>為什麼值得看</b>：「primitive 的形狀就是信心」是很漂亮的想法，而且副產品是一張可以即時看的幾何信心圖，對主動掃描、機器人建圖時決定「下一步往哪拍」很有用。做 SLAM 或 feed-forward 3DGS 的人也可以思考：單眼深度先驗的可信度，或許不該只放在 loss 權重裡，而是直接寫進 primitive 的參數化。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>VINO：用 Volume Transformer 重做 3D 自監督表徵學習</h3>
+<p><a href="https://arxiv.org/abs/2611.07176">arXiv:2611.07176</a>｜作者認為 3D 場景表徵學習一直沒有出現像 DINO 那樣的基礎模型，於是把常用的階層式 PTv3 換成類 ViT 的 Volume Transformer，並重新設計 student–teacher 的兩個目標：teacher 只給乾淨一致的目標、student 承受更強擾動；masked prediction 時不讓 student 看到被遮的幾何。2D 到 3D 蒸餾也從回歸視角相依的影像特徵改成視角一致的監督。想替 3D 場景找通用 backbone 的人值得一讀。</p>
+
+<h3>Gaussolve：Gaussian 也可以做「減法」</h3>
+<p><a href="https://arxiv.org/abs/2611.07049">arXiv:2611.07049</a>｜Mesh 加 Gaussian 的混合渲染通常是加法：Gaussian 補 mesh 沒畫好的地方。作者指出很多衝突不是缺內容，而是 mesh 在某些視角下本身就錯（遮擋不一致、貼圖投影瑕疵）。Gaussolve 用以純量球諧參數化的 Neural Dissolve Field 學出「哪裡、從哪個方向」該把 mesh 溶掉，再用連續的穿透率融合讓後面的 Gaussian 補上，避免硬性可見性切換造成梯度斷掉。</p>
+
+<h3>T²-Splat：拓撲可變的三角形 splatting 加上貼圖殘差</h3>
+<p><a href="https://arxiv.org/abs/2611.06974">arXiv:2611.06974</a>｜三角形 splatting 要保留細節往往得過度細分。T²-Splat 先用 Safe Restricted Delaunay Triangulation 初始化連接關係，再以 edge collapse 與 vertex split 動態調整三角形分配，最後在固定網格上用每面 Mip 貼圖殘差補外觀。在 Mip-NeRF 360 上比 MeshSplatting 高 0.71 dB，面數預算可壓到原本的 10%，對要直接進傳統繪圖管線的人很實用。</p>
+
+<h3>InstantHand：單張圖 2.84 秒建出可動的 Gaussian 手部 avatar</h3>
+<p><a href="https://arxiv.org/abs/2611.08330">arXiv:2611.08330</a>｜以現成的 MANO、相機與遮罩估計為輸入，feed-forward 產生可驅動的 3DGS 手，不做 test-time optimization。Soft Alpha Band 正則把監督集中在輪廓邊界，解決細手指被 alpha 外漏「變粗」的問題；Reliability-gated Appearance Transfer 依每個 Gaussian 的渲染貢獻決定要沿用原圖顏色還是用先驗補全。渲染 161 FPS，在 InterHand2.6M 上追平逐人優化的方法。</p>
+
+<h3>Latent RL Prior：把模擬 RL 學到的控制能力，當成視覺 policy 的凍結解碼器</h3>
+<p><a href="https://arxiv.org/abs/2611.08458">arXiv:2611.08458</a>｜第一階段把大量有特權資訊的 RL rollout 蒸餾成一個以本體感知與潛在任務脈絡為條件的 flow-matching 動作解碼器；第二階段凍結解碼器，只學從影像到潛在脈絡的視覺介面，而且只用動作監督。三個模擬任務在少資料情境下勝過對 π0.5 與 GR00T N1.7 的全參數微調，開門抬升與雙臂組裝分別只用 1/10 和 1/5 的示範就超過全資料 baseline。</p>
+
+<h3>極限人形跑酷：依地形索引的動作先驗，加上手膝支撐的幾何引導</h3>
+<p><a href="https://arxiv.org/abs/2611.08056">arXiv:2611.08056</a>｜三階段漸進式模仿：先用特權模仿產生機器人可執行的參考，再用依地形索引的 adversarial motion prior 學技能，最後降低先驗權重並加上幾何支撐引導，讓機器人自己調整手和膝蓋的接觸位置，而不是照抄人類的接觸序列。部署在 Noetix E1 上，只靠機載深度與本體感知選擇行為，30 次單一障礙成功 29 次、5 條混合賽道完成 4 條，且沒有做真機微調。</p>
+
+<h3>TactileLab：在 IsaacLab 裡用剛體模擬近似觸覺剪切</h3>
+<p><a href="https://arxiv.org/abs/2611.07881">arXiv:2611.07881</a>｜用軟體物理模擬觸覺剪切太慢，無法做大規模 RL。TactileLab 改用剛體模擬估計接觸面的切向運動，產生「simulated tactile flow」光流場，搭配接觸深度場一起輸入，並提出 real-to-sim 觸覺轉換把真實感測器影像映射到模擬表示，以支援 sim-to-real。做靈巧手觸覺的人可以留意這種「不求物理逼真、只求資訊對」的表示。</p>
+
+<h3>MessyNav：雜亂環境中，先判斷要推開、撿起還是繞過</h3>
+<p><a href="https://arxiv.org/abs/2611.07417">arXiv:2611.07417</a>｜把「路被椅子、玩具擋住」的互動式導航定義成開放世界問題，以 VLM 在規劃前先做顯式 affordance 推理，決定每個障礙物該掃開、撿起或避開（例如裝玻璃杯的推車要繞開，空推車可以推）。在行動機械臂上做室內外真機實驗，成功率比最強 baseline 高 27 個百分點，且不需任務特定訓練。</p>
+
+<h2>新聞與討論</h2>
+
+<h3>METR 報告：Anthropic 的能力進展速度已約為去年的兩倍</h3>
+<p>Ajeya Cotra 在 <a href="https://www.planned-obsolescence.org/p/ai-is-dramatically-accelerating-ai">Planned Obsolescence</a> 解讀 METR 對 Anthropic 研發加速的公開報告（大量證據被遮蔽）。報告指出 2025 年 10 月到 2026 年 10 月間，以內部版 Epoch Capabilities Index（AECI）衡量的進展約為前十二個月的兩倍，且目前維持這個速度的主因很可能是 AI 自動化研發；Anthropic 在 S-1 也寫到可能「即將」達到 RSP 定義的「dramatically accelerated progress」門檻。Cotra 用簡單的 Cobb-Douglas 推算，要讓整體進展加倍，研究人力的加速大約要 4 到 9 倍，和員工自述的約 12 倍相去不遠，並認為若加速平滑複利，天真外推一年內就會到極端超級智慧；她主張業界的權重安全遠未達標。<a href="https://news.ycombinator.com/item?id=50397994">HN 討論</a>多半持懷疑：有人質疑 METR 的獨立性，也有人指出加速可能主要來自砸更多資本與 agent 平行探索，而不是模型本身變聰明。</p>
+
+<h3>Anthropic：agent 記憶的組成，以及「dreaming」</h3>
+<p><a href="https://www.anthropic.com/research/components-of-agent-memory">Anthropic 這篇研究文章</a>把 agent 記憶類比成海馬迴的即時編碼加上睡眠時的整理，而「dreaming」就是在離線時回頭對照 log 修正、整理筆記。幾個具體觀察：在 CL-Bench 資料庫任務上，Opus 5 是第一個能「閉環」的模型，筆記裡寫規則也寫出規則為何成立；玩寶可夢紅版到約一萬步時，Sonnet 3.7 寫了 225 個資料夾、413 個檔案只拿 1 枚徽章，Fable 5 只寫 9 個檔案加一個 global.md 拿了 4 枚。對強模型，硬性規定「只記失敗」反而吃掉記憶帶來的增益。用 128 個 session 從 Stainless 約 35 萬份文件（約 4.2 億 token）建 wiki，25 題的得分從 13% 升到 48%，搭配搜尋則從 54% 到 61%；但在某些法律簡報任務上 wiki 長得比原始文件還大，等於什麼也沒抽象。<a href="https://news.ycombinator.com/item?id=50402212">HN 上</a>有人嫌「dreaming」這個詞太行銷，也有人說自己把各工具的自動記憶都關掉，因為 95% 都只跟當下任務有關。</p>
+
+<h3>參觀 Unitree 工廠：機器人是手工做的</h3>
+<p><a href="https://josef.cn/blog/unitree">KAIKAKU 創辦人的參訪記</a>：Unitree 杭州廠的致動器產線大多仍是人工操作繞線機，自動化只有一兩條新線。根據其 IPO 文件，2025 年底機器設備帳面價值約 170 萬美元，當年做了近 32,000 台機器人，人工只佔製造成本約 8%，所以自動化最多省幾個百分點；人形機器人營收約四分之三來自研究與教育。作者的論點是產品每年改款，客製機器等於「替青少年量身訂做西裝」，只有已經不再變的馬達值得先自動化；而美國時薪約是中國的 7.5 倍，加上 FCC 要求新人形機器人須有超過 65% 美國零件，自動化設備在西方的價值高出五六倍。<a href="https://news.ycombinator.com/item?id=50400597">HN 留言</a>有人逐條拆解：前四點合理，但「人工貴所以西方會贏」這個結論跳太快。</p>
+
+<h3>libghostty 1.0：Ghostty 的終端模擬核心成為穩定 C 函式庫</h3>
+<p>Mitchell Hashimoto <a href="https://mitchellh.com/writing/libghostty-1-0">宣布 libghostty-vt 1.0</a>，C ABI 正式穩定、遵循 semver。JetBrains 全系列 IDE（據稱超過 1,250 萬活躍用戶）的終端已改用它，Neovim 也有已核准、等著正式版就合併的 PR 要用它取代 libvterm，順便解決一個十年的 scrollback reflow issue。ABI 設計很值得學：物件全是 opaque handle，數百個值透過少數以 enum 為 key 的 getter/setter 存取，舊版函式庫遇到新 header 會回 GHOSTTY_UNSUPPORTED 而不是當掉，CI 用 libabigail 比對基準。MIT 授權、執行期只需要 libc，甚至能 freestanding 編譯。<a href="https://news.ycombinator.com/item?id=50399933">HN 上</a>多是恭喜，也有人追問 Windows 版 Ghostty 何時出。</p>
+
+<h3>Asahi Linux 7.3 進度：M3 正式支援，M3 GPU 畫出第一個三角形</h3>
+<p><a href="https://asahilinux.org/2026/11/progress-report-7-3/">Asahi Linux 進度報告</a>：M3 支援拿掉 EXPERT 旗標正式開放，啟用 DCP 之後也能睡眠、瀏海周圍區域可用。約 3,100 行的音訊驅動 macaudio 與約 13,000 行的影片解碼器 AVD 送上 mailing list，AVD 從進下游到上游只花約三個月，M4 Pro/Max 與 M5 的初始 Devicetree 也送出了。M5 的 macOS 依賴 Secure Kernel 下的 Exclaves，團隊讓 m1n1 在 EL1 同時跑三個 VM 來逆向。M3 GPU 架構大改，社群成員已讓 m1n1 初始化 GPU 並畫出三角形；拖了近兩年的 Thunderbolt 支援也終於送上 mailing list。<a href="https://news.ycombinator.com/item?id=50401867">HN 討論</a>。</p>
+
+<h3>Google 買下 Crusoe 在懷俄明州的資料中心預定地</h3>
+<p><a href="https://www.crusoe.ai/resources/newsroom/crusoe-wyoming-data-center-campus-update">Crusoe 宣布</a>，其在懷俄明州東南部的資料中心預定地由 Google 收購；Crusoe 已完成選址、政府許可與電力規劃。電力策略是與 Tallgrass Energy 共同設計的混合方案：燃料電池、電網與天然氣渦輪，長期再接上 Tallgrass 的區域 CO₂ 封存設施。Crusoe 也是 Google 在德州 Amarillo 附近建設中資料中心的開發商，自稱已簽約超過 6 GW、管線中超過 40 GW。對照上面 METR 的報告，算力基礎建設的競賽正從「買 GPU」延伸到「先買電力與土地」。<a href="https://news.ycombinator.com/item?id=50397711">HN 討論</a>。</p>
+</article>
+</body>
+</html>

@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 晚報｜2026-11-09（週一）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 晚報｜2026-11-09（週一）</h1>
+<p><b>今日導讀</b>：週一的 arXiv 清單把焦點拉回「規模與正規化」：浙大與騰訊混元說 feed-forward 3DGS 的跨場景泛化卡在一個被忽略的尺度問題；美團把一個 4B VLA 用一萬五千小時資料堆到 RoboTwin 2.0 的 93.6%；而 EvoWorld 則示範，讓影片 world model 記住「鏡頭外發生的事」，靠的可能不是更大的 renderer，而是一顆會寫筆記的 VLM 大腦。新聞方面有車廠遠端解鎖漏洞、Outlook 默默開始擋沒有 DMARC 的信，以及一個用 Rust 寫的 SketchUp 替代品。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. SplatAnything：feed-forward 3DGS 跨場景失敗，問題出在「Gaussian 間距」沒被正規化</h3>
+<p><a href="https://arxiv.org/abs/2611.08264">arXiv:2611.08264</a>｜cs.CV｜浙江大學（周曉巍、鮑虎軍、彭思達）、騰訊混元；HF Daily Papers 今日最高票（55）</p>
+<p><b>問題</b>：近期很多 feed-forward 3DGS 方法先用 geometry foundation model 預測每個像素的深度，再在該模型的 radial-distance 正規化空間（作者稱 RDNorm，除以平均徑向距離）裡預測 Gaussian 屬性。作者指出，RDNorm 沒有把「相鄰 Gaussian 中心的間距」標準化，而 Gaussian 的 scale 目標正是跟這個間距綁在一起。結果是看起來相似的局部觀測，在不同場景、不同相機設定下拿到不一致的 scale 監督：間距大的地方破洞，間距小的地方過度平滑。</p>
+<p><b>方法</b>：核心是 Gaussian Spacing Normalization（GSNorm）。單一像素的局部間距近似為深度除以焦距幾何平均，d ≈ D/√(fx·fy)；場景尺度 s_g 取所有視角、所有有效像素上這個量的中位數，然後把深度、3D 點與相機平移都除以 s_g。這樣「中位 Gaussian 間距」被固定，但相對的局部變化保留。架構上，凍結的 WorldMirror 2.0 估計多視角深度、內參與 pose；經 GSNorm 後每個像素 unproject 成 Gaussian 中心；一個從 WorldMirror 2.0 初始化並微調的 Gaussian Backbone，接上從頭訓練的輕量 GSHead，預測 opacity、rotation、scale（exp 後上限 0.3）與 SH 係數；並沿用 AnySplat 的 voxel merge 去除重疊視角的冗餘 Gaussian。損失只有 render 後的 MSE + LPIPS（權重都是 1）。訓練用 64 張 H20、20,000 iteration，4 到 32 張輸入視角、解析度 504 到 1024，資料橫跨 14 個資料集（HyperSim、OmniWorld、MatrixCity、ScanNet++、ARKitScenes 等），並用四種相機軌跡模式取樣、目標視角含內插與外插。</p>
+<p><b>結果</b>：作者自建跨資料集 benchmark（ScanNet、NRGBD、DL3DV、Tanks &amp; Temples、Mip-NeRF 360、ETH3D、DTU，4 到 64 視角），主要指標是 DISTS 與 LPIPS。無 pose 設定下，DL3DV 的 DISTS/LPIPS 為 0.221/0.156，對比最強基線 Mirror2-GS 的 0.246/0.188；Tanks &amp; Temples 為 0.252/0.299 對 0.306/0.351。有 pose 條件時，ETH3D 為 0.133/0.037 對 0.201/0.062。消融裡 GSNorm 對 RDNorm 在 4 視角的 DISTS 是 0.198 對 0.223，且對 RDNorm 做 scale calibration 補不回差距。速度上 4 視角 411 ms，比 DA3-GS 的 709 ms 快，但 DepthSplat 158 ms 更快。</p>
+<p><b>限制與疑問</b>：PSNR 只放在附錄，而且 ReSplat 在數個設定 PSNR 更高（如 16 視角 19.67），作者以「PSNR 偏好過度平滑」解釋，讀者可自行判斷。單視角時並非全面領先，SHARP 在 ScanNet、NRGBD、Mip-NeRF 360 上更好。方法高度依賴 geometry 模型品質，也不處理沒看到的區域。</p>
+<p><b>為什麼值得看</b>：這是一個很便宜、可以直接搬到自己 pipeline 的觀察：只要你的 Gaussian 是 pixel-aligned 地 unproject 出來，scale 的監督目標就應該在「間距空間」裡定義。做 feed-forward GS、SLAM 式 online GS，或想把 VGGT/DA3 類模型接上 splatting head 的人，值得先檢查自己的正規化方式；它也說明消融裡「固定 Gaussian 中心到 geometry prior」是最大增益來源，暗示 head 不必學位置。</p>
+
+<h3>2. EvoWorld：讓影片 world model 記得鏡頭外的世界也在變</h3>
+<p><a href="https://arxiv.org/abs/2611.06748">arXiv:2611.06748</a>｜cs.CV｜HKUST、Tencent、CUHK｜HF 18 票</p>
+<p><b>問題</b>：現在的互動式影片 world model 大多能做到「鏡頭轉走再轉回來，場景還在」，但轉回來時，被留在畫面外的東西通常凍結不動，或狀態因果不一致。作者把這定義成 out-of-sight causal evolution：一段 rollout 分成初始、事件（中途換 prompt，主角離開視野）、回訪三段，回訪時必須呈現合理的後果。</p>
+<p><b>方法</b>：關鍵是「大腦與渲染器分離」。VLM 大腦（Qwen3.8-27B）在每段生成後看取樣的影格，維護一份關於實體、場景與事件的文字紀錄；事件渲染完後，由它推論鏡頭外主角應有的狀態變化，並寫出具體的回訪 prompt。渲染器從 LTX-2.5 初始化，做 segment-autoregressive 生成（512×896、24 fps、8 步）。記憶有兩種：entity anchor（主角清楚可見時的 latent，由 VLM 從生成歷史挑選）與 temporal anchor（上一段最後 4 個 latent）。Identity-Anchored Attention 只在回訪段對 entity anchor 的 attention logit 加 β=3.0 的偏置。訓練分兩階段：Stage 1 在 ground-truth 視窗上以 flow-matching 只訓練目標 latent（rank-128 LoRA，8,000 步）；Stage 2 做線上自回歸適應，讓模型自己生成前一段當 temporal anchor（75% 線上、25% GT，200 步），對付 exposure bias。資料是約 12k 支、至少 10 秒的影片，用 Gemini 3.1 Pro 寫五拍腳本、Seedance 2.0/2.5 渲染，再用 Lucas–Kanade + RANSAC 檢查相機確實「離開又回來」。</p>
+<p><b>結果</b>：EvoWorld-Bench 有 120 個案例。Core success（回訪、事件、因果合理三者同時成立）EvoWorld 達 90.8%，基線 LingBot-World-v2 20.0、Evoke-Turbo 21.7、YUME-1.5 15.8、SANA-WM 13.3。Evoke-Turbo 的回訪 98.3、事件 89.2 都很高，但因果只有 32.5，說明現有模型單步都會，就是串不起來。有趣的是，把 EvoWorld 大腦寫的 prompt 餵給 Evoke-Turbo，Core 就從 21.7 升到 45.0。消融中 Stage 2 把 Core 從 84.2 拉到 90.8。</p>
+<p><b>限制與疑問</b>：每段只有一個事件、一個主角反應；相機幾乎只有水平移走再移回，沒有 6-DoF；benchmark 只有 120 例，而且主要分數由 VLM judge 給，又和大腦同屬 Qwen3.8 家族，存在自評偏差的疑慮。訓練資料也來自另一個影片模型，等於某種蒸餾。</p>
+<p><b>為什麼值得看</b>：「Evoke-Turbo 加上大腦 prompt 就翻倍」這個結果很有說服力：鏡頭外狀態的推理，其實可以外包給一個顯式的文字 state，而不必塞進 renderer 的 latent。對做 world model for robotics 的人，這是一個便宜的 baseline：用 VLM 維護 object-level 狀態，讓 video model 只負責渲染。後續可以想把文字紀錄換成 3D scene graph 或 Gaussian map，或者把同樣的評估協議套到 action-conditioned world model 上。</p>
+
+<h3>3. Meituan-Robotics-0：4B VLA、15,000 小時資料，與「Rollback」式人類修正</h3>
+<p><a href="https://arxiv.org/abs/2611.08577">arXiv:2611.08577</a>｜cs.RO｜美團機器人團隊</p>
+<p><b>問題</b>：桌面操作的 VLA 面對四個缺口：資料集的觀測格式、動作空間與機體不一致；只用成功示範訓練的 policy 學不到怎麼從自己的錯誤恢復；reactive policy 在資訊離開視野後就忘了任務；而光放大 action model 解決不了這些。</p>
+<p><b>方法</b>：主幹是從 Qwen3.5-4B 初始化、全程可訓練的 VLM。三階段訓練：(1) 離散多模態預訓練，動作用 FAST token（DCT + BPE）跟文字共用自回歸 head，action loss 權重 1.0、VQA 0.1，256 張 GPU 跑 500,000 步；(2) 跨機體 mid-training，換成從頭訓練的 MMDiT flow-matching action head，所有機體動作映射到統一的 20 維末端執行器表示，並混合 subtask 與 episode 層級指令（langmix）；(3) 真機 post-training，先 SFT，再比較 HG-DAgger、RECAP 與 CFG-DAgger。作者提出 Rollback：退回某個 anchor 狀態，把被替換掉的 policy 片段與人類修正配成一對，直接當成 CFG-DAgger 的正負標籤。資料方面，VL 約 1.47 億筆；機器人軌跡 15,060 小時、12 種機體，其中 50% 是授權的真機資料、21.5% 是開源 RoboDesk、28.5% 是模擬。另有 Qwen3.5-35B-A3B 擔任 Monitor、Memory Manager 與 Planner 的 agent 層，補 reactive policy 的記憶缺口。</p>
+<p><b>結果</b>：RoboTwin 2.0 的 50 個任務整體 93.6%（Clean 93.2、Randomized 93.9），對比 π0 62.2、π0.5 79.8、X-VLA 72.8、StarVLA 88.3、LingBot-VA 92.2、InternVLA-A1.5 93.2、G0.5 93.3。注意頂端已經很擠，跟第二名只差 0.3 點。RoboDojo（42 個雙臂任務）加了歷史的版本平均成功率 14.63%，在 VLA 中排第五，開放詞彙指令跟隨只有 3.38%。真機 30 次試驗：網路線插入任務對 π0.5 優勢最大；用 Rollback 資料時 CFG-DAgger 的 SR/PS 為 0.70/0.90，RECAP 為 0.60/0.67。</p>
+<p><b>限制與疑問</b>：agent 部分只有兩個質性案例；真機每任務 30 次，部分基線數字只在圖上；RECAP 訓練時排除失敗軌跡效果反而較好，這點沒有深入解釋；範圍限於固定底座桌面操作。</p>
+<p><b>為什麼值得看</b>：這份報告的價值在 recipe 細節多：離散 token 預訓練再換連續 flow head、20 維統一 EE 動作空間、以及把人類修正轉成成對偏好資料的 Rollback。如果你在想怎麼把 DAgger 式介入資料用得更有效率，Rollback + CFG-DAgger 的配對構造可以直接借鏡；RoboDojo 上的低分也提醒，RoboTwin 已接近飽和，需要更難的長程與開放指令 benchmark。</p>
+
+<h2>快速瀏覽</h2>
+
+<p><b>MotionCore：給影片生成接一個剛體物理的 latent 模擬器</b>（<a href="https://arxiv.org/abs/2611.08904">2611.08904</a>）</p>
+<p>用可學習的 PDE solver 預測物體層級的物理狀態演化，再轉成空間對齊的 latent control 交給可控 video diffusion：動力學模型決定軌跡，生成器負責外觀。訓練加上一個低容量的「可解碼性」約束（從 latent 讀出物體身分與位置），確保軌跡能穿過生成器。摘要宣稱物理一致性與軌跡遵循提升、畫質相當，但沒有給數字。</p>
+
+<p><b>Trajectory Forcing：把前面 chunk 的去噪軌跡也當成 context</b>（<a href="https://arxiv.org/abs/2611.09096">2611.09096</a>）</p>
+<p>現有 AR diffusion 長影片只拿上一個 chunk 的最終輸出當條件，TraF 也用前面 chunk 的整條 denoising trajectory。先用 GT 影片的高斯內插偽軌跡訓練，再用 teacher 與學生自己 rollout 的真實軌跡訓練。5 秒 VBench Total 85.15，比 Self Forcing 高 0.84、比 Causal Forcing 高 1.11；在 6 倍訓練長度的 30 秒生成上品質最佳。</p>
+
+<p><b>JEPAhead：把 V-JEPA 的 inpainting predictor 改成駕駛的因果預測</b>（<a href="https://arxiv.org/abs/2611.08657">2611.08657</a>）</p>
+<p>凍結 encoder，把預訓練 V-JEPA1 predictor 從雙向 latent inpainting 改成不需動作的因果預測，一次 forward 預測未來 16 幀。CARLA Town12 上，從 591 個候選中選出正確未來的比例 69.0%，persistence 基線 55.3%。作者坦承 pixel 空間 LPIPS 幾乎沒進步，下游效用尚未驗證，算是 latent world model 的誠實小品。</p>
+
+<p><b>VLA Handover：小模型快失敗時才呼叫雲端大模型</b>（<a href="https://arxiv.org/abs/2611.08987">2611.08987</a>）</p>
+<p>機器人本地跑 SmolVLA，預測失敗時切到伺服器上的 π0.5，不需重訓任何模型。在三個 LIBERO suite 上，成功率比只用小模型高 11 到 22 個百分點，伺服器請求比全程雲端少 49 到 77%，成功率只低 2 到 4 點。邊緣部署 VLA 的實用思路。</p>
+
+<p><b>讓 LLM 直接改權重來 debug 機器人 policy</b>（<a href="https://arxiv.org/abs/2611.09376">2611.09376</a>）</p>
+<p>一個 LLM 讀 π0.5 的權重，靠 CPU 工作區與有預算的模擬回饋直接編輯，不做梯度更新。改 65 列 token embedding 就修好詞彙層面的指令 grounding：765 個 held-out 改寫指令中，最好的一次把成功率從 86.3% 拉到 92.0%。但另外 13 次嘗試幾乎都沒保留或沒顯著收益，作者也明說這是「精準的詞彙修補」，不是學到新能力。</p>
+
+<p><b>SUGARv2：用合成的互動參考動作教人形機器人做視覺 loco-manipulation</b>（<a href="https://arxiv.org/abs/2611.09266">2611.09266</a>）</p>
+<p>把可重用的任務模板改寫到不同空間配置，合成機器人與物體的協調動作當參考；先訓 privileged teacher 跟隨參考，再用蒸餾加 RL 得到視覺 policy，全程共用 mimic reward。模擬中五個任務平均成功率 91.0%，並在真實人形上完成 sim-to-real。</p>
+
+<p><b>Frontier3DBench：coding agent 能寫出可互動的 3D 世界嗎？</b>（<a href="https://arxiv.org/abs/2611.09017">2611.09017</a>）</p>
+<p>145 個任務，要求 agent 從圖片與指令寫出可編輯的 3D 程式。11 種模型與 harness 組合中，GPT-6.1-sol 總分最高 66.02/100。生成的世界在單一機制上平均 83.08，但 motion clearance 只有 20.82、stateful workflow 30.26；而且所有組合在「照參考重建」都比「照文字生成」差。</p>
+
+<p><b>VLM 也有 subliminal learning</b>（<a href="https://arxiv.org/abs/2611.08538">2611.08538</a>，WACV 2027）</p>
+<p>把 teacher VLM 微調成偏好某種動物或臉部屬性，讓它在一個無關的幾何圖形任務上產生數字，學生只用這些數字微調，偏好竟然也傳過去。2B 到 7B 模型都觀察到，動物偏好任務上差距最多約 10 個百分點，且資料越多傳得越強。對用 VLM 自產資料做蒸餾的人是個提醒。</p>
+
+<h2>新聞與討論</h2>
+
+<p><b>研究員串起漏洞鏈，可遠端解鎖某大車廠的車</b></p>
+<p><a href="https://shubs.io/unlocking-any-car-from-x-brand-in-most-of-the-world/">文章</a>從車牌查 VIN，再由內部 API 對到使用者帳號；vendor 的 JavaScript bundle 裡嵌著 OpenIDM 管理員帳密，再用 /static%2f..%2fopenidm/ 繞過 WAF，就能改任何人的密碼、在澳洲環境跳過 MFA，最後用 app token 送出開門指令。作者沒有點名車廠，也沒寫揭露時程。<a href="https://news.ycombinator.com/item?id=50419215">HN 討論</a>多數人從影片裡的 RAV4 推測是 Toyota/Lexus，並引用 Sam Curry 的姊妹文說車廠約兩小時內就修好並輪換了憑證。</p>
+
+<p><b>Outlook.com 開始拒收沒有 DMARC 紀錄的網域寄來的信</b></p>
+<p>MailRoute <a href="https://mailroute.net/blog/outlook-rejecting-email-without-dmarc">觀察到</a>，自 11 月 5 日起 Outlook、Hotmail、Live、MSN 會用 550 5.7.1 Message rejected: Message lacks SPF/DKIM/DMARC Auth Records 退回部分郵件，微軟沒有公告。以前只有每天寄超過 5,000 封的寄件者被要求；這次連小網域都受影響，而且只擋部分郵件，所以「有寄到」不代表沒事。修法是加上 v=DMARC1; p=none 的 TXT 紀錄，並確認 SPF 或 DKIM 與 From 網域對齊。如果你的實驗室或個人網域會寄信，值得今晚檢查。<a href="https://news.ycombinator.com/item?id=50416158">HN 討論</a></p>
+
+<p><b>KetchUp（現名 BenchUp）：用 Rust 寫的開源 SketchUp 替代品</b></p>
+<p><a href="https://ketchup3d.github.io/app/">專案頁</a>定位為木工與家具設計的 3D 建模工具，有 Push/Pull、snapping、元件與 tag，可匯入 .skp 幾何、匯出 OBJ，MIT 授權，有 Windows/macOS/Linux 版與 WebGPU/WebGL2 網頁版。<a href="https://news.ycombinator.com/item?id=50418176">HN 討論</a>一半在抱怨 Trimble 取消免費版與永久授權，另一半是實際試用的回饋：snapping 預設沒開、push/pull 不如預期，並指出建模工具「最後 20% 的打磨」才是難處。</p>
+
+<p><b>Next-Concept Modeling：coarse-to-fine 平行生成文字</b></p>
+<p>Christopher Ré 與 Azalia Mirhoseini 等人的<a href="https://arxiv.org/abs/2610.14162">論文</a>用多尺度 residual VQ-VAE 把文字編成階層式離散碼，transformer 一次平行生成一整層。對比最強的 diffusion LM，LM1B 上 perplexity 更好且快 21 倍，XSum 的 ROUGE-L 持平且快 31 倍。概念上跟影像的 next-scale prediction（VAR）很像。<a href="https://news.ycombinator.com/item?id=50422168">HN 討論</a>有人認為它本質是階層式 diffusion transformer，名字裡的「next」有點誤導。</p>
+
+<p><b>黃仁勳發給 Nvidia 員工的道歉信</b></p>
+<p>今天早報提到董事會展開獨立調查；今天公開的<a href="https://nvidianews.nvidia.com/news/a-message-to-our-company">信</a>裡，黃仁勳承認對妻子不忠並說「負起全部責任」，也提到董事會針對新聞報導中的國安疑慮展開獨立調查，他會全力配合。信中沒有提到外國情報單位。<a href="https://news.ycombinator.com/item?id=50418016">HN 討論</a>超過 700 則留言。</p>
+
+<p><b>ChatGPT Desktop 會把你的 SSH agent 轉發到遠端機器</b></p>
+<p>HN 上<a href="https://news.ycombinator.com/item?id=50422628">一則貼文</a>指出，遠端機器上的 agent 可以借用你本機的 SSH 憑證，例如推到你的私有 GitHub repo。討論串建議把 SSH key 放進 macOS Secure Enclave、每個新 session 都要指紋，讓 agent 無法自行開連線。搭配這幾天 Claude Code「Don't ask again」洩漏密碼的新聞，coding agent 的權限邊界顯然是近期主題。</p>
+
+<p><b>RIP, Harvest：一個好用的小 SaaS 被收購後的命運</b></p>
+<p>Aphyr <a href="https://aphyr.com/posts/427-rip-harvest">寫道</a>，時間追蹤與開發票服務 Harvest 被 Bending Spoons 收購後，他的月費從 13.32 美元變成 133.98 美元；便宜方案則在刷卡手續費之外再加收 2%，客服回信看起來像 LLM 寫的。<a href="https://news.ycombinator.com/item?id=50420035">HN 討論</a>推薦了 Cushion、Odoo 等替代品。</p>
+
+<p><b>把寫作當成思考工具</b></p>
+<p>Murat Demirbas 的<a href="http://muratbuffalo.blogspot.com/2026/11/writing-as-thinking-tool.html">文章</a>引用 Manuel Blum：Turing machine 和有限自動機的差別，主要就在有紙和筆。建議是先寫一份不評判的亂草稿，再像嚴厲審稿人一樣刪三四輪；以及在問 AI 之前先寫下自己的立場，讓思考留在自己手上。對每天在寫 paper 和 review 的人很對味。<a href="https://news.ycombinator.com/item?id=50412067">HN 討論</a></p>
+</article>
+</body>
+</html>

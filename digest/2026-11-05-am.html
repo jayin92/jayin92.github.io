@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 早報｜2026-11-05（週四）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 早報｜2026-11-05（週四）</h1>
+<p><b>今日導讀</b>：今天的主線是「把昂貴的想像拿掉，或把它換成更便宜的東西」。DreamFree 讓 world action model 不再生成未來影片，只在 feature 裡「預想」未來，14B 的 video backbone 跑到 11Hz；HKU 的 Physical Diffusion Policy 則把物體的材質參數先用 MPM + 3DGS 算好、存進記憶庫，部署時只要查表。第三篇 ReconDreamer# 是駕駛場景重建，讓重建與生成互相餵資料，越跑越好。新聞方面，Anthropic 公布能證明「真的是這個模型回答的」密碼學方法，IEEE Spectrum 談 AI 正在把 40 年的軟體技術債一次掀出來。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. DreamFree：不生成未來影片的 World Action Model</h3>
+<p><a href="https://arxiv.org/abs/2611.04527">arXiv:2611.04527</a>｜cs.RO｜KAIST（Kimin Lee、Sung Ju Hwang 共同指導）｜Future Representation Distillation for Imagination-Free World Action Models</p>
+<p><b>問題</b>：World Action Model（WAM）用預訓練的 video diffusion model 預測未來畫面，再據此產生動作，泛化好但有兩個代價：iterative video denoising 很慢，而且預測錯的未來畫面會把動作一起帶歪。作者的疑問是：產生動作真的需要和影片生成一樣細的視覺細節嗎？</p>
+<p><b>方法</b>：分兩階段。第一階段把 Wan2.2（5B 或 A14B high-noise expert）的 video DiT 改造成「預測式視覺編碼器」：用 structured attention mask 讓 current-frame token 只看彼此，所以它們的 hidden state 只依賴當下觀測與指令。接著仿照 REPA 做 future representation distillation：一個凍結的 video diffusion model 看完整（加了固定雜訊的）影片，取第 j 層表示當 teacher；encoder 只看當前幀，透過輕量 Transformer projector 去對齊 teacher 的時空 token，用相似度當 loss，再加上原本的 flow matching 生成 loss 當正則。這一階段完全不需要 action label。第二階段用 Perceiver 式 latent-query readout 從 encoder 抽出 action-facing token，交給 1B 的 action DiT 用 flow matching 預測 32 步的 action chunk。推論時 encoder 只跑一次 forward，teacher 和 projector 都丟掉。</p>
+<p><b>結果</b>：LIBERO 四個 suite 平均 98.6%，與 LingBot-VA（98.5）、Fast-WAM（97.6）、π0.5（96.9）同級。RoboCasa-Kitchen 24 任務上 14B 版 71.7%，高於 Cosmos Policy 67.1、FLARE 66.4、GR00T-N1.5 64.1；同樣不生成影片的 Fast-WAM 只有 44.4，從 5B 換到 14B 幾乎沒進步，DreamFree 則提升 13.2 pp，再加上 RoboCasa365 的無標註影片可到 74.4%。真實 DROID 10 個任務各 5 次：平均成功率 64%，DreamZero 56%、π0.5 16%；task progress 83% vs 71.8% vs 33.5%。蓋草莓毛巾、把帽子掛到三腳架、把螺栓放進碗這三個任務 DreamZero 全部失敗，作者觀察到多半是未來影片預測錯了。延遲在 H200 上是 π0.5 的 1.1 倍、比 DreamZero 快 17.8 倍。消融：拿掉 distillation，RoboCasa 從 71.7 掉到 47.2；拿掉生成 loss 掉到 55.6。只用影片學新任務：RoboCasa 組合任務從 0% 升到 21.7%（沒有 distillation 的版本仍是 0%）；用雙臂 Franka 的影片教 ALOHA，平均從 6.7% 升到 30%。</p>
+<p><b>限制與疑問</b>：作者承認沒在 DROID 上做加影片資料的擴展（算力限制），三段式訓練也偏複雜。真實實驗每個任務只有 5 次，誤差條不小；從影片學新任務的絕對成功率仍低，而且作者指出：如果 policy 本身不會開櫃子，看再多「把東西放進櫃子」的影片也學不會。</p>
+<p><b>為什麼值得看</b>：這篇把「video model 對機器人有用的到底是生成能力還是表示」這個問題講得很清楚，而且有 probing 實驗支撐：只看當前幀的 encoder，action probing 誤差逼近直接看到未來幀的 VDM。對做 VLA 的人，這是一條不用付 video denoising 成本又能吃到 video prior 的路線；後續值得試的是把同樣的 distillation 用在 3D 或 point track 表示上，或拿更大量的人類影片做第一階段。</p>
+
+<h3>2. Physical Diffusion Policy：先算出材質參數，再讓 policy 依材質分工</h3>
+<p><a href="https://arxiv.org/abs/2611.04493">arXiv:2611.04493</a>｜cs.RO｜The University of Hong Kong（Dong Xu 組）｜Physical Diffusion Policy via MPM-Guided 3D Gaussian Simulation</p>
+<p><b>問題</b>：Diffusion Policy 主要把物體當成「看起來的樣子」。外觀相近的物體可能軟硬差很多，同一個 policy 面對異質物體時容易輸出被平均掉的動作。傳統的 system identification 又需要力感測器或為每個物體寫專用模擬器，難以擴展到日常物品。</p>
+<p><b>方法</b>：先用 ZFormer（feed-forward 3DGS）從半球形環拍影片取 64 幀重建 Gaussians，每顆 Gaussian 對應一個 MPM 粒子，帶有 Young's modulus、Poisson's ratio、yield stress、viscosity 四個材質參數；粒子移動帶動 Gaussian 中心，covariance 用 polar decomposition 更新，所以整條模擬是可微分渲染。參數由 Qwen3-VL 給初值，再依材質類型（彈性、金屬、黏土等）做 clipping，接著用三個 loss 對齊：與錄影比對的 video-guided rendering loss、以 Depth Anything 3 取得幾何的 temporal Chamfer loss，以及把夾爪接觸粒子固定在實際夾爪軌跡上的 Dirichlet 邊界條件。模擬器是 PhysGaussian 的 GPU MPM（100³ 網格）。Policy 端是四個材質 expert（elastic、foam、plastic、rigid）的 MoE diffusion policy，router 看估出的物理參數加視覺特徵決定權重，先各自預訓練再一起 fine-tune。部署時不重新最佳化，而是用 DINOv2 特徵（固定視角權重 0.6、腕部相機 0.4）從記憶庫取最相似物體的參數。</p>
+<p><b>結果</b>：模擬 300 條、真機 100 條示範（真機 17 種日常物品）。真機 pick-and-place 四類材質成功率：本文 57.1 / 56.0 / 66.7 / 70.0，DP3 30.0 / 43.3 / 46.7 / 49.2，DP 25.2 / 28.0 / 28.3 / 34.2。個別物體差距更大：金屬彈簧 60.0 vs DP 0.0、牙膏 63.3 vs 0.0。消融中，單一 policy 加上物理條件就讓真機平均從 28.9% 升到 49.4%，完整 MoE 到 62.5%。參數估計拿掉 VLM 初始化誤差最大（平均 log-MAE 1.257 vs 0.565）。記憶庫查詢約 415 ms，比線上最佳化（每次 798 秒）快近 1900 倍，成功率只差 1.5 點（59.2 vs 60.7）。</p>
+<p><b>限制與疑問</b>：論文沒有限制章節。記憶庫只能回傳「看過的物體」的參數，沒有清楚測試未見物體；每個物體離線最佳化約 800 秒，還要環拍、VLM 和深度估計；baseline 只有 DP 和 DP3。文中也有幾處數字對不上（模擬平均 89.9 與四項平均不符、易碎物體的試驗次數正文與圖說不一致），loss 權重沒給，也沒提到程式碼。</p>
+<p><b>為什麼值得看</b>：這是「3DGS + MPM 做物理辨識」接到 manipulation policy 的完整管線，而且真機增益明顯大於模擬。對做 physics-aware 3D 的人，可以想想把記憶庫換成從外觀直接回歸參數的網路，或把 VLM 初值換成更有物理根據的 prior；對做 policy 的人，「依材質路由的 MoE」是一個簡單但有效的歸納偏置。</p>
+
+<h3>3. ReconDreamer#：讓駕駛場景重建與生成互相餵資料</h3>
+<p><a href="https://arxiv.org/abs/2611.04173">arXiv:2611.04173</a>｜cs.CV｜中科院自動化所、清華大學自動化系、GigaAI｜ReconDreamer#: Self-Evolving Closed-Loop Synergy of Reconstruction and Generation for Dynamic Driving Scenes</p>
+<p><b>問題</b>：用生成模型修補偏離原始軌跡的渲染，已經是駕駛場景 novel trajectory 合成的常見做法（ReconDreamer、ReconDreamer++ 就是作者前作）。但訓練修復模型的「劣化樣本」是靠刻意少訓練的 GS 或手工擾動做的，和真正橫向位移後出現的瑕疵不一樣，限制了重建品質。</p>
+<p><b>方法</b>：兩個新東西。第一是自我進化的閉環：第一輪照舊用未收斂的 GS 渲染原軌跡、訓練修復模型 DriveRestorer；第 k 輪改用上一輪的 GS 渲染新軌跡當 pseudo GT，訓一個輔助 GS，再把它渲染回原始軌跡，得到「位移後再移回來」的真實劣化樣本，和真實影像配對來訓 R_k，每輪渲染的新軌跡數也逐漸增加。第二是 Adaptive Ground Model：從 LiDAR 地面點重建表面當地面 Gaussian 的初始位置，外觀等屬性從 8 個近鄰插值，並且讓所有地面參數都可最佳化（前作固定數量與位置），搭配沿切平面分裂、投影回局部 LiDAR 平面，以及 point-to-plane、法向、厚度三項正則。</p>
+<p><b>結果</b>：Waymo 上對比 ReconDreamer++：原軌跡 PSNR 36.29 → 36.89、LPIPS 0.1076 → 0.0953；橫移 6 m 時 NTA-IoU 0.4890 → 0.5320、NTL-IoU 56.57 → 58.29、FID 111.92 → 94.99（同設定下 Street Gaussians 213.04、FreeVS 121.44）。nuScenes 6 m 的 FID 由 187.51 降到 133.99；PandaSet 2 m 橫移 FID 61.9 → 52.73；EUVS 靜態區 PSNR 20.52 → 21.59。消融顯示單獨用自我進化時 6 m NTL 反而低於 baseline，兩個模組一起才在每一欄都最好；修復模型從 R₁ 到 R₄，6 m FID 從 108.10 降到 94.99。</p>
+<p><b>限制與疑問</b>：作者自己列得很完整：來回映射只能監督原軌跡看得到的效果，無法驗證看不到的幾何；地面平面在高程突變或分割錯誤處不可靠；生成式修復可能產生「合理但錯誤」的外觀；整個閉環的離線成本不低。另外 FID 的改善幅度遠大於 PSNR，讀者應該留意這主要是感知品質的提升。</p>
+<p><b>為什麼值得看</b>：「用自己的模型製造更真實的劣化樣本」是一個可以搬到其他 3DGS + diffusion 修補設定（室內 novel view、單眼重建、人體）的通用技巧。地面建模那部分也對所有做街景重建的人有參考價值：路面一直是 3DGS 在大位移下最先崩的地方。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>Route Anything：模型與 policy 路由的大型研究</h3>
+<p><a href="https://arxiv.org/abs/2611.05275">arXiv:2611.05275</a>｜今天 HF 最高票（83）。作者建了一個涵蓋 25 個 benchmark、452 種候選設定、374,401 次評分執行的矩陣，範圍從語言、影像/影片/語音生成到 coding agent 與機器人操作。逐筆輸入的 oracle 路由比最好的單一候選高 5.4 點，但實際學到的 router 在 16 個 benchmark 上只高 0.3 點；機器人操作上高 1.1 點且 policy 時間少 24%。oracle 與實際 router 的落差，本身就是值得注意的結論。</p>
+
+<h3>UMI 軟指：100 小時 pick-and-place 的經驗</h3>
+<p><a href="https://arxiv.org/abs/2611.03779">arXiv:2611.03779</a>｜基於 YUBI 平台、用電池供電的手持 UMI，指頭是與機器人夾爪一致的軟性斜指，受力會明顯變形，相機看得到，等於一個視覺化的力訊號。收集 99.7 小時、53 種物體，用 49 種訓 π0.5。加一顆頂部相機讓成功率高 13 點（即使只有約一半資料有它）；先在多任務資料上 mid-training，未見物體 fine-tune 後成功率從 35% 升到 57%。設計、資料與處理程式碼都會釋出。</p>
+
+<h3>HiLo-WAM：把長程任務進度與局部動態拆成兩條流</h3>
+<p><a href="https://arxiv.org/abs/2611.05023">arXiv:2611.05023</a>｜現有 WAM 多半預測密集、短時距的畫面變化，缺少任務層級的脈絡。HiLo-WAM 用 dual-DiT，一條稀疏長時距流追蹤任務進度，一條密集短時距流建模手物互動，兩者以結構化 cross-stream attention 引導動作。RoboTwin 2.0 平均 93.70%，搭配漸進式推論加速 2.93 倍，也在 Fourier GR-3 人形上做了真機測試。可以和 DreamFree 對照：一個把未來想得更有層次，一個乾脆不想。</p>
+
+<h3>Trusting Imagined Futures：審核 world model 給的「想像獎勵」</h3>
+<p><a href="https://arxiv.org/abs/2611.04873">arXiv:2611.04873</a>｜用 video world model 想像候選動作的結果並打分，高分不一定代表執行品質好。TIF 加了一個 auditor，從想像影片與真實執行的配對中學習「獎勵被高估」的模式，只有在優勢夠大且風險夠低時才替換訓練軌跡。LIBERO 四個 suite、三個 seed 平均 76.25%，比原軌跡訓練高 3.00 pp，其中 audit gating 貢獻 1.47 pp；真機三個任務中被選中軌跡的乾淨完成比例從 58.33% 升到 70.00%。</p>
+
+<h3>LoopQ：量化 VLA 的公平閉環評測</h3>
+<p><a href="https://arxiv.org/abs/2611.05093">arXiv:2611.05093</a>｜在同一個 checkpoint、同樣的層與推論引擎下比較 RTN、AWQ、GPTQ、ActQuant、QuantVLA，四個 VLA、超過 18 萬個 LIBERO/LIBERO-plus episode。結論很打臉：4-bit 時通用方法追平甚至超過 VLA 專用方法；LIBERO 上看不出損失的設定，在 LIBERO-plus 擾動下會掉 1.5 到 4.3 點；H100 batch 1 時沒有任何量化版 π0.5 或 OpenVLA-OFT 比 16-bit 快（慢 1.06 到 1.58 倍）。原因之一是 π0.5 的 action expert 佔 63% GPU 時間卻只有 13% 參數，而且仍是 16-bit。</p>
+
+<h3>FlowRig：3D 與 4D mesh 統一的骨架生成</h3>
+<p><a href="https://arxiv.org/abs/2611.03775">arXiv:2611.03775</a>｜用 flow matching 一次 forward 為整段 4D mesh 序列生成時間上對齊的骨架，也能處理單一 3D mesh，可指定骨頭數量、估計不確定性，並用 masking 做插值與前後預測。因為成對 4D rigging 資料少，採用從大量 3D rigging 資料到中等規模 4D 資料的 curriculum。摘要沒有給量化數字（摘要裡方法名稱還寫成 MoTWorld），細節要看全文。</p>
+
+<h3>Is This 3D Asset Usable?：不只看漂亮的渲染圖</h3>
+<p><a href="https://arxiv.org/abs/2611.04102">arXiv:2611.04102</a>｜大型 3D 資產庫裡很多模型漂亮渲染沒問題，但幾何斷裂、UV 雜亂或材質一匯入就壞掉。DRE 為每個資產渲染 beauty、wireframe、UV seam 加 wireframe 三種對齊視圖，各用凍結的 ViT 分類器打分再融合。在 1,234 個人工標註的 TexVerse 資產上 balanced accuracy 86.36%、壞資產 recall 88.32%。對拿 Objaverse 類資料訓 3D 生成模型的人，這是很實用的資料清洗工具。</p>
+
+<h2>新聞與討論</h2>
+
+<h3>Anthropic：用 zkSNARK 證明「回答你的真的是這個模型」</h3>
+<p><a href="https://www.anthropic.com/research/provable-inference">Progress on provable inference</a>｜134 points。FlashProve 讓服務方先公開一個不洩漏權重的承諾值，之後為每個回應產生 zero-knowledge 證明，任何人拿著承諾值、prompt 和回覆就能驗證，不需要權重，也不靠 TEE 硬體。在 Llama 4 Maverick（400B MoE，4-bit）上，一張 H100 的證明吞吐約 110 tokens/s，額外成本是 vLLM 推論的 70 到 95 倍，驗證者只需 CPU，每個證明約 17 秒。限制也寫得很清楚：只涵蓋整數權重與 greedy decoding、上下文只到 1,024 tokens、架構不隱藏。程式碼以 Apache 2.0 釋出。<a href="https://news.ycombinator.com/item?id=50368626">HN 討論</a>中，有人認為 70 到 95 倍的成本加上 1k context 讓它目前不實用，TEE 或直接重跑 open-weight 模型更便宜；也有人提醒，它證明的是「哪個模型跑的」，而不是答案對不對或資料是否私密。</p>
+
+<h3>IEEE Spectrum：AI 逼我們償還 40 年的技術債</h3>
+<p><a href="https://spectrum.ieee.org/ai-in-cybersecurity-php2shell-vulnerability">AI is forcing us to pay off 40 years of technical debt</a>｜913 points，今天 HN 第一。PHP2Shell 的根源是一個 2024 年就回報給 PHP Foundation、但被當成「只會 crash」而沒修的記憶體 bug；資安公司 Calif 在 OpenAI 贊助的稽核中，由研究員借助 AI 工具在兩週內把它變成遠端執行任意程式碼，修補則花了四位工程師兩個月。Columbia 的 Suman Jana 說找 bug 比修 bug 容易得多，建議前沿實驗室捐出算力，並用 AI 產生修補加形式化證明。<a href="https://news.ycombinator.com/item?id=50364336">HN 討論</a>的主要爭點是形式化證明能否解決問題：反方指出證明只驗證 spec，spec 本身錯了一樣有洞；也有人抱怨 coding agent 傾向疊防禦式 patch 而不是重構。</p>
+
+<h3>Kimi K3.1 Pro 釋出權重</h3>
+<p><a href="https://huggingface.co/moonshotai/Kimi-K3.1-Pro">Hugging Face 模型頁</a>｜253 points。2.8T 總參數、每 token 啟用 104B 的 MoE（896 個 expert 選 16），69 層 KDA 加 24 層 Gated DSA 取代原本的 full attention，1M context，MXFP4 權重的 QAT，支援圖文輸入。官方數字中 BrowseComp 92.1、HLE-Full with tools 70.0 是表中最高，Terminal-Bench 4.0 65.7 接近 Opus 5.5 的 66.4，但 HLE 不用工具與 Terminal-Bench-Science 明顯落後；這些都是自報數字。<a href="https://news.ycombinator.com/item?id=50366999">HN 討論</a>重點：家用機器基本跑不動；授權規定 MaaS 年營收超過 2,000 萬美元要另簽協議；有人引用一份稽核，K3.1 有 65% 的回答會直接講出隱藏的評分規則（K3 是 18%），懷疑訓練時接觸過 benchmark 任務。</p>
+
+<h3>Tencent Hy4</h3>
+<p><a href="https://hy.tencent.ai/research/hy4">Tencent Hy4</a>｜129 points。官方頁面我無法讀取正文，以下資訊來自 <a href="https://news.ycombinator.com/item?id=50365780">HN 討論</a>，請當成二手資料：留言者說它約 770B 參數，是否已釋出權重說法不一；多個社群 benchmark 把它放在中段，品質略遜 Kimi 3.1 Pro 但便宜很多，不過它跑得慢、每題會下很多次查詢，實際成本優勢會縮小。留言也轉述騰訊自己承認在研究級數學與長程 coding 上與頂尖閉源模型仍有「明顯差距」，且訓練資料濾掉了攻擊性資安內容。</p>
+
+<h3>Go 1.27：encoding/json/v2 正式穩定</h3>
+<p><a href="https://go.dev/blog/jsonv2">A new Go API for JSON</a>｜132 points。v2 與底層的 jsontext 在 Go 1.27 進入 GA。行為變化：無效 UTF-8 與重複 key 會報錯、nil slice/map 輸出 [] 與 {} 而非 null、欄位名稱大小寫敏感、time.Duration 預設不能序列化。Unmarshal 最快可達 10 倍；v1 現在建在 v2 之上，兩者可互通，遷移不是強制的。寫 Go 工具處理大量 JSON（例如 dataset metadata）的人可以考慮直接換。</p>
+
+<h3>LED 燈下為什麼沒有蟲</h3>
+<p><a href="https://www.birdsoutsidemywindow.org/2026/11/03/insects-dont-swarm-at-led-lights/">Insects Don't Swarm at LED Lights</a>｜一則從墨西哥韋拉克魯斯某家庭改用 LED 後、燈旁捕蟲的壁虎全不見了開始的小文章。解釋是：昆蟲把紫外光當成月光來導航，白熾燈有 UV，LED 的能量幾乎全在 400 到 700 nm 的可見光。文中引用 2016 年 Bristol 大學在 17 個地點的比較，LED 吸引的昆蟲顯著少於白熾燈與省電燈泡，冷白與暖白 LED 之間沒有顯著差異。<a href="https://news.ycombinator.com/item?id=50370610">HN 討論</a>。</p>
+
+<h3>mrdoob 的 Jelly Sheet</h3>
+<p><a href="https://mrdoob.github.io/codevember-2026/01/">Jelly Sheet</a>｜436 points。Three.js 作者 mrdoob 的 Codevember 2026 作品，可以拖曳的果凍布料模擬，空白鍵暫停，值得在電腦上玩一下（Kobo 上就算了）。頁面沒有說明技術細節，留言推測是 WebGL。<a href="https://news.ycombinator.com/item?id=50361268">HN 討論</a>最大的一串是在吵用 AI 輔助的作品是否違背 Codevember 這類個人創作挑戰的精神。</p>
+</article>
+</body>
+</html>

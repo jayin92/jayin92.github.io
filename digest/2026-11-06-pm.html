@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 晚報｜2026-11-06（週五）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 晚報｜2026-11-06（週五）</h1>
+<p><b>今日導讀</b>：今天的主軸是「把世界狀態寫成顯式結構」。NVIDIA 的 VFlash 讓 VLM 一次吐出整條軌跡而不是一個座標一個 token；PlayGen2 把 Doom 世界拆成 occupancy grid 加實體表，再交給 renderer 畫；GPWM 則乾脆把整個物理世界寫成粒子運動。新聞方面，Claude Code 在 User-Agent 裡夾帶使用者 email 的事件衝上 HN 第二名，值得所有用 agent 抓網頁的人看一眼。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. VFlash：讓 VLM 一次畫完整條軌跡</h3>
+<p><a href="https://arxiv.org/abs/2611.08449">arXiv:2611.08449</a>｜cs.RO｜NVIDIA（作者含 Linxi Fan、Jan Kautz、Zhiding Yu、Alan Yuille），HF Daily Papers 今日第一（56 upvotes）</p>
+<p><b>問題</b>：VLM 越來越常被當成機器人和自駕的「大腦」，輸出點、bounding box、2D/3D 軌跡這類 visual plan。但 autoregressive 解碼是一個座標一個 token，軌跡越長、維度越多，延遲就線性成長。作者量到在 Jetson Thor 上，AR 解碼佔每步時間的 75–87%。一般的 speculative decoding 也幫不太上忙：DFlash 在文字上每輪可接受 5.5 個 token，在軌跡區塊裡只有 2.2 個，因為一個座標只要差一個 bin 就被判不一致，即使幾何誤差很小。</p>
+<p><b>方法</b>：核心是 Flash Primitive Decoding。visual primitive 的型別、維度和長度在預測前就已知（變長軌跡由 tool call 宣告長度），所以整個 primitive 可以排成一個固定 layout 的 block，讓一個 5 層、非因果的輕量 diffusion drafter 一次 forward 把所有座標同時預測出來。drafter 讀凍結 target VLM 的特徵，訓練標籤是<b>標註的座標</b>而不是 target 的輸出，所以優化的是空間精度而不是和 target 的 token 一致性。推論時只要通過 schema 驗證（box 另加 LocateAnything 的信心檢查）就整塊接受，不做逐 token 驗證；一般文字仍走有驗證的 speculative decoding。座標用 1,001 個特殊 token，或對文字座標模型用「符號＋五位數」的固定寬度格子。底座是 Qwen3-4B 加 MoonViT 的自訂 embodied VLM。</p>
+<p><b>結果</b>：最有意思的是 drafter 比它的 AR target 還準。3D 機器人軌跡在 InternA1、AgiBot、MolmoBot 上，ADE 降 18–61%；AgiBot 上 5 cm 內的 waypoint 比例從 50% 升到 73%（2D+3D 版本從 40% 到 74%）。2D 軌跡在 VABench-V 上比之前最好的 LoHo-Manip 誤差少約 40%。COCO/Dense200 box 生成在有 AR fallback 時 mean F1 持平、速度快 2.6–2.8 倍，但 IoU 0.95 的 F1 較低。下游方面，把 VFlash 的 plan 接到 Cosmos-Predict2.5 後訓練的 world action model，MolmoSpaces 四個任務平均成功率從 62.6% 升到 70.2%；改用 AR 產生的 plan 反而掉到 61.0%。NAVSIM 加 RL 後 PDMS 90.7，追平 Qwen-Drive-1.0-RL。延遲在 Thor 和 DGX Spark 上降 5.1–5.2 倍。</p>
+<p><b>限制與疑問</b>：「比 AR 還準」的一個可能解釋是 AR target 在長序列上累積誤差，而 drafter 用的是乾淨標註直接監督，未必是平行解碼本身更好。不驗證就接受，意味著失去 lossless 保證；box 在不加 fallback 時 Dense200 的 mean F1 掉約 20 點，表示這招對多實例、需要互相排除的輸出並不是免費的。dense motion 上 WorldTrack FDE 反而變差 15%。</p>
+<p><b>為什麼值得看</b>：這篇等於主張 visual plan 應該被當成「型別化的結構輸出」而不是一串文字。對做 VLA 的人，最直接的啟發是：中間的 trajectory plan 不只能加速，還能當成更好的 conditioning（表 7 顯示把 trajectory 狀態換成 image 狀態掉 6.5 點）。值得追的方向是把同樣的 primitive block 用在 3D Gaussian、mesh keypoint 或 grasp pose 上。</p>
+
+<h3>2. PlayGen2：把遊戲世界拆成顯式 3D 狀態，再交給 renderer 畫</h3>
+<p><a href="https://arxiv.org/abs/2611.07867">arXiv:2611.07867</a>｜cs.CV｜CUHK、Tencent、NTU；程式碼與權重已釋出</p>
+<p><b>問題</b>：GameNGen、PlayGen 這類 action-conditioned 影片模型把「生成的畫面」當成唯一的世界記憶：轉身後走廊還在不在、牆壁擋不擋人、畫面外的怪物在做什麼，全都得從像素歷史裡猜。生成誤差會沿著 autoregressive 迴圈累積，而且像素介面無法直接編輯實體或套用規則。</p>
+<p><b>方法</b>：學傳統遊戲引擎，把世界狀態拆成兩部分：靜態幾何用 volumetric occupancy grid（加一張「這格是否已知」的 availability mask），動態實體用 identity-indexed 的表，記錄類別、位置、高度、半徑、速度。world-state model（41.2M 參數）只處理以玩家為中心的固定大小 3D crop：3D conv encoder 加 Shared Context Transformer 編碼幾何、實體歷史和動作；Discovery Transformer 補全未知幾何、提出新實體；Transition Transformer 用 residual 位移預測下一步的玩家和實體狀態，執行時<b>不做任何碰撞修正</b>。更新寫回持久的 world memory。renderer（29.1M 參數的 latent DiT）只吃從狀態投影出來的 depth/semantic map 和 RGB 歷史，生成的畫面永遠不回饋到狀態預測。資料是 ViZDoom 在 Freedoom2 MAP01 上用規則控制器收的約 500 小時，4 張 A100 訓練約三天。</p>
+<p><b>結果</b>：10 分鐘（模擬時間）rollout 下，動作辨識準確率 82.1–85.6%，嚴重穿牆的累計比例 5.2–6.8%，而且只在一張地圖上訓練，在 7 張沒看過的社群地圖上表現相近。和 PlayGen 比，第一分鐘畫質相當，但到第五分鐘 PlayGen 的 FVD 從 1097 升到 2387，PlayGen2 維持在 1298 左右。怪物追玩家在 200 步內成功率 55%，而且追擊在畫面外也持續進行。把兩個單人模型交換玩家狀態就能組成雙人遊戲，對手可見性判斷準確率 96.3%，MultiGen 是 75.4%。在 M4 Pro MacBook Pro 上序列執行 4.98 FPS。</p>
+<p><b>限制與疑問</b>：摘要寫「約 160 ms 後端延遲」，正文表格是序列執行 200.6 ms、平行化後 275.7 ms，數字對不太起來，讀的時候要留意。訓練需要遊戲引擎吐出的結構化 ground-truth 狀態，換到真實世界就沒有這種監督；未見地圖上 PSNR 只有約 16 dB，renderer 基本上是用 Freedoom 的材質「重畫」新地圖。</p>
+<p><b>為什麼值得看</b>：這是「simulation 與 rendering 分離」路線最乾淨的示範之一，對做 robot world model 的人很有參考價值：如果能用 3D reconstruction 或 tracking 取得 occupancy 和物件狀態，同樣的架構就能換成真實場景，而 Gaussian splatting 正好可以當 renderer。顯式狀態也讓 rule-based 介入（扣血、死亡）變得容易，這在 world model 裡做安全約束或 reward shaping 時很實用。</p>
+
+<h3>3. GPWM：把世界寫成 3D 粒子運動的生成式 world model</h3>
+<p><a href="https://arxiv.org/abs/2611.08338">arXiv:2611.08338</a>｜cs.RO｜作者含 Katerina Fragkiadaki、Pavel Tokmakov、Sergey Zakharov</p>
+<p><b>問題</b>：影片 world model 生成的是外觀，不是 3D 物理狀態；而 GNS、PGND、PointWorld 這些粒子動力學模型大多是 deterministic、預測時距短，而且每種材質要一個模型。作者問：一個生成式的 3D 粒子模型能不能同時涵蓋剛體、彈性體、布料和顆粒物，預測得夠長，還能拿來規劃接觸豐富的操作？</p>
+<p><b>方法</b>：可變形物體用粒子位移表示，剛體用 pose token（平移增量＋相對旋轉）帶著固定的 body-frame 粒子，夾爪、桿子、靈巧手這些 actuator 也用同一套幾何變數。網路是 U 形多解析度 DiT：每個物體內用 FPS 取 anchor、PointNet++ 層上下取樣，大部分 block 在粗解析度運作；注意力拆成時間和空間兩段，全解析度時空間注意力只在物體內，粗解析度時跨整個場景，並用 3D RoPE。訓練是 flow matching 加 diffusion forcing（每個未來幀獨立的噪聲等級），直接預測乾淨軌跡，沒有任何物理 loss。推論時用錯開的去噪排程做 streaming，近的幀先定案、遠的幀持續修正。資料集 ParticleWorlds 有 2,550 萬幀，場景 256 到 12,000 個粒子。</p>
+<p><b>結果</b>：六個領域都贏最強的 baseline，誤差平均降 31%（6–67%）：自由落體 53.0→40.0 mm，Pushing 23.9→13.3 mm，Pick and Place 34.1→11.1 mm。一套權重的 Unified 模型在五個領域贏所有既有方法，在 Dragging 和 Pick and Place 上甚至贏自家的 specialist。可以 rollout 到訓練窗 16 幀的 55 倍以上（布料摺疊 898 幀）。訓練只見過 1–4 個物體，測試 5–7 個物體加上沒看過的形狀時誤差 37.5→45.2 mm，PhysCtrl 則從 48.5 暴增到 120.9。規劃部分最有說服力：用<b>同一個</b> checkpoint，在 latent noise 空間搜尋（LNO 或 Noise CEM）在 Pushing 和 Picking 上達到 0.48–0.57 和 0.40–0.56 的任務進度，在 action 空間做 CEM 則只有 0.01 以下。</p>
+<p><b>限制與疑問</b>：作者自己承認模型假設完整、已追蹤對應的 3D 粒子狀態，感知問題完全沒處理；從單張圖重建（SAM 3 + SAM 3D + MoGe-2）只是質性展示。全部規劃都在模擬中開迴路執行，沒有真機。誤差只用單一樣本和單一真實未來比，對多模態的物理結果不算公平，也看不出生成多樣性。</p>
+<p><b>為什麼值得看</b>：「在生成模型的 noise 空間做規劃，比在 action 空間做好得多」這個結論很乾淨，因為它控制了 world model 本身。這和 VLA 裡用 diffusion policy 做 test-time search 是同一個想法，但這裡搜的是 actuator 與物體的聯合軌跡。接下來最自然的延伸是把 4D reconstruction（例如今天的 SM4RT、XM4D）的輸出直接餵給它，讓粒子狀態從 RGB-D 影片來。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>Spatial-UMI-Dream：帶 metric depth 的 UMI world action model</h3>
+<p><a href="https://arxiv.org/abs/2611.07229">arXiv:2611.07229</a>｜5B 的 world action model，用 605 小時 RGB-D UMI 資料預訓練，同時預測未來 RGB、對齊魚眼的 metric depth 和動作。在新的 RoboTwin-UMI benchmark 上，in-domain 成功率 79.10%，換機器人加換環境時 72.15%，比最強 baseline 多 4.65 和 10.30 個百分點；六個真機任務平均 85.0%，多 24.2 點。只用 RGB 預訓練會掉 5.75 點，算是對「深度值得收」的直接證據。</p>
+
+<h3>SLA：把 3D 空間對齊放進 VLA 的持續預訓練</h3>
+<p><a href="https://arxiv.org/abs/2611.08373">arXiv:2611.08373</a>｜HKUST(GZ)｜從 pi0.5 初始化，在持續預訓練時讓 VLA 中間層的視覺 embedding 對齊凍結 3D 感知模型的特徵，並用 feature-dependent gate 自動挑哪幾層來對齊。所有輔助模組只在訓練時用，推論架構和原本的 pi0.5 一樣，可以直接沿用權重，這點對想加 3D 能力又不想改部署的人很實際。</p>
+
+<h3>La-JEPA：在 V-JEPA 2.1 特徵空間從頭訓練的小型 policy</h3>
+<p><a href="https://arxiv.org/abs/2611.08156">arXiv:2611.08156</a>｜不繼承影片生成或 VLM 的大骨幹，policy transformer 直接在 V-JEPA 2.1 特徵上訓練，訓練時一併預測未來特徵、推論時只出動作。在沒有 embodied 預訓練的方法中，RoboTwin 2.0 和 LIBERO-Plus 拿到 SOTA，比 Fast-WAM 快很多；真機四任務和 pi0.5 相當。作者還發現官方 LIBERO-Plus evaluator 把大多數變體的指令弄壞了，重新評估了幾個 baseline，用這個 benchmark 的人要注意。</p>
+
+<h3>HITCH：讓 VLM 透過「挽具」操作人形機器人</h3>
+<p><a href="https://arxiv.org/abs/2611.08039">arXiv:2611.08039</a>｜給 VLM 一組介面：在影像上點任一點就回傳 3D 位置，下指令控制骨盆、軀幹、手、行走和視線，再由學到的 tracker 轉成全身動作。用 teacher policy 在五個基本任務上的軌跡微調後，SIMPLE 成功 51%、HumanoidArena 42.5%；每個 SIMPLE 任務加五條軌跡就到 95%。真實 G1 上不用真機資料就能搬箱子走到目標。</p>
+
+<h3>RoboARCade：讓前沿 agent 直接當機器人 policy</h3>
+<p><a href="https://arxiv.org/abs/2611.08209">arXiv:2611.08209</a>｜三種機器人的長程操作任務，全部跑在 MuJoCo 上，測 in-context 適應、記憶和推理。GPT-6 Astra 49.8%，Claude Fable 5.1 43.6%。更豐富的視覺介面只多 1.5–6.8 分，成本卻是 1.7–2.3 倍；失敗多半是選錯操作策略或執行不精準，很少是看不懂任務。</p>
+
+<h3>SplatAnything：feed-forward 3DGS 的尺度正規化</h3>
+<p><a href="https://arxiv.org/abs/2611.08264">arXiv:2611.08264</a>｜指出現有 feed-forward 3DGS 用「徑向距離」正規化場景，但相鄰 Gaussian 的間距仍隨場景尺度和相機配置大幅變動，導致 Gaussian scale 的監督目標不一致。改成用場景層級的 Gaussian 間距統計量做正規化（GSNorm），在尺度和視角變化大的設定上增益最明顯，並附上一個系統性的 benchmark。</p>
+
+<h3>MetricTrail：metric depth 讓 DPVO 在長序列上重新變強</h3>
+<p><a href="https://arxiv.org/abs/2611.07555">arXiv:2611.07555</a>｜不重訓 correspondence 網路、不加大優化窗，只用單張影像的 metric depth 初始化 patch 深度並當作軟約束，再加凍結 DINOv3 特徵的 adapter，就讓 DPVO 在 KITTI、Oxford Spires、VBR 上取得最低的平均軌跡誤差。KITTI-02 以 12.70 FPS、3.21 GB 峰值顯存運行，depth 模型可以隨時替換升級。</p>
+
+<h3>XM4D：有全域最佳證書的 4D 重建</h3>
+<p><a href="https://arxiv.org/abs/2611.07902">arXiv:2611.07902</a>｜把相機運動和非剛體形變分兩段，各自化成只剩旋轉的 QCQP，用 SDP 鬆弛加 GPU 化的 Burer-Monteiro solver 求解，可以驗證是否達到全域最佳。結果再拿去初始化 dynamic Gaussian splatting。在七個 benchmark 上展示可擴展到數千幀，和 learning-based feed-forward 4D 方法走的是完全相反的路線。</p>
+
+<h2>新聞與討論</h2>
+
+<h3>Claude Code 在 User-Agent 裡送出使用者 email</h3>
+<p><a href="https://github.com/anthropics/claude-code/issues/107757">GitHub issue #107757</a> 回報 Claude Code 在搜尋和抓網頁時，把使用者的 email 放進 User-Agent header，回報者說因此每天收到幾十封詐騙信。維護者回應說 v2.1.317 起有預設開啟的內建 mod <b>cc-plugin-privacy</b> 會擋這個行為，但隔天就有人在 Windows 上用 2.1.318 重現它沒擋住；另一位使用者寫了 hook 實測，沒裝時 60 次中洩漏 8 次。留言也提到合理用途：SEC 的 EDGAR 要求 User-Agent 帶聯絡 email，但這應該由使用者自己決定。<a href="https://news.ycombinator.com/item?id=50385272">HN 討論</a>（1,128 分）多是憤怒，有人說終於知道工作信箱為什麼一直收到具名的釣魚信。用 agent 做爬蟲或資料收集的話，值得檢查一下自己的 header。</p>
+
+<h3>MS Paint 遠端程式碼執行漏洞</h3>
+<p><a href="https://www.cve.org/CVERecord?id=CVE-2026-83844">CVE-2026-83844</a>：Windows Paint 的 out-of-bounds read 可讓未授權攻擊者透過網路執行程式碼，CVSS 3.1 評 8.1（High），攻擊複雜度高、不需使用者互動，exploit 成熟度為 Unproven，已有官方修補。<a href="https://news.ycombinator.com/item?id=50384233">HN</a> 上的第一反應是以為是玩笑；有人補充修正版本是 11.2609.401.0。</p>
+
+<h3>Thinking Machines 發表 Inkling 2 Small</h3>
+<p><a href="https://thinkingmachines.ai/news/inkling-2-small/">官方文章</a>：594B 總參數、17B active 的 MoE，支援影像輸入和可調推理量，Artificial Analysis Intelligence Index 31 分。先在 Tinker 上以封閉權重提供，計畫在外部安全測試和紅隊完成後，下週以 Apache 2.0 釋出完整權重。和同級模型比是有輸有贏：DeepSWE v1.1 72.1%（DeepSeek-V4.1-Flash 77.0%），kernel 優化 PMPP-Hard 平均解 54.25/69 題。<a href="https://news.ycombinator.com/item?id=50386338">HN</a> 上有人特別欣賞報告團隊沒有把自己放在每列第一；也有人認為這可能是第一個「夠用」的美國 open-weight 模型。</p>
+
+<h3>Pangram Image 1.0：AI 圖片與影片偵測</h3>
+<p><a href="https://www.pangram.com/blog/introducing-pangram-image-1-0">Pangram 部落格</a>：新的影像偵測模型可輸出熱力圖標出圖中哪一塊是 AI 生成；他們用 12 個前沿生圖模型對 100 張真實照片做「合成鏡像」，共 1,200 張，宣稱準確率 99.96%。較小的 Flash 版主打影片，在 DF26 上 98.7%，比次佳偵測器高 29 點，最低輸入解析度也從 512 降到 256。<a href="https://news.ycombinator.com/item?id=50383294">HN</a> 有人實測對著筆電螢幕翻拍 Gemini 生成的圖（有摩爾紋）仍被抓到；也有人提出顯而易見的問題：這種偵測器會不會直接被拿進生成模型的訓練迴圈。對做生成和 deepfake 偵測的人，「合成鏡像」的評測設計值得參考。</p>
+
+<h3>Kagi 開放免帳號搜尋</h3>
+<p><a href="https://kagi.com/changelog#11820">Kagi changelog</a>：任何人不用註冊就能搜 50 次，註冊後再多 100 次。同一篇也批評 Google 從 2027 年初起對學校帳號預設關閉 AI 工具，連 Google Search 一起關。<a href="https://news.ycombinator.com/item?id=50383740">HN</a> 討論熱烈（668 分），推薦它的 Smallweb 功能的人說已經用它取代滑手機；也有人說 AI 搜尋額度用得太快而退訂。</p>
+
+<h3>Hackintosh 靠 AI 復活</h3>
+<p><a href="https://www.naut.ca/blog/2026/11/05/the-hackintosh-reborn-with-ai/">naut.ca</a>：macOS 27 已不支援 x86，原本被認為是 Hackintosh 的終點，但作者說最近幾週社群用 Claude Code 搭 Ghidra 做逆向工程，出現了 macOS 27 跑在 Snapdragon 筆電和 RK3588 開發板上、iOS 17 跑在 Switch OLED 上、支援 Nvidia 50 系列 GPU 等進展。這是一個 AI 輔助逆向工程大幅降低門檻的具體案例。<a href="https://news.ycombinator.com/item?id=50383057">HN</a> 上不少人問的反而是：現在還有誰想在非 Apple 硬體上跑 macOS？最實際的回答是 headless build machine。</p>
+
+<h3>Salon 停刊</h3>
+<p><a href="https://www.salon.com/2026/11/05/goodbye-from-salon/">Salon 的告別文</a>：1995 年 11 月創刊、最早的網路原生媒體之一，在 31 年後宣布停止出版，理由是獨立數位新聞的商業模式已無法維持。<a href="https://news.ycombinator.com/item?id=50383739">HN 討論</a>有 579 分，和同一天 Kagi 免帳號開放、Pangram 偵測 AI 內容放在一起看，網路內容生態的變化很明顯。</p>
+</article>
+</body>
+</html>

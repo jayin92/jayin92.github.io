@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 早報｜2026-11-15（週日）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 早報｜2026-11-15（週日）</h1>
+<p><b>今日導讀</b>：週末 arXiv 不發新論文，這期回頭撿週五清單裡前兩天沒寫到的好東西。主線是「借用大型預訓練模型的先驗」：Oxford 把 Wan 影片擴散模型改造成 dense 3D tracker，mimic 和 BMW 用影片預訓練的 backbone 做工廠操作；另一篇則是 RAI Institute 的自行車機器人，全靠模擬 RL 加上機上感知衝下山路。新聞部分有 vibe coding 的資安代價、Project Zero 縮短揭露期限，以及非英文用 LLM 的能源成本。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. Track4D：把 dense 3D tracking 編成「影片」，交給 Wan 來生成</h3>
+<p><a href="https://arxiv.org/abs/2611.15287">arXiv:2611.15287</a>｜cs.CV｜University of Oxford VGG（Andrea Vedaldi）、NTU（Xingang Pan、Chuanxia Zheng）｜NeurIPS 2026</p>
+<p><b>問題</b>：dense 3D point tracking 需要每個像素的 3D 對應標註，這種資料極少；影片擴散模型卻看過數百萬段沒有標註的影片，對「東西怎麼動」應該有很強的先驗。難點在於：要把 3D 軌跡表示成什麼樣的訊號，才能讓一個為自然影片訓練的模型生得出來？</p>
+<p><b>方法</b>：作者系統比較兩種表示。<b>RTV</b>（Residual 3D Tracking Video）讓每個像素存「相對 query frame 的 3D 位移」Δ = P(t) − P(t₀)，再做 sign·log(|Δ|+1)·K 壓縮到 [−1, 1]，靜止區域是 0；加回 query frame 的 point map 就得到軌跡。<b>NCMV</b>（Normalized Coordinate Map Video）則給每個點一個隨時間不變的 canonical 座標當「顏色」，看起來更像自然影片，但要靠 CoTracker3 在 NCMV 上追蹤、再用 VGGT 抬回 3D。兩者都是 3 通道影片，直接用原本的 Wan VAE，不加新的輸出頭；DiT 的 attention 與 MLP 加 rank 64 的 LoRA，VAE 與 patch embedder 凍結。條件是現成 3D 重建器（預設 STream3R）給的 point map，沿寬度方向和影片 latent 拼接。訓練用 rectified flow 的速度回歸 MSE，資料只有重新渲染的 Kubric MOVi-F（5,600 段、每段 49 幀）加上 TartanAir；主模型是 Wan2.1-I2V-14B，在 32 張 GH200 上接續訓練 5,000 iterations。另有 <b>Track4D-Reg</b> 變體，跳過輸出 VAE、用 DPT head 直接回歸殘差，並加入 PointOdyssey、Dynamic Replica 等八個資料來源。</p>
+<p><b>結果</b>：在 PointOdyssey、ADT、Panoptic Studio、Dynamic Replica 四個 zero-shot benchmark 上（APD3D 越高越好、EPE 越低越好），Track4D-RTV 在 ADT 全部點的 APD 拿到 0.8920，高於 V-DPM 的 0.8880 與 TrackCraft3R 的 0.8874；但在 PointOdyssey 上是 0.7786，落後 V-DPM 的 0.8350。Track4D-Reg 在 Dynamic Replica 動態點拿第一（0.8141），其他多半是第二名。在 held-out 的 dense Kubric 上，RTV 為 0.336 APD / 1.079 EPE，St4RTrack 只有 0.047 / 5.333。RTV 明顯比 NCMV 準（PO 動態點 0.6896 對 0.4800），但 NCMV 仍略勝 VGGT 抬升的 CoTracker3（0.4800 對 0.4720）。消融裡最關鍵的是「預測殘差」：拿掉後 DR 的 APD 從 0.5245 掉到 0.2959；拿掉 point-map 條件，DR 動態點從 0.7009 掉到 0.5908。推論 50 步在一張 A6000 上約 14 秒，5 步 8.6 秒且 EPE 相近。</p>
+<p><b>限制與疑問</b>：RTV 需要每個像素都有目標，因此生成式訓練被綁在單一 dense 合成資料集上；Reg 版的誤差主要來自輸入幾何，oracle 實驗顯示 query frame 的幾何在 PO 和 DR 上主導誤差。換句話說，它的天花板很大程度取決於 STream3R/DAv3 給的 point map，和 V-DPM 之類系統比的是整套 pipeline，不完全是表示法本身。</p>
+<p><b>為什麼值得看</b>：這是一篇很乾淨的「表示法設計」研究：同一個凍結 backbone、只換輸出訊號的編碼，就能看出影片模型的先驗在哪種表示下最好用。對做 4D 重建或 world model 的人，「殘差 + log 壓縮 + 幾何 scaffold」是可以直接搬去其他 dense 預測（scene flow、deformation field）的配方；也值得追問：如果讓同一個模型同時生 RGB 與 RTV，是否能反過來讓影片生成的運動更符合 3D 一致性。</p>
+
+<h3>2. 自行車機器人自主下山：一個 policy 同時學會選路和騎車</h3>
+<p><a href="https://arxiv.org/abs/2611.15280">arXiv:2611.15280</a>｜cs.RO｜Robotics and AI Institute（Zurich／Cambridge）、ETH Zurich Robotic Systems Lab（Marco Hutter）｜投稿 IJRR</p>
+<p><b>問題</b>：在登山車步道上以最短時間自主騎完，只用機上感測器和運算，而且平台是靜態不穩定的兩輪機器人。作者刻意不用全域地圖或目的地規劃，而把「找路」當成感知問題。</p>
+<p><b>方法</b>：平台是 RAI 的 Ultra Mobility Vehicle（UMV），4 個致動自由度（後輪、前叉、上下兩個軀幹關節），前輪不驅動。訓練時把步道表示成地形上的語意層：紅色是步道、黃色起點、洋紅色終點、藍色禁區；程序化生成的 1,000 塊地形總長超過 46 km。Policy 是三層 MLP，用 PPO 在 Isaac Lab 跑 4,096 個平行環境（一張 L4 就夠），觀測是本體感覺加上兩層 height scan（高度 + 是否在步道上），看不到終點位置；動作以 50 Hz 輸出後輪速度、前叉角和兩個軀幹關節目標。獎勵只有三項且權重固定（1、0.2、5）：前進速度、留在步道上、終點區的 track-stand 定車。因為在終點站穩的每步獎勵大於騎車的每步獎勵，越早到達回報越高，所以「競速」行為自然出現，不需要時間項；parkour 與 racing 的差別只在地形和 episode 長度。感知端用凍結的 DINOv3-s 加 JAFAR upsampler，只訓練約 10 萬參數的 decoder 做語意分割，再融合成 15×15 m、0.1 m 解析度的語意高程圖；在 AGX Orin 上經 TensorRT 約 90 Hz。</p>
+<p><b>結果</b>：在真實的 Allmend 步道（969 m、落差 59 m）上，79 次嘗試中挑出 6 段連續成功的路段，合計 946 m，總平均 3.26 m/s，最長連續段 220 m、平均 3.8 m/s、峰值 5.2 m/s；室內賽道則連續跑 130 圈、平均 3.54 m/s。模擬中和「速度追蹤 locomotion policy + 步道跟隨控制器」的階層式 baseline 比，最佳 baseline 的存活率是 85% 到 46%、速度約 2.2 m/s，他們的 policy 是 99% 到 91%、約 3.3 m/s，失敗少 6 到 15 倍。感知只用 20 張標註圖就在自家步道拿到 82.6% mIoU（用 28,763 張是 90.0%）。</p>
+<p><b>限制與疑問</b>：作者對 67 次真實失敗做了分類：偏離步道 23 次、乾碎石打滑 20 次、撞上 height scan 看不到的細樹根或樹幹 14 次、感知假影 10 次（高草被當成牆）。Height scan 只看前方約 3 m，限制了極速；路口沒有全域導航，只會選最不用轉向的那條。另外「79 次挑 6 次」的呈現方式要讀者自己換算成功率。</p>
+<p><b>為什麼值得看</b>：這篇是「感知與控制端到端、但感知輸出保持可解釋」的好範例：語意層讓同一套 RL 可以在模擬和真實之間共用介面，也讓 traversability 能不重訓就調整。對做 legged 或 wheeled 導航的人，「用終點獎勵大於行進獎勵來誘導時間最優」是一個值得借的獎勵設計小技巧；失敗統計則清楚指出下一步該補的是細小障礙物的感知，而不是更強的控制器。</p>
+
+<h3>3. FLUX-mimic：拿影片生成模型當工廠機器人的 backbone</h3>
+<p><a href="https://arxiv.org/abs/2611.15974">arXiv:2611.15974</a>｜cs.RO｜mimic robotics、BMW Group</p>
+<p><b>問題</b>：工業操作需要精準對位，還要處理剛性、可變形和線狀零件，但示範資料和專用硬體都少。作者問：影片預訓練能不能讓機器人只靠少量有動作標註的資料，就可靠地完成產線任務？</p>
+<p><b>方法</b>：backbone 從 FLUX 3 初始化（一個在影像、影片、音訊上聯合預訓練的模型），再以 Self-Flow（flow matching 加上自監督特徵預測）繼續預訓練，資料包含數百萬小時一般影片、數十萬小時人類與機器人操作影片，以及他們自己的工業資料：31 個任務、55,217 段、295.8 小時，其中 76.8 小時是戴穿戴裝置錄下、沒有動作標註的人類示範。旁邊接一個深度與 backbone 相同的精簡 action expert，每層 attend 到 backbone 對應層的特徵，再加上機器人狀態。訓練時影片與動作都用條件 flow matching，損失是 L_action + L_video（λ = 1）；推論時 backbone 只做一步去噪取特徵、不生成完整影片，action expert 再去噪出 20 步的動作 chunk，以 15 Hz 預測、執行前 8 步。</p>
+<p><b>結果</b>：在 Franka 雙臂加靈巧手上的四個汽車產線任務（控制單元組裝、治具插入、軟件分揀、線束佈線），FLUX-mimic 平均成功率 82.8%，單任務 flow matching policy 是 52.6%，微調後的 π0.5 是 27.6%（例如組裝任務 85% 對 π0.5 的 0%）。在 Trossen 夾爪平台的兩個任務上則和 π0.5 打平（平均都是 60.0%）。資料效率上，軟件分揀只給 1 小時示範時 FLUX-mimic 有 45.0%，FM 和 π0.5 分別是 7.5% 和 2.5%；8 小時就達 95.0%，超過另外兩者用滿 32 小時的成績。摘要另稱約兩小時示範可達 77.5%。唯一的消融是拿掉影片預測損失：成功率從 20/20 掉到 13/20。</p>
+<p><b>限制與疑問</b>：每個設定只有 18 到 20 次 rollout，信賴區間很寬；π0.5 沒看過工業資料、FM 是單任務模型，所以比較沒有分離出「工業影片預訓練」本身的貢獻，論文也沒有做拿掉影片預訓練的消融；backbone 參數量和算力成本沒有揭露。</p>
+<p><b>為什麼值得看</b>：這是 video-action model 路線少見的產業實測，而且是在 π0.5 表現很差的精密組裝任務上。「推論只做一步去噪取特徵」是值得注意的工程選擇：它把影片模型當表徵學習器用，避開了 world-model 式 rollout 的延遲。接下來值得看的是：影片損失帶來的 35 個百分點，有多少來自工業域資料、多少來自一般影片先驗。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>CoCode-World：用共享的 3D proxy 做雙人 world model</h3>
+<p>把結構控制和外觀合成拆開：可程式化的 3D proxy 決定場景佈局、動作與遮擋，RGB 參考圖負責角色和場景外觀，兩個玩家的視角拼在同一張畫布上，由預訓練影片模型加 LoRA 聯合生成。作者從 GTA V 建了同步的雙人資料集，報告跨視角的玩家身份一致性優於 baseline。<a href="https://arxiv.org/abs/2611.15602">arXiv:2611.15602</a></p>
+
+<h3>H2E：VLA 能從呼叫它的 LLM agent 學到什麼？</h3>
+<p>LLM planner 呼叫 VLA 的導航 agent 很貴也慢，作者把 agent 的成功經驗蒸餾回 VLA：保留每個動作但對遠離目標的步驟遮掉 loss，並把距目標 1 m 內的狀態標成停止，再用 LoRA 微調。在 REVERIE-CE val-unseen 全部 3,189 個 episode 上，8B VLA 的成功率從 35.0% 提升到 44.9%，測試時不再需要 LLM。<a href="https://arxiv.org/abs/2611.16246">arXiv:2611.16246</a></p>
+
+<h3>GenGenIK：用 conditional flow 做「會想未來」的逆運動學（MIT Kaelbling 組）</h3>
+<p>不再一次只解一個姿態對應的關節角，而是生成一整個可行構型的分布，並考慮之後的可達性、避碰和穩定性，支援移動底座和多個末端執行器。作者報告在雙臂抬起與翻轉任務上的求解率和速度都優於既有方法，且能處理部分觀測的場景。<a href="https://arxiv.org/abs/2611.15565">arXiv:2611.15565</a></p>
+
+<h3>UniSpark：混合 attention 的統一理解與生成模型（Ant Group）</h3>
+<p>每個分支約 9B 參數的 Mixture-of-Transformer-Experts，混用 full attention 和 GatedDeltaNet 線性 attention，聯合訓練自回歸文字預測與視覺 flow matching，並用 attention mask 和 recurrent state 規則讓交錯生成時的帶噪影像不汙染後續預測。MME-S 2470.3、GenEval 0.83，影像解析度延伸到 2K。<a href="https://arxiv.org/abs/2611.16517">arXiv:2611.16517</a></p>
+
+<h3>ThermalSplat：免位姿、前饋式的稀疏視角熱影像 3DGS</h3>
+<p>熱影像紋理少、外觀隨視角變，一般位姿估計器會失效。ThermalSplat 用 soft census loss 做亮度不變的結構匹配，加上邊界結構損失監督溫度不連續處，在多來源資料上訓練後單次前向就能重建沒看過的場景，不需要 RGB 或逐場景最佳化。摘要沒有給數字。WACV 2027。<a href="https://arxiv.org/abs/2611.15435">arXiv:2611.15435</a></p>
+
+<h3>MotionSkill：一段單眼走路影片，轉給十種雙足機器人</h3>
+<p>從影片恢復一次參考動作，對齊根部運動與身體關鍵點並記錄可見性，再依各機器人的肢段長度縮放、在關節限制下解 IK。在 MuJoCo 裡為十種雙足各訓練一個 residual policy，只用一段四秒的走路片段；在未見過的初始狀態上成功率 98%，上半身被遮一秒時降到 26%。<a href="https://arxiv.org/abs/2611.16346">arXiv:2611.16346</a></p>
+
+<h3>LG-DKGP：示範動作有時間結構，拿來當 world-model 規劃的先驗</h3>
+<p>作者先用「順序 vs 打亂」實驗說明專家動作有連續性，再用 locality-gated 的 deep-kernel GP 預測動作延續，作為凍結 world model 規劃時的搜尋中心。五個模擬任務的平均成功率 87.07%，INTACT、PRISM、LeWM 分別是 71.03%、61.66%、58.66%。<a href="https://arxiv.org/abs/2611.16645">arXiv:2611.16645</a></p>
+
+<h2>新聞與討論</h2>
+
+<h3>Lovable 做出來的 app，大量外洩個資與私訊</h3>
+<p>德國資安公司 Crissy Field 從 Common Crawl 找到 159,041 個 Lovable 專案，其中 34,545 個用 Supabase；有 24,664 個網站在未登入時就會送出資料庫紀錄，7,403 個（30%）含 email。外洩內容包括一個論壇超過 8 萬筆個人檔案與 20 萬則私訊、超過 1,000 筆護照資料。報告強調 30% 不是確認的外洩率。HN 上懂行的留言指出問題在 authorization 而非登入：Supabase 的公開 key 預設就能讀表，除非設了 Row Level Security，而修正後的預設值不會回溯到舊專案；也有人批評研究者撈的資料多過證明漏洞所需。<a href="https://www.crissyfield.de/research/lovable-en/">原文</a>｜<a href="https://news.ycombinator.com/item?id=50499017">HN 討論</a></p>
+
+<h3>Project Zero 改成「通報後固定天數就公開」，最終縮到 30 天</h3>
+<p>Google Project Zero 取消 2021 年起的「90 + 30」政策（90 天修補加 30 天等更新普及），改為不管修好與否、通報後 X 天就揭露：2026-11-13 起 90 天，2027-02-02 起 60 天，2028-01-03 起 30 天，也不再看嚴重度。理由直接點名 AI：LLM 讓找洞和從 patch 反推 exploit 都變快，緩衝期不再保護使用者，而他們的通報量已從一年幾個變成一週好幾個。HN 上有做大量開源漏洞挖掘的人說 90 天其實太長，他們平常用 30 天；反方提醒，找到漏洞的人和要上線修補的人不是同一群。<a href="https://projectzero.google/2026/11/disclosure-policy.html">原文</a>｜<a href="https://news.ycombinator.com/item?id=50496051">HN 討論</a></p>
+
+<h3>非英文讓生成式 AI 更耗能？中文的結果有點出乎意料</h3>
+<p>密西根大學的研究測量 Qwen 3、Gemma 3、Llama 3.1 處理不同語言時的能耗，結論是 tokenizer 偏向英文，其他語言被切成更多 token，算力和能源也跟著增加（原文網頁這次抓不到，以下細節來自 HN 討論串）。留言補充研究包含中文、俄文、法文以及普什圖語、提格利尼亞語、藏語等低資源語言，每種語言約 900 次執行。有人自行複現：低資源語言的輸出 token 多 4 到 6 倍、每次請求耗能最多 8 倍；中文則在一個模型上反而比英文省（0.72 倍）、另一個上貴（2.48 倍），推測和中國模型的訓練資料有關。對每天用中文和模型對話的我們，這是看 tokenizer 效率的好切入點。<a href="https://news.umich.edu/generative-ai-uses-more-energy-on-non-english-text/">原文</a>｜<a href="https://news.ycombinator.com/item?id=50441444">HN 討論</a></p>
+
+<h3>Google Antigravity 的 /teamwork：多 agent 做研究，附上一長串戰績</h3>
+<p>Google Research 介紹 Antigravity 的多 agent 模式：多個 agent 平行產生候選解，專職的 falsifier 用 Lean 4、原封不動的測試、模擬器或硬體計數器驗證；critic 從乾淨 context 重新審查，避免被原作者的推理帶偏。列出的成果包括約 180 萬行 Lean 的 Weil 猜想形式化、30 個 agent 加光譜模擬器讓分子結構 top-1 正確率到 95%、Zircon 微核心改寫出約 80 萬行 safe Rust，以及 AV1 解碼器移植成 Rust 後比 C++ 快 20% 到 30%。HN 評價分歧：有人覺得流程太重、文章看不出怎麼用，也有人認為 Antigravity 在 agent 工具上仍落後對手。<a href="https://research.google/blog/advancing-science-engineering-with-antigravitys-teamwork-feature/">原文</a>｜<a href="https://news.ycombinator.com/item?id=50496811">HN 討論</a></p>
+
+<h3>用 Lean 形式化美國稅法，挖出 138 個條文錯誤</h3>
+<p>Lexifina 用 AI 把美國國稅法典（Title 26）和 2025 年家庭所得稅計算翻成 Lean，共 2,159 個定義與定理。條文交叉引用檢查找出 138 個真正的起草錯誤（67 個指向已廢止或搬移的條文、30 個沒閉合的括號），稅額模型則發現例如多 1 美元投資收入可能讓一個家庭失去最多 8,046 美元 EITC；和開源報稅軟體比對時，UsTaxes 有 14 個確認 bug。作者坦承把法條翻成 Lean 是「有損的一步」，且沒有律師或會計師審過。HN 上的律師提醒，條文的模糊常是政治妥協的結果，「漏洞算不算 bug」本身就是價值判斷；也有人提到法國政府用的 Catala。<a href="https://lexifina.com/blog/formalizing-the-us-tax-code">原文</a>｜<a href="https://news.ycombinator.com/item?id=50497900">HN 討論</a></p>
+
+<h3>兩台 DGX Station 跑 753B 的 GLM-5.3</h3>
+<p>NVIDIA 示範用兩台各有一顆 GB300（252 GB HBM3e）的 DGX Station，以 400 Gb/s ConnectX-8 RDMA 直連，透過 vLLM 做 TP=2 服務 NVFP4 量化的 GLM-5.3（753B 總參數、40B active，checkpoint 約 464 GB）。在 SPEED-Bench Coding、16 個併發下總吞吐 607.8 tok/s，但每個使用者只有 42.4 tok/s、平均請求延遲 136 秒；單一使用者時是 115.3 tok/s。對實驗室想在本地跑前沿開源模型的人，這組數字是很實際的參考上限。<a href="https://developer.nvidia.com/blog/when-one-gpu-isnt-enough-serving-glm-5-3-across-two-nvidia-dgx-stations-with-vllm/">原文</a>｜<a href="https://news.ycombinator.com/item?id=50497155">HN 討論</a></p>
+
+<h3>Show HN：約 200 行純 JAX 寫出 DeepSeek-V3 架構</h3>
+<p>一個教學用實作，不用 Flax 或 PyTorch，190 行涵蓋 MLA（每 token 每層快取從 480 個數縮到 144 個）、1 個共享專家加 16 個路由專家取 top-4 的 MoE、用 bias 做的無輔助損失負載平衡，以及 multi-token prediction。它不載入真正的權重，作者在 MacBook Air 上用 2.6 小時、約 2,170 萬 token 的偵探小說訓練了一個 36.2M 參數的小模型。想快速讀懂 DeepSeek 架構細節的人，這比原始碼好入門。<a href="https://github.com/Vaibhaav-Tiwari/deepseek-v3-jax">原文</a>｜<a href="https://news.ycombinator.com/item?id=50497589">HN 討論</a></p>
+</article>
+</body>
+</html>

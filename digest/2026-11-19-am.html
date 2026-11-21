@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 早報｜2026-11-19（週四）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 早報｜2026-11-19（週四）</h1>
+<p><b>今日導讀</b>：今天的主題是「先別急著歸功」。一篇回顧研究發現，人類資料預訓練的好處多半來自「資料變少」本身，而不是精挑細選；ALOHA Lightning 說機器人慢，問題出在示範資料本來就慢；PhyVGGT 則提醒，單目點雲的深度誤差會直接毀掉關節軸估計。新聞方面，nginx 爆出兩個未驗證 RCE，Genie 4 開放給 Ultra 用戶。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. Where Do Human-to-Robot Transfer Gains Come From？人類資料的好處，可能只是「少一點」</h3>
+<p><a href="https://arxiv.org/abs/2611.22302">arXiv:2611.22302</a>｜cs.RO｜UT Austin、General Intelligent Machines</p>
+<p><b>問題</b>：用人類第一人稱影片預訓練 robot policy 很熱門，論文常報「我們的資料篩選／路由方法帶來 X 個百分點」。但這個增益可能來自子集大小、訓練 seed 的變異，或下游微調本身。作者做了一個回顧式研究，分開問三件事：配方是否平均勝過同樣大小的對照組？任務層級的效果在不同 seed 間能不能重現？提出的機制在針對性介入下站不站得住？</p>
+<p><b>方法</b>：模型是 HPT（Heterogeneous Pre-trained Transformer）：ImageNet 初始化的 ResNet-18 stem，加上 16 個 block、寬 256、8 head 的 transformer trunk（約 1,264 萬參數），只把 trunk 轉移到機器人。人類資料是 Mecka 的錄影，每個目標 128 維（兩手的 ego-compensated keypoints 加兩個開合量），smooth-L1 訓練。下游是 Meta-World v2 的 20 個任務，各 100 條 scripted 示範，微調 20,000 步，每任務 144 個初始狀態、3 個訓練 seed。比較的篩選法有三種：U（用任務 query 梯度做 gradient-alignment）、Random（同大小的隨機子集）、Loss（凍結參考模型的 loss）。另外還測了 D4 路由：在最後一個 MLP 上加 20 個 rank-4 residual slot，按任務親和度分配資料。</p>
+<p><b>結果</b>：從 4 萬筆錄影中挑 5,000 筆，U5000 比全量 Full40000 高 4.29 pp（54.26% 對 49.97%），但 Random5000 也高了 3.69 pp。U 對 Random 只多 0.60 pp，三個 seed 分別是 +1.28、−5.24、+5.76，95% 區間 [−13.15, 14.35]。Loss5000 反而比 Random 低 7.28 pp；把資料加到 16 萬筆只多 0.29 pp。D4-Query 對同容量但隨機標籤的 D4-Uniform 多 1.44 pp，區間跨過 0。更關鍵的是跨 seed 的任務層級效果：U5000 對 Random5000 的 rank correlation 三折全是負的（−0.211、−0.478、−0.427），也就是說「這個方法在哪些任務特別有用」根本無法重現。把 slot 對應故意打亂，成功率完全沒變（46.875% 對 46.875%），所提的機制沒有被支持。</p>
+<p><b>限制與疑問</b>：只有一個 HPT 實作、一個 Meta-World 套件、一個人類資料來源，而且 Meta-World 的 scripted 示範與真實操作差很遠；部分任務已飽和，三個 seed 的區間也寬到無法證明優勢或等價。作者自己承認 D1–D3、D5、D6 等輔助目標在開發階段都輸給對照組，且部分歷史環境與資料已刪除，無法端對端重跑。</p>
+<p><b>為什麼值得看</b>：這篇的價值不在 SOTA，而在實驗設計。下次做 human-to-robot 或 data curation，請至少放一個「同大小隨機子集」的對照、報每個 seed 的數字，並做一次「把你的機制故意弄壞」的介入。做 VLA 資料配方或 HubEgo 這類大規模第一人稱資料集的人，都該把這套三問當作 checklist。</p>
+
+<h3>2. ALOHA Lightning：用手推機械臂示範，學出接近人類速度的雙臂操作</h3>
+<p><a href="https://arxiv.org/abs/2611.21919">arXiv:2611.21919</a>｜cs.RO｜Stanford（Chelsea Finn、Zipeng Fu 等）｜<a href="https://flash-aloha.github.io">專案頁</a></p>
+<p><b>問題</b>：從示範學來的 policy 通常比人慢很多。作者認為原因有兩個：遙操作有延遲又不直覺，操作者只好放慢動作，所以資料本身就慢；而高速執行時，小誤差會累積，動作不平滑也會造成不穩。</p>
+<p><b>方法</b>：硬體是兩支 6-DoF 機械臂（HESSIAN 與 ARX），用低摩擦的行星減速致動器，比諧波減速器好推。每個夾爪上裝兩個 3D 列印把手（拇指一個、四指一個），以 100 Hz 力矩控制做即時重力補償，操作者直接用手帶著手臂動（kinesthetic teaching），立刻有視覺、觸覺和聲音回饋。三台相機（兩個手腕、一個俯視）50 Hz 錄 360×640。問題是畫面裡會出現人手，所以用 forward kinematics 與相機校正算出手與手臂的位置，訓練和部署時都把該區域塗黑，讓兩邊畫面一致。Policy 是 ACT，輸入三張遮罩後的影像與本體感覺，輸出未來關節位置給 PD 控制器。推論時用 sigmoid 權重混合重疊的 action chunk，取代每步都要推論的 temporal ensembling。</p>
+<p><b>結果</b>：每個任務 50 條示範，五個任務（拆杯子、裝電池、收桌子、摺短褲、拋接球）除拋接球（50%、1.85 秒）外都超過 80%。和遙操作（puppeteering）比：裝電池 85%／5.70 秒對 55%／17.87 秒，收桌子 100%／6.81 秒對 90%／16.05 秒。把遙操作資料加倍播放或跳幀，成功率大跌（裝電池掉到 15% 與 30%）。遮罩比不遮罩或用 diffusion inpainting 都好（摺短褲 100% 對 90% 與 80%）；temporal ensembling 讓時間大約加倍（拆杯子 7.75 秒、成功率只剩 35%）。七位新手的使用者研究中，操作速度最多快三倍。</p>
+<p><b>限制與疑問</b>：沒報每個條件的試驗次數、chunk 大小與平滑參數；遮罩偏保守，會一起蓋掉手附近有用的視覺線索；沒有觸覺，接觸密集的靈巧任務仍受限。拋接球只能在 HESSIAN 上做。</p>
+<p><b>為什麼值得看</b>：「資料速度決定 policy 速度」這個觀察很實用：如果你的 VLA 動作慢，先檢查示範資料而非模型。遮罩法也能套到 UMI 類手持裝置，或任何「人入鏡」的資料收集。值得延伸的方向是把這種高速資料拿去訓練 diffusion／flow policy，看平滑問題是否不同。</p>
+
+<h3>3. PhyVGGT：從單目影片 feed-forward 重建可動物件的部件與關節</h3>
+<p><a href="https://arxiv.org/abs/2611.22244">arXiv:2611.22244</a>｜cs.CV｜Harbin Engineering Univ.、Univ. of Liverpool、ETH Zurich、Imperial College London 等</p>
+<p><b>問題</b>：給一段沒校正的手機影片（有人在開抽屜、開門），能否一次推論出可動部件、關節類型、軸與 pivot，還能把物件驅動到沒看過的開合狀態？逐場景優化法要數分鐘到數小時，還需要深度、相機位姿或 kinematic tree；VGGT 這類 3D foundation model 能出點雲，卻不分部件也不推關節。直接回歸關節向量的方法，會被單目點雲沿視線方向的深度誤差帶歪，開合角度小的時候尤其糟。</p>
+<p><b>方法</b>：核心想法是「以不動的底座為錨」。凍結 VGGT-1B 提供點雲、追蹤特徵與多層 token；可訓練的 Part and Motion Decoder 融合第 4、11、17、23 層 token，用 K+2 個 query（背景、底座、8 個可動部件）做遮罩與部件內對應，再用加權 Procrustes 先把各幀對齊到底座，再求每個部件的旋轉平移。接著是不需額外訓練的 Kinematic Inference Layer：從靜態表面法向量擬合 Manhattan frame，把運動散布矩陣與學到的 Bingham 先驗結合，在三個 Manhattan 候選軸之間做 softmax 選軸；pivot 用一個 3×3 正定線性系統求解。訓練資料是 PartNet-Mobility 渲染的 6,264 段片段，兩階段損失包含 mask 的 CE／Dice、InfoNCE 對應、Bingham 軸損失與 point-to-line pivot 損失。</p>
+<p><b>結果</b>：真實第一人稱 RGB-D 資料集 Arti4D 上，軸誤差中位數 4.79°，用感測器深度與位姿的 ArtiPoint 是 6.30°，把 ArtiPoint 接到 π³ 點雲上則掉到 15.90°；10° 內準確率 0.604，略輸 ArtiPoint RGB-D 的 0.614。D3D-HOI 上 10° 準確率 0.724（Motion estimate 0.369）。Articulat3D-Sim 上中位數 2.20°，逐場景優化的 Articulat3D 是 2.63° 但要 2.6–11.9 小時，PhyVGGT 6.8 秒。消融很清楚：直接回歸在 Arti4D-dev 只有 0.063，加完整推論層後是 0.725。把 backbone 零樣本換成 StreamVGGT、STream3R、π³ 都能用，甚至略好。</p>
+<p><b>限制與疑問</b>：依賴 Manhattan-world 假設（Syn-38 有 92.2% 的軸與靜態框架差 10° 內），非直角結構的物件不適用；每個部件只允許一個 1-DoF 關節。RBO 桌面資料集整體只有 24.1%，比 ArtiPoint RGB-D 的 0.246 還低一點。執行時間在不同段落寫 1.2 秒與 6.8 秒，沒交代清楚。</p>
+<p><b>為什麼值得看</b>：「用幾何先驗修正 foundation model 的系統性誤差，而不是讓網路硬回歸」是很好借的設計。對做 real-to-sim 的人，這是從手機影片快速建出可動 digital twin 的實際路徑；也可以拿它的關節輸出當 manipulation policy 的 affordance 先驗。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>SR-VLA：讓 VLA 在執行時「先猜下一幀」，減少停頓</h3>
+<p><a href="https://arxiv.org/abs/2611.22356">arXiv:2611.22356</a>｜cs.RO。執行目前 action chunk 時，用輕量預測器猜下一個觀測與狀態，讓凍結的 VLA 預先算好 speculative KV cache 與下一段動作；真實輸入到達後比對，接受或只修補部分 KV cache。LIBERO 上相對同步的 π0.5 查詢加速 2.67×、對 OpenVLA-OFT 1.27×，成功率相近；目標物移動擾動下加速 1.52–1.93×。</p>
+
+<h3>Progress Predicts Policy：用「進度場」的梯度當動作</h3>
+<p><a href="https://arxiv.org/abs/2611.22491">arXiv:2611.22491</a>｜cs.RO｜Gim Hee Lee 等。學一個語言條件的純量進度場，動作直接取它的梯度，不需要獨立的 action head 或迭代搜尋，以模仿學習加 double backpropagation 訓練。模擬與真機實驗都勝過 behavioral cloning。和今天 HN 上的 Energy-Based Reasoners 是同一種「學一個純量函數、沿梯度走」的思路。</p>
+
+<h3>InertialWorld：world model 該「延續」場景，而非每步重畫</h3>
+<p><a href="https://arxiv.org/abs/2611.22314">arXiv:2611.22314</a>｜cs.CV。把慣性當成自回歸影片預測的結構先驗：Inertial Memory 結合對齊場景的 dense grid 與綁在 canonical 座標上的 persistent carriers，再用學到的 gate 融合「被搬運過來的內容」與新預測。在機器人操作、3D 遊戲模擬與開放世界導航上與強 baseline 相當。</p>
+
+<h3>MPEG-Diffusion：影片 diffusion 只在重要區域用高解析度</h3>
+<p><a href="https://arxiv.org/abs/2611.12069">arXiv:2611.12069</a>｜cs.CV｜Roblox 等（Xun Huang、Diana Marculescu 等）。雙解析度 attention、混合解析度 decoder，加上由 DiT 自己選的高解析度區域。只處理 30% 的全解析度 token，在 Wan2.1 14B 上去噪加速 4.8×、1.3B 上 3.8×；使用者研究中超過 90% 的比較偏好它勝過先前的混合解析度方法。</p>
+
+<h3>VideoNexus：長影片理解，把「看」和「想」拆開</h3>
+<p><a href="https://arxiv.org/abs/2611.21392">arXiv:2611.21392</a>｜cs.CV｜Kling-Keye。免訓練框架：planner 決定看哪裡、看什麼、取樣多密，影音 perception sub-agent 在各自的 context 裡分析並回傳帶時間戳的精簡證據。完整 LVBench 88.6%，勝過同 backbone 的直接輸入與內建 agent 處理，API 成本只有後者的 44%。</p>
+
+<h3>HubEgo-100K：一萬小時「真實工作現場」的第一人稱影片</h3>
+<p><a href="https://arxiv.org/abs/2611.21938">arXiv:2611.21938</a>｜cs.RO。約 10,124 小時、1080p 頭戴手機錄影加 100 Hz IMU，約 12,000 名貢獻者、15,500 個環境，83% 是工作場所；72,754 個 episode 附機器生成的動作與語言標註，LeRobot／MCAP 格式、CC BY 4.0。配合第一篇深度閱讀一起看：資料多樣性是否真的轉成 policy 增益，還需要嚴格的對照實驗。</p>
+
+<h3>用市售 Unitree G1 跑世界人形機器人運動會的 100、400、1500 公尺</h3>
+<p><a href="https://arxiv.org/abs/2611.22445">arXiv:2611.22445</a>｜cs.RO。視覺車道偵測、路徑追蹤，加上用人類動作先驗訓練的 RL 跑步 policy；頭部相機做影像穩定、IMU 輔助腿部里程計，並用力矩懲罰、散熱板與溫度限速管理馬達發熱。100 公尺 74 隊第 13、1500 公尺 35 隊第 7；400 公尺準決賽因車道偵測錯誤跌倒。結論是每個項目的配速都被散熱餘裕卡住。</p>
+
+<h2>新聞與討論</h2>
+
+<h3>nginx 爆出兩個 HTTP/2 未驗證遠端執行漏洞</h3>
+<p><a href="https://www.wiz.io/blog/nginx-http2-rce-vulnerabilities">Wiz 部落格</a>（762 points）。CVE-2026-123633（連線 use-after-free，從 1.19.7 起）與 CVE-2026-123007（send_window 整數下溢，從 1.9.5 起），CVSS 4.0 都是 9.2，前提是開了 HTTP/2；後者 Wiz 在 64 位元系統上、只服務靜態檔案就示範成功，ASLR 擋不住。修正版是 OSS 1.30.7（stable）與 1.31.9（mainline），暫時可在 server block 設 <b>http2 off;</b>。F5 於 11 月 18 日發布並公開。<a href="https://news.ycombinator.com/item?id=50547374">HN 討論</a>指出，gRPC 服務沒辦法關 HTTP/2，而且其中一個 bug 據稱要在單一連線上傳約 128 GB，另一個只要幾 KB，嚴重度不能一概而論；套件與 container image 也常比上游慢。有自架服務的話今天就該更新。</p>
+
+<h3>Google DeepMind 開放 Genie 4</h3>
+<p><a href="https://blog.google/innovation-and-ai/models-and-research/google-deepmind/genie-4-now-available-project-genie/">Google 部落格</a>（107 points）。Project Genie 改用 Genie 4，新增探索途中輸入新 prompt 即時改變世界（換天氣、加角色），以及隨場景變化的即時音訊；Gemini 也能看畫面建議去處或觸發事件。Genie 3 則延長到每次 3 分鐘、支援 world chaining 與 360° 全景圖起始。目前只開放給符合資格的 Google AI Ultra 用戶，Pro 可排隊；官方自承鏡頭延遲、細緻物理互動與長期場景一致性仍是難題，解析度與幀率都沒公布。<a href="https://news.ycombinator.com/item?id=50550415">HN 討論</a>裡有人質疑只是 tech demo，回覆則認為真正用途是給機器人用的 world model，也有人覺得 MuJoCo 這類物理引擎訓練起來更可靠。</p>
+
+<h3>Microsoft Ignite：除了 MAI Code 2，還有資安、語音與路由模型</h3>
+<p><a href="https://microsoft.ai/news/microsoft-ignite-2026/">Microsoft AI</a>（327 points）。昨天早報談過 MAI Code 2，這次完整清單還有：MAI Cyber 2 Flash（宣稱在 CyberGym-E2E 上以不到 2% 的每任務成本超過 GPT-6 Astra 的品質）、MAI Image 2.7（Artificial Analysis 影像編輯第一）、首個語音對語音模型 MAI Realtime 1（每分鐘 0.01 美元起），以及做模型路由的 Decision 1.1（宣稱比 GPT-6.1 Sol 快 50 倍、便宜 79 倍）。數字都是自家說法。<a href="https://news.ycombinator.com/item?id=50548021">HN 討論</a>的主軸是模型商品化：多數企業任務「九成效果、便宜很多」就夠，但也有人指出這些模型還不在獨立排行榜上。</p>
+
+<h3>Energy-Based Reasoners：學一個能量函數，推理就是梯度下降</h3>
+<p><a href="https://energy-based-reasoners.github.io/">專案頁</a>（281 points）｜Duke、UIUC、Harvard（Yilun Du、Heng Ji）。遞迴推理模型對 latent 推理狀態學一個能量函數：能量給候選打分，梯度負責修正，梯度範數夠小就停，不需外部 verifier。1.8M 參數在 Sudoku-Extreme 單次 99.4%（TRM 87.4%、looped flows 97.9%），Maze-Hard 87.4%。標題寫 385×，頁面實際寫的是靠自適應停止「比次佳模型少 345× 推論算力」。<a href="https://news.ycombinator.com/item?id=50543989">HN 討論</a>爭論禁止寫程式是否公平，也有人指出傳統求解器快得多，且模型綁定固定題目大小。</p>
+
+<h3>OpenAI 談用模型做晶片設計</h3>
+<p><a href="https://openai.com/index/advancing-chip-design-with-our-models/">OpenAI</a>（76 points）。原文無法直接讀取，以下依 <a href="https://news.ycombinator.com/item?id=50549493">HN 討論</a>中的引述：與 AMD 合作，AMD 在一顆即將推出 CPU 的關鍵 block 上，用模型寫的設計得到個位數百分比的 PPA 改善。留言批評所有指標都是相對值、圖表單位不明；一位硬體工程師說瓶頸其實在驗證而非寫 RTL，AI 生成更多 RTL 反而讓驗證更重。</p>
+
+<h3>KPMG 英國用百個 AI agent 平行跑稽核</h3>
+<p><a href="https://europeanbusinessmagazine.com/ai-agents-better-questions-kpmg/">European Business Magazine</a>（186 points，引述 FT）。Project Exponential 用超過 100 個 agent，和一般稽核團隊一起查一家 FTSE 250 公司的財報，開發約四個月。在「幾個案例」中 agent 比人追得更深、提出人沒問的問題，但文章沒有任何量化結果；這不是正式法定稽核，也曾因 agent 對錯法規需要人介入。KPMG 打算擴大到最多 20 個大型稽核。<a href="https://news.ycombinator.com/item?id=50547777">HN 討論</a>。</p>
+
+<h3>CrossPoint Reader：給小型電子書閱讀器的開源韌體</h3>
+<p><a href="https://crosspointreader.com">官網</a>（52 points）。MIT 授權，支援 Xteink、Seeed Studio、M5Stack、BOOX 等裝置，有 EPUB 排版（齊行、斷字、註腳、自訂字型）、Calibre 與 OPDS、KOReader 同步、離線 StarDict 字典與藍牙翻頁器；官網稱有 28 萬台裝置在跑。對在 Kobo 上讀這份摘要的你，算是電子紙生態的另一條路。<a href="https://news.ycombinator.com/item?id=50548991">HN 討論</a>。</p>
+
+<h3>Show HN：把 Voyager 1 一層層拆開</h3>
+<p><a href="https://rshekhar.com/voyager/">互動網頁</a>（95 points）。可以打開 1 到 10 號艙、一路拆到單顆記憶體晶片，也有時間軸從 1977 年發射播到今天，以及逐句推進的故事模式。適合起床後花五分鐘玩。<a href="https://news.ycombinator.com/item?id=50548161">HN 討論</a>。</p>
+</article>
+</body>
+</html>

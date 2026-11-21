@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 早報｜2026-11-20（週五）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 早報｜2026-11-20（週五）</h1>
+<p><b>今日導讀</b>：今天的主題是「把已知的東西交給模型，別讓它自己猜」。Doppel 把機器人的運動直接畫出來給 world model 看，LeCun 與 Balestriero 用「自然不跳躍」讓 JEPA 回答反事實問題，Jeveration 則把凍結的 VLM 變成一次前向就出圖的生成器。新聞方面，Claude 的 agent 解了兩個黑洞物理的開放問題，IEA 說全球建築的冷氣需求首度超過暖氣。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. Doppel：先把機器人「畫」出來，world model 只要預測世界怎麼反應</h3>
+<p><a href="https://arxiv.org/abs/2611.24925">arXiv:2611.24925</a>｜cs.RO / cs.CV｜Render the Robot, Generate the World: One Video World Model Across Embodiments（Jangir, Mirakhor, Zabounidis, Irshad, Zakharov, Bisk, Bharadhwaj）｜<a href="https://doppelwm.github.io/">專案頁</a></p>
+<p><b>問題</b>：多數 action-conditioned video world model 只吃數值動作向量（關節角、夾爪狀態），模型得同時學兩件事：動作會讓手臂在畫面裡怎麼動，以及手臂的動作會對物體造成什麼後果。但第一件事其實可以由 URDF、forward kinematics 和相機參數直接算出來。而且不同機器人的關節向量意義各不相同，很難共用一個模型。</p>
+<p><b>方法</b>：Doppel 用 Dr. Robot（以 3D Gaussians 表示機器人、可微分渲染）沿著給定的關節軌跡，從觀測相機的視角渲染出未來每一幀的機器人影像。很多資料集缺相機外參，作者用 analysis-by-synthesis 反推：固定渲染器，只最佳化 6-DoF 相機位姿，讓渲染結果在 RGB、RAFT 光流和 DINOv2 特徵上對齊錄影。條件分支把渲染影片用凍結的 VAE 編碼，經過一個小型 3D conv 和 self-attention，再以 cross-attention 讀取數值動作（render tokens 當 query、action tokens 當 key/value）。融合結果逐 token 加到 flow timestep embedding 上，調變 Wan 2.1 影片骨幹每一層的 shift/scale/gate。各機器人的動作 zero-pad 成共同的 159 維，沒有 embodiment label，是哪種身體由渲染圖決定。</p>
+<p><b>結果</b>：資料涵蓋 Droid、Bridge、RoboMind 三種手臂（Doppel-3），以及再加上雙臂 YAM、人形機器人加靈巧手、人手與人體（MANO/SMPL）的八種 embodiment（Doppel-8），共約 600 小時影片。和同樣骨幹的 action-only baseline 相比，加入渲染讓 PSNR 提升 0.2 到 1.5 dB。以 Droid 為例，Doppel-8 在未見軌跡上是 24.82 dB，action-only 是 22.89 dB。在 Bridge OOD 的移動物體區域，物體 PSNR 從 21.50 升到 24.85 dB。以骨架當條件的 OSCAR 在三個資料集上都輸給 action-only。只要少 63.8% 的訓練樣本，就能超越共享的 action-only 模型。加入人類和其他身體的資料後，六組機器人評估中有四組變好。</p>
+<p><b>限制與疑問</b>：方法需要準確的 URDF 與相機標定，鏡頭移動或位置未知時就用不上。評估只涵蓋訓練中出現過的 embodiment，而且一條軌跡只有一個視角。Bridge OOD 分數先升後降，作者猜是對已見過的廚房過擬合。指標以 PSNR/SSIM/SCS 為主，沒有拿去做 planning 或 policy evaluation。</p>
+<p><b>為什麼值得看</b>：這篇的結論很實用：能用幾何算出來的部分就別讓網路學，模型容量留給接觸與物體動態。它也提供一條讓人手影片與機器人資料共用同一個 world model 的路，而且公開了 45k 條示範的外參。可以接著做的事：把 Gaussian splatting 的場景表示也當條件，或拿 Doppel 當 VLA 的 evaluator，看渲染條件能不能縮小 sim-to-real 的評估落差。</p>
+
+<h3>2. Counterfactual World Models：觀測到的結果，比完美的模型更有用</h3>
+<p><a href="https://arxiv.org/abs/2611.24778">arXiv:2611.24778</a>｜cs.CV / cs.RO｜Randall Balestriero（Brown、AMI Labs）、Yann LeCun（NYU、AMI Labs）、Kerda Varaku</p>
+<p><b>問題</b>：一艘船選了航向，被看不見的洋流推開。事後問：「同樣的洋流下，換一個航向會到哪裡？」這是個體反事實問題，用來分辨「決策差」還是「運氣差」。作者證明，只用 factual transition 訓練的 world model 不論資料或容量多大，都無法回答這個問題。因為不同的反事實世界可以產生完全相同的 factual 分布。就算是有精確 likelihood 的生成模型，也能對每個動作各自重新標記 latent noise，factual 預測完全不變（action-dependent gauge）。</p>
+<p><b>方法</b>：補上缺少的結構，靠的是物理上的「natura non facit saltus」（自然不跳躍）。當動作與擾動是兩股分開的力時，兩者的交互作用在時間上是二階的。所以一階近似下，反事實結果等於「觀測結果 + μ(z, a′) − μ(z, a)」，也就是把 residual 重用。這只需要多呼叫兩次 factual predictor，不需要反事實資料、額外參數或重新訓練。他們證明在加性世界中這是唯一精確的規則，持續時間 h 的轉移誤差是 O(h²)，並給出相符的 minimax 下界。實驗用凍結的 DINOv2、MAE 等編碼器取 CLS embedding，加上兩層 attention 的 JEPA predictor。</p>
+<p><b>結果</b>：在 HandReach、Ball-in-Cup、FetchReach、PassWater 四個模擬環境中，套在 readout 後的修正讓物理反事實 R² 從 38–46% 升到 86–96%。知道完整模擬器狀態、但沒看到結果的 oracle 只有 49–51%。不用狀態標註、直接在特徵空間修正也有 73–94%。BlueROV2 水下載具需要 16 倍資料，才到 90–94%。在 hindsight planning 中成功率是 35–69%，oracle 是 14–23%。換成 DINOv3、SigLIP 2、CLIP、EVA-02 也有 81–95%。</p>
+<p><b>限制與疑問</b>：方法在接觸（Push-T 的 R² 掉到負值）、乘性 gain fault、cos(pitch) 這類摺疊座標上會失效，作者也實測了這些情況。直接在像素上做 residual 完全不行（ρ≈2）。所有環境都是渲染模擬，真實機器人上還沒驗證。</p>
+<p><b>為什麼值得看</b>：這篇在因果推論、控制理論的 disturbance observer 和 JEPA 之間搭了一座清楚的橋。對機器人研究者來說，可以直接用來做失敗診斷、重試或 credit assignment，幾乎零成本。值得追問的是 VLA 的 action chunk 夠不夠短、能不能滿足 O(h²) 的條件。</p>
+
+<h3>3. Jeveration：凍結的 VLM 一次前向就生成整張圖</h3>
+<p><a href="https://arxiv.org/abs/2611.24738">arXiv:2611.24738</a>｜cs.CV｜National University of Singapore（Xinchao Wang 組）｜HF Daily Papers 今日最高票（110）</p>
+<p><b>問題</b>：自迴歸和 diffusion 都需要很多次循序評估。Jev 這類「System One」模型以 typed decision（Choice、Score）一次平行回答問題。作者想知道它能不能一次決定整張圖的所有 code。直接平行地為每個位置挑 codebook entry 會失敗：同一個 prompt 對應很多張合理的圖，各位置可能各自選了不同的圖。論文用 total correlation 說明，獨立分解只學得到邊際分布。</p>
+<p><b>方法</b>：骨幹是凍結的 Qwen3.5-4B，只加 rank-256 LoRA 和輸出頭。影像用 TA-TiTok 編成 128 個離散 code，接上 128 個 decision token，彼此雙向 attention。關鍵是所有位置共用一個隨機狀態 ξ（60% mask、其餘填隨機 code、加 σ=0.1 的噪聲），讓平行決策能協調。訓練分兩段。第一段在同一骨幹上訓練 masked model，學影像分布。第二段沿用 Di[M]O 的 token-level distribution matching：凍結模型與追蹤學生分布的輔助模型，兩者預測的差就是梯度訊號。最後再加 confidence-guided correction。同一個 checkpoint 也輸出 NYUv2 的分割、深度與法向量。</p>
+<p><b>結果</b>：512px 圖在一張 H200 上端到端 77.8 ms，GenEval 0.74。這比 Janus-Pro-7B（0.80，9.5 秒）快 122 倍，也勝過四步的 Show-o Turbo-512（0.63，94 ms）和一步的 SANA-Sprint（0.72）。不過 DPG 78.24，低於 FLUX.1-schnell 的 85.97。NYUv2 mIoU 67.7，和單任務模型（67.8）相當。訓練只用四張 RTX PRO 6000 約四天。</p>
+<p><b>限制與疑問</b>：128 個 code 限制了細節，image-to-image 要把來源圖餵給 decoder 才補得回來。法向量誤差 24.2°，比單任務的 21.2° 差。解析度停在 512px。另外，GenEval 偏重構圖，對美感與細節的衡量有限。</p>
+<p><b>為什麼值得看</b>：這說明「理解模型本身就能生成」，而且能共用一個 checkpoint 做感知。對機器人來說，一次前向就生成未來畫面或子目標影像，延遲在 100 ms 以內，可以當 VLA 內建的 visual foresight。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>WM^MLLM：world state 放在生成器外面</h3>
+<p>把世界存成帶修訂歷史的 panorama，由 MLLM 把請求轉成對狀態的操作，影像和影片生成器只負責提出畫面。所以回到同一修訂時能精確重現先前的視角，局部編輯也不會改動區域外的像素。在 MBench-A 上，相機往返完成率 85.3%，baseline 最多 50.9%。<a href="https://arxiv.org/abs/2611.24193">arXiv:2611.24193</a></p>
+
+<h3>StrideWorld：互動 world model 的場景會不會變形</h3>
+<p>以起始視角的 ground-truth 幾何，以及模型自己前幾步的「步幅」為參考，不讓參考跟著被測影片調整。結果除了一個模型之外，其他模型都會在相機移動時讓場景變形，偏移最多是剛性渲染的 7.3 倍。只有依場景深度縮放指令的兩個模型，能讓多數路線走到預期位置。<a href="https://arxiv.org/abs/2611.24408">arXiv:2611.24408</a></p>
+
+<h3>Ego2X：以接觸為中心，把第一人稱影片轉成機器人資料</h3>
+<p>用 CORE 表示法記錄物體表面上的接觸點、相對力、抓取模式與互動狀態，用來修正手物漂移，並引導 IK 實現接觸。在 EgoDex 上實現 62.9% 的標註接觸，官方 HuRo 流程是 27.9%。只用 Ego2X 資料 post-train X-VLA，RoboTwin 2.0 成功率從 40.5% 升到 67.0%。<a href="https://arxiv.org/abs/2611.24138">arXiv:2611.24138</a></p>
+
+<h3>Z-sight：在 VLM 自己的視覺 token 空間預測未來</h3>
+<p>用 mixture-of-transformers 把 foresight expert、連續 action expert 與 VLM 接在一起，同時 denoise 未來的空間 token 與動作，不重建像素，也不用外部 encoder。在 SIMPLE 上成功率 81.9%（+9.6），六個 Unitree G1 任務 73.3%（+20.0），每個 chunk 110 ms。<a href="https://arxiv.org/abs/2611.24940">arXiv:2611.24940</a></p>
+
+<h3>PhysResponse：影片模型會不會照物理參數動</h3>
+<p>從生成影片反推有效的重力、摩擦與初速，並測試臨界轉折前後的結果。十個 image-to-video 模型的參數誤差，都比物理正確的影片高一個數量級以上。用 72,000 支參數受控的模擬影片微調後，連沒見過的互動類型也有改善。<a href="https://arxiv.org/abs/2611.24419">arXiv:2611.24419</a></p>
+
+<h3>Layer-Matched Sparse Attention：VGGT 的哪幾層能稀疏化</h3>
+<p>用 logit variance 區分「擴散型」層和「匹配型」層：前者用 importance-sampled hub keys 近似，後者保持 dense attention。在 13 個低冗餘場景、32 個視角下，AUC@5 只比 dense 低 1.4，AVGGT 低 10.3。100 個視角時 aggregator 快 2 倍。<a href="https://arxiv.org/abs/2611.23554">arXiv:2611.23554</a></p>
+
+<h3>3DTouch：把五指觸覺放進 3D 座標給 VLA</h3>
+<p>把 RGB-D 點雲與五指 taxel 的力向量都表示在機器人基座座標系中，再加上手物與物物之間的幾何關係，作為 action expert 的條件。在 UR7e 加 XHand 的五個接觸密集任務上，平均成功率比 VLA baseline 高 42 個百分點，比最強的替代方法高 20 個百分點。<a href="https://arxiv.org/abs/2611.23961">arXiv:2611.23961</a></p>
+
+<h3>The Resolution Hypothesis：agent 自我演化卡在「評估太吵」</h3>
+<p>測了七種演化方法、六個模型，超過一千萬次 LLM 呼叫。有幫助的候選其實存在，但選擇機制分辨好壞的能力跟隨機差不多。方法之間差幾個百分點，比同一方法跑兩次的差距還小，所以已發表的排名常常只是運氣。<a href="https://arxiv.org/abs/2611.23068">arXiv:2611.23068</a></p>
+
+<h2>新聞與討論</h2>
+
+<h3>Claude 的 agent 解了兩個黑洞物理的開放問題</h3>
+<p>Anthropic 研究員 Hongbin Chen 讓 Claude 列出 22 個開放問題，再為每題開一個 agent，背景跑了約六週，agent 之間可以讀彼此的進度。第一題是 N=4 super Yang-Mills 在弱耦合下的 Hawking-Page 相變到底是突變還是平滑。2003 年就有人列出這個三迴圈計算，但從未完成；agent 算出是突變，另一位物理學家用不同方法也得到相同結論。第二題是 modular bootstrap 中最輕黑洞的質量上限：agent 從數值結果看出規律，借用類似球堆積證明的方法，證出這個上限不能再降低，結果在九月以 Lean 形式驗證。<a href="https://www.anthropic.com/research/claude-black-hole-physics">原文</a>｜<a href="https://news.ycombinator.com/item?id=50563148">HN 討論</a>。HN 上有人指出貼文和兩篇論文都沒有附上 prompt，主張 AI 論文應該把 prompting 歷史放進附錄。</p>
+
+<h3>IEA：建築的冷氣需求首度超過暖氣</h3>
+<p>IEA 在 11 月 19 日發布的 World Energy Outlook 2026 指出，建築冷卻的能源需求首度超過暖氣。自 2015 年起冷卻需求增加了 55%。在主要情境下，冷卻用電到 2035 年將從約 3,000 TWh 增加到 4,700 TWh，增量大約是印度目前的總用電。冷氣只占 2035 年總用電的 12%，卻占尖峰負載的 30%。報告也提到 2026 年 8 月是有紀錄以來最熱的月份。<a href="https://maccus.fr/en/cooling-overtaking-heating/">原文</a>｜<a href="https://news.ycombinator.com/item?id=50560955">HN 討論</a></p>
+
+<h3>Pete Warden：AI 為什麼想在本地跑</h3>
+<p>Moonshine Voice 的共同創作者 Pete Warden 在 podcast 中說，9B 模型用 8-bit 大約 9 GB，用 Q4 可以塞進 4 GB 顯存，很多舊筆電就跑得動。語音介面要在 200 ms 以內才會覺得順，這是雲端很難做到的。他認為 GPU 是為大 batch 與訓練設計的，推論可以考慮 high-bandwidth flash 等其他硬體方向。<a href="https://thedataexchange.media/pete-warden-moonshine/">原文</a>｜<a href="https://news.ycombinator.com/item?id=50561508">HN 討論</a></p>
+
+<h3>Chrome 的 AI 功能吃掉大量頻寬？</h3>
+<p>作者說關掉 Chrome 設定裡所有「AI innovations」和「On-device」選項之後，原本每月「數百 GB」的流量立刻歸零，並批評這些功能預設開啟。<a href="https://perishablepress.com/chrome-ai-wasting-much-bandwidth/">原文</a>｜<a href="https://news.ycombinator.com/item?id=50562636">HN 討論</a>。HN 上不少人質疑數字，要求看 log。也有人回報 on-device AI 會吃掉 300% CPU，並分享用 policy 檔（GenAILocalFoundationalModelSettings 等）在 Linux 上整批停用的方法。</p>
+
+<h3>Garage Door Spam：車庫門 app 開始推廣告</h3>
+<p>Chamberlain 的 myQ app 在 2026 年 10 月開始把廣告混進車庫門通知裡。Chamberlain 在 2023 年底就切斷了第三方 API。作者改用約 62 美元、跑開源韌體的 ratgdo32 板子，透過 Security+ 2.0 在本地控制，接上 HomeKit，晚上門沒關就發 Slack 提醒，全程不經過雲端。<a href="https://blog.harrison.page/garage-door-spam/">原文</a>｜<a href="https://news.ycombinator.com/item?id=50519231">HN 討論</a></p>
+
+<h3>別買 RAM，壓縮它</h3>
+<p>作者用 zram 把 5.7 GB 的資料壓進 1.7 GB 實體記憶體，壓縮比 1:3.35。他提到 Fedora、Pop!_OS 預設開啟，Ubuntu 則沒有。<a href="https://curiousbits.nl/blog/do-not-buy-ram-compress/">原文</a>｜<a href="https://news.ycombinator.com/item?id=50557661">HN 討論</a>。HN 上多數人建議改用 zswap 並選 zstd。也有人指出，本地 LLM 的權重本來就接近高熵資料，壓縮幫不上忙。</p>
+</article>
+</body>
+</html>

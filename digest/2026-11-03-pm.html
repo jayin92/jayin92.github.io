@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 晚報｜2026-11-03（週二）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 晚報｜2026-11-03（週二）</h1>
+<p><b>今日導讀</b>：今晚的主題是「機器人到底該不該動、又該怎麼學會動」。一篇 ETRI 的論文發現主流 VLA 在沒有指令時照樣會動手做事；京東 Joy Future Academy 的 WorldBridge 則拆解 world action model 的任務泛化，到底要靠多看影片還是多標動作。另外還有清華的線上第一人稱手部與場景 4D 重建。新聞方面，「LLM 直接改權重」的原文終於登場，Ubuntu 一個 9.8 分的 kernel 漏洞拖了三週沒修。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. VLA Policies Do Not Know When Not to Act：VLA 不知道什麼時候「不該動」</h3>
+<p><a href="https://arxiv.org/abs/2610.41609">arXiv 2610.41609</a> · cs.RO · ETRI、UST（韓國大田）</p>
+<p><b>問題</b>：機器人應該只在收到明確指令時才行動。但 VLA 的訓練資料是 language-conditioned behavior cloning，通常還把靜止的 no-op 步驟刪掉，裡面根本沒有「該停住不動」的例子。標準評測也只看指定任務的成功率，看不出機器人有沒有做了沒人叫它做的事。</p>
+<p><b>方法</b>：作者在 LIBERO-Goal（同一個廚房場景的 10 個任務，每任務 20 個初始狀態，共 200 個，300 步上限）上設計一連串指令條件：原句、改寫、其他任務、空字串、中性句、亂碼「xxx」、物體不存在、不可能的動作等。他們定義兩個概念：<b>unintended task execution</b>（完成了指令沒指定的任務，用 any-task completion 衡量）與 <b>start suppression</b>（讓 policy 在沒有可執行任務時不啟動，用 non-start rate 衡量；non-start 指沒完成任務、沒碰到物體、末端位移小於 5 cm）。受測模型有 GR00T N1.7（官方與自行微調版）、π0.5、SmolVLA、Fast-WAM、Evo-1。三種抑制手段：在指令前加「if no task is given do not move」的 Prefix；第一步比較給定指令與空字串的 action chunk 距離，低於門檻就整集不動的 Gate；以及 no-action fine-tuning，訓練時以 0.15 機率把指令換成空字串、中性句或亂碼，並把目標設為靜止。</p>
+<p><b>結果</b>：給空指令時，六個 checkpoint 的 non-start rate 全部是 0%。π0.5 在空指令下有 94.0% 的回合會完成場景中某個任務，GR00T N1.7 微調版 63.0%，Evo-1 56.5%。SmolVLA 雖然幾乎完成不了任務，卻每一集都在揮手臂。給「不可能的動作」時，GR00T 兩版仍有 61% 到 73% 會去完成某個任務。Prefix 完全沒用（non-start 仍是 0%），還讓 SmolVLA 原指令成功率從 75.5% 掉到 1.0%。Gate 在多數模型上能擋下 96% 到 100% 的非任務輸入，但 π0.5 兩頭失敗：22% 的正常指令被擋住，34% 的「xxx」卻放行。No-action fine-tuning 在 1,800 個非任務回合中一次任務都沒完成，但三個 seed 的 non-start 從 1% 到 100% 不等，而且「物體不存在」的句子仍有 66% 到 70% 會觸發任務。</p>
+<p><b>限制與疑問</b>：只有模擬、單一場景、沒有真機也沒有危險任務；語言相關實驗只做了兩個同架構的 GR00T；同一狀態換 noise seed，結果一致的比例只有 47% 到 65%，可見 policy 本身的隨機性很大。</p>
+<p><b>為什麼值得看</b>：這是一個很便宜但很少人量的安全指標。做 VLA 的人可以直接把「空指令 any-task completion」加進 eval。它也點出 VLA 其實大多靠場景本身決定要做什麼，語言只是弱條件。後續可以想 abstain token、把「拒絕行動」當成一種動作來學，或用 VLM 先判斷指令可行性再交給 policy。</p>
+
+<h3>2. WorldBridge：world action model 的任務泛化，影片和動作各貢獻多少</h3>
+<p><a href="https://arxiv.org/abs/2610.40748">arXiv 2610.40748</a> · cs.RO · WorldBridge Team, Joy Future Academy（通訊作者 Jun Cen）</p>
+<p><b>問題</b>：World Action Model（WAM）同時預測未來影片與動作。作者把任務泛化拆成兩部分：<b>video generalization</b>（能不能預測新任務畫面會怎麼演變）和 <b>action generalization</b>（能不能把預測畫面轉成動作，類似 inverse dynamics）。核心問題是：多收影片和多標動作，各自對新任務有多大幫助？</p>
+<p><b>方法</b>：Mixture-of-Transformers，video expert（基於 Wan）和 action expert 各有 FFN 與 decoder，透過 joint self-attention 交換資訊。後訓練時用結構化 attention mask 建立「記憶與當前幀 → 未來影片 → 動作」的單向路徑，讓預測的視覺動態去條件化控制。記憶分短期（−8 到 −2 幀）與長期（−128 到 −32 幀）。訓練目標是 video 與 action 各自獨立取 timestep 的 joint flow matching，另有 <b>action forcing</b>：chunk 內每個動作各自取 noise level，讓模型學會從部分受損的上下文預測動作。預訓練資料是 127 萬條機器人 episode（約 9,730 小時，DROID、AgiBotWorld、RoboMIND 等）加 210 萬條第一人稱人手資料（約 12,592 小時），動作統一成 46 維空間並加有效維度 mask。64 張 GPU、60,000 步。</p>
+<p><b>結果</b>：最有意思的是 RoboTwin 2.0 上的監督量實驗。只有分佈內資料時，OOD 任務成功率 25.07%；加 550 支 OOD 影片、零動作標註，跳到 55.90%；每個 OOD 任務再加 1 條動作示範到 70.70%，5 條到 84.67%，20 條 90.03%，100 條 93.17%。100 條到 550 條沒再進步。總體 benchmark：RoboTwin 2.0 平均 96.23（Kairos 96.05）；RoboCasa GR1 82.75%，比最強 VLA 高 10.0 點；RMBench 83.0 和 MemoryWAM 打平；SimplerEnv-WidowX 84.4，但表上 GalaxeaVLA 的 87.3 更高。真機（AgiBot G2、ARX AC-1，每任務 20 次）平均 72.5%，π0.5 為 57.5%，掃描飲料一項 65% 對 5%。去掉聯合預訓練，真機平均掉到 46.7%。延遲從 957 ms 優化到 104 ms。</p>
+<p><b>限制與疑問</b>：沒寫參數量；action chunk 長度訓練時寫 32、部署時又寫 48；真機每任務只有 20 次，分類螺絲最難，只有 55%。</p>
+<p><b>為什麼值得看</b>：「影片負責想像、少量動作負責接地」這組數字對資料收集策略很有參考價值：與其每個新任務收 100 條遙操作，不如收影片加 5 到 20 條示範。人手影片預訓練帶來 3.5 點的提升，也支持把 egocentric data 當主力。</p>
+
+<h3>3. EgoHSI3R：從第一人稱影片線上重建手、場景與接觸</h3>
+<p><a href="https://arxiv.org/abs/2610.40832">arXiv 2610.40832</a> · cs.CV · 清華大學（Mengdi Xu 團隊）</p>
+<p><b>問題</b>：從單目第一人稱 RGB 影片，同時線上（causal）估計相機位姿、世界座標 pointmap、雙手 MANO 參數和每個頂點的接觸。現有方法不是只做相機座標系的手，就是只估手的世界軌跡而不重建場景，合起來要離線最佳化，還常出現手浮在空中或穿進桌面。</p>
+<p><b>方法</b>：以 CUT3R 的遞迴狀態累積場景幾何與相機運動，以 WiLoR 的手部 encoder 提供先驗（每隻手 18 個 token）。Hand Prompt Builder 用 RoIAlign 取手部框內的場景特徵，經 gate 融合成 hand prompt，接到 CUT3R 的 token 上一起做 attention，讓手和場景互相條件化。接著把 16 個 pose token 透過 MANO skinning matrix 傳到 778 個頂點，每個頂點對場景特徵做 cross-attention 輸出接觸機率，再回饋修正手的 token（零初始化 gate）。損失包含 CUT3R 的重建損失、MANO 參數與關節損失、接觸的 focal loss 與六區 part loss；接觸標籤定義為頂點到物體表面 1 cm 以內。訓練資料是 HOT3D、ARCTIC、TACO、H2O、HOI4D、DexYCB。</p>
+<p><b>結果</b>：ARCTIC 世界座標手部 W-MPJPE 108.80 mm，比最強 baseline StableHand 的 124.59 好 15.79 mm。H2O 上深度 Abs Rel 0.027，TTT3R 是 0.045。端到端 10.07 FPS（H200），HaWoR 是 7.76。ablation 顯示接觸回饋讓 W-MPJPE 再降 4.5 mm。</p>
+<p><b>限制與疑問</b>：jitter 13.9，遠高於 ACE-Ego-Hand 的 2.77；加速度誤差也輸 StableHand。接觸的 precision 比 HACO 高，F1 卻比較低（ARCTIC 44.3 對 48.9）。HOT3D 上的標準 MPJPE 也輸 ACE-Ego-Hand。程式碼尚未釋出。</p>
+<p><b>為什麼值得看</b>：這是把 feed-forward 3D 重建（CUT3R 系）接上 hand prior 的乾淨範例，正好對應從人手影片學機器人操作的需求，輸出可以直接當 HandMimic 類方法的監督。後續可試加時間平滑 head 壓 jitter，或換成更新的 streaming 3D backbone。</p>
+
+<h2>快速瀏覽</h2>
+<ul>
+<li><b>Video Generation Meets Agent Harness</b>（<a href="https://arxiv.org/abs/2610.40191">2610.40191</a>，HF 今日最高 18 票，Mike Zheng Shou 等）：一篇綜述，討論 agent harness（管理 context、工具、狀態、預算的執行環境）如何串起影片生成與 world model。分成 agentic 影片生成、agentic world modeling（例如用遊戲引擎或 agent 寫的程式保存世界狀態、影片模型負責渲染）、以及影片模型開發的遞迴自我改進三部分，最後列七個 open challenges。</li>
+<li><b>GenDSR</b>（<a href="https://arxiv.org/abs/2610.41314">2610.41314</a>）：把影片生成模型的中間特徵移植給 VLM 做動態空間推理。分成保留整體生成脈絡的 raw branch 與強調時間變化的 delta branch，用 task-conditioned 的 token gate 融合後注入 VLM 視覺表徵。DSR-Bench 67.2%，宣稱 SOTA。</li>
+<li><b>Coarse3D</b>（<a href="https://arxiv.org/abs/2610.41231">2610.41231</a>）：image-to-3D 第一階段的 sparse voxel 生成。以第一張視角錨定 canonical space 解決朝向不可控，用 dual-tower DiT 同時做生成與 feed-forward 重建，並以 pixel-to-voxel 對應約束 cross-attention。可直接替換現有 pipeline 的 coarse stage，摘要中沒有數字。</li>
+<li><b>Let LiDAR Decide Where to Look</b>（<a href="https://arxiv.org/abs/2610.40935">2610.40935</a>）：作者發現隨機丟掉 75% image token 就已經贏過 dense 模型。GATS 用 LiDAR/雷達點投影挑 token，backbone 只編碼那些 patch，並接自監督 latent world model。25% token 時 nuScenes 3 秒 L2 為 0.520 m（dense 0.573），NAVSIM EPDMS 88.9（dense 85.9）；10% token 時 FLOPs 減少 18 倍。</li>
+<li><b>DiffWBC</b>（<a href="https://arxiv.org/abs/2610.41354">2610.41354</a>）：one-step diffusion 的人形全身控制，每個 50 Hz 控制步只需一次 forward。可在測試時用可微分 cost 梯度引導（1.25 m 天花板下通過率 0.84，修改參考動作只有 0.10），還能用不同 noise 下計畫的分歧找出會失敗的動作片段，top 2% 精確率 91%。已部署在 Unitree G1。</li>
+<li><b>MolmoSpaces-CommonSense</b>（<a href="https://arxiv.org/abs/2610.41377">2610.41377</a>，Ali Farhadi、Ranjay Krishna 等）：以發展認知科學分類設計的操作常識 benchmark，測遮擋、容器、支撐、抓取部位與隱藏物體。zero-shot 通用 policy 在干擾物增加時成功率掉一半以上，約 30% 抓錯物體，抓對部位的比例只有約 50%。可以和第一篇深讀一起看。</li>
+<li><b>Dreams Are Cheaper Than Flights</b>（<a href="https://arxiv.org/abs/2610.41030">2610.41030</a>）：用 7B world model 延伸野生動物空拍影片來擴充偵測器訓練資料。加入合成幀讓 mAP@50–95 提升 4.3%，城市 benchmark 最高 33.5%。專家淘汰了約 87.5% 的生成片段，但合成資料 GPU 成本約 1,100 美元，真實資料光野外人力就超過 3,200 美元。</li>
+</ul>
+
+<h2>新聞與討論</h2>
+<ul>
+<li><a href="https://rikiyat.github.io/blog/weight-space-programming/">Astra can read and write weights to improve Qwen</a>（<a href="https://news.ycombinator.com/item?id=50341174">HN 討論</a>，2,134 分）：早報介紹過反駁文，這是原文。作者用 GPT-6 Astra 直接讀寫 Qwen3.5-0.8B 的權重：它把推理時的無限迴圈追到第 15、19 層 MLP 寫出的同一個方向，在兩層各 64 個 output column 中扣掉，只改了 131,072 個權重（約 0.016%）。50 次 forward pass 預算下，MATH-500 從 7.9% 到 48.1%，碰到 token 上限的比例從 93% 降到 33%。但 Gemma 3 270M 幾乎沒進步，作者也承認編輯只能解鎖既有能力。HN 高票留言認為這本質是 steering vector／abliteration，有人指出改完的模型仍不如 Qwen 更早的 checkpoint。</li>
+<li><a href="https://chalmovsky.com/posts/wtf-ubuntu">WTF Ubuntu?</a>（<a href="https://news.ycombinator.com/item?id=50337608">HN 討論</a>）與 <a href="https://freenode.net/article/ubuntu-lts-kernels-still-unfixed-for-critical-cve-2026-98432">Ubuntu 0day 報導</a>（<a href="https://news.ycombinator.com/item?id=50341462">HN 討論</a>）：CVE-2026-98432 是 Linux kernel TCP 程式碼裡從 2016 年就存在、CVSS 9.8 的遠端漏洞，據報 Anthropic 做出了能拿 root 的 exploit。Debian 10 月 16 日就修了，Ubuntu 所有支援版本（含 LTS）兩週多後仍列為受影響。作者因此把自己的 Ubuntu 伺服器下線，準備換發行版。實驗室伺服器跑 Ubuntu 的話值得去檢查一下。</li>
+<li><a href="https://news.ycombinator.com/item?id=50340088">Show HN: Subvocal</a>：YC 新創做的眼鏡，用低雜訊 RF 訊號穿過臉部，讀取舌頭、嘴唇、軟顎的調變，再用 RF foundation model 解碼成文字，使用者只需約 20 句校正，延遲「通常低於 500 ms」。他們說試過 EMG、IMU、mmWave 和讀唇鏡頭都不夠。留言最大的疑慮是無聲語音要上雲端，以及為什麼一定要是眼鏡。</li>
+<li><a href="https://www.techpolicy.press/the-sec-should-block-anthropics-ipo-to-protect-the-public/">The SEC Should Block Anthropic's IPO</a>（<a href="https://news.ycombinator.com/item?id=50344919">HN 討論</a>）：Open Markets Institute 的 Matt Scherer 主張 SEC 應要求先提出兩季經審計財報。他引用註腳中近 9,000 億美元的支出承諾（至少 5,820 億不可取消，對象是 Amazon、AMD、Broadcom、Google、Microsoft），對比約 960 億美元現金，並指出 2026 年財報未經審計、夏季營收成長放緩。這是倡議立場的評論文，不是新聞報導。</li>
+<li><a href="https://www6.slac.stanford.edu/news/2026-10-29-slac-researchers-find-proof-altermagnetism-new-magnetic-phase">SLAC 找到 altermagnetism 的證據</a>（<a href="https://news.ycombinator.com/item?id=50344224">HN 討論</a>）：altermagnet 是 2022 年提出的第三類磁性，自旋像反鐵磁一樣交錯，但上下自旋周圍的晶格彼此旋轉。團隊在 ESRF 用左右旋圓偏振 X 光打 MnTe，看到傳統反鐵磁不該有的手性訊號，結果發表在 Science。它兼具反鐵磁的穩定和產生自旋極化電流的能力，對 spintronics 很有吸引力。</li>
+<li><a href="https://blog.mistys-internet.website/post/2026/10/29/if-you-love-a-website-back-it-up/">If you love a website, back it up</a>（<a href="https://news.ycombinator.com/item?id=50336518">HN 討論</a>）：作者喜歡的粉絲站關站，網域變成賭博廣告。作者推薦 ArchiveWeb.page 擴充功能（邊瀏覽邊錄）、獨立 app，以及可自架的爬蟲 Browsertrix，產出單一 WACZ 檔，可用 ReplayWeb.page 播放。作者任職於開發這些工具的公司。很適合拿來保存會消失的 project page 和課程網站。</li>
+<li><a href="https://blog.cloudflare.com/dns-targeted-zone-builds/">Cloudflare：DNS build 延遲減半、記憶體少 85%</a>（<a href="https://news.ycombinator.com/item?id=50337558">HN 討論</a>）：超過 2,000 萬筆紀錄的 zone 每次設定變更都整個重建。新的 planner 從五種 build 中挑「能證明安全的最小那種」，不確定時絕不少做。24 小時內 92.95% 的 build 免於整區重建，峰值記憶體從 79 GiB 降到 12 GiB，p99 最大尖峰從 14.6 分鐘降到 1.21 分鐘。上線前用 mirror 系統對 20% 的 zone 做逐位元比對。</li>
+</ul>
+</article>
+</body>
+</html>

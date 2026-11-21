@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 晚報｜2026-11-19（週四）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 晚報｜2026-11-19（週四）</h1>
+<p><b>今日導讀</b>：今晚的主軸是「把多餘的層拿掉」。Luma AI 與 Stanford 讓 diffusion transformer 直接吐像素、跳過 VAE decoder；Mila 發現微調 VLA 時，凍住 VLM、只訓練 action expert 的早期 checkpoint 反而最好「調教」；Ant Group 的 Code World Model 2.0 則把世界狀態交給 3D 代理幾何，影片模型只負責上色與細節。新聞方面，Gemini 4 Neon 上線，Anthropic 今天在 Nasdaq 掛牌，Ruby 又出了一個預設設定就能打的記憶體漏洞。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. Decoding Without a Decoder：讓 DiT 直接預測像素，砍掉 VAE decoder</h3>
+<p><a href="https://arxiv.org/abs/2611.22287">arXiv:2611.22287</a>｜cs.CV｜Luma AI、Caltech、Stanford（Hansheng Chen、Gordon Wetzstein、Leonidas Guibas 等）</p>
+<p><b>問題</b>：latent diffusion 生成完還得過一次 decoder 才能變成像素，這一步不便宜。作者舉例：在 H100 上用 4-step 的 Wan 1.3B 生成 5 秒影片，取樣 2.8 秒、解碼 1.9 秒，decoder 多花了約 70%。此外，過去把「去噪輸出」直接當像素輸出的做法，會讓像素細節和去噪的可學性互相拉扯。</p>
+<p><b>方法</b>：在 DiT 原本的輸出層旁邊並聯一個<b>線性 DWD head</b>，兩者讀同一組最後一層 token。取樣過程全部走原本的去噪 head，只有最後一步改由 DWD head 把每個 token 線性映射成一塊像素 patch（影像 16×16×3，影片再乘上時間方向 4 幀）。最後一步落在一個小的非零 timestep，而不是 t=0，且不做 CFG。head 用最小平方法從 token 回歸到真實像素來初始化；只微調最後 K 個 block 和兩個 head，比全模型反傳快至多 3 倍。損失是 L_pix（L1 + LPIPS + StyleGAN-T 判別器的對抗項，最後階段才開）加上 L_traj：讓去噪 head 的 velocity 貼近凍結參考模型，確保取樣軌跡不跑掉。可選一個卷積 refiner（DWD-conv）。</p>
+<p><b>結果</b>：ImageNet 256 上，SiT-XL/2-REPA-E 的 FID 從 1.12 降到 1.06；pixel 模型 AnisoFlow-H/16 從 1.55 到 1.43，作者稱是 pixel flow 模型的新 SOTA。把兩個 head 合併成一個的消融反而變差（1.71），說明 ℓ2 去噪損失和感知／對抗損失確實衝突。FLUX.2 klein 9B 上 FID 與 pFID 基本打平，但省下每張 10.47 TFLOPs 的 decoder。最亮眼的是影片：Wan2.1 14B 的 VBench warping error 從 1.52 降到 1.18（-23%），用同樣資料和損失去微調原本的 decoder 只到 1.39。4-step Wan 1.3B 端到端從 4.661 秒降到 2.757 秒（1.69 倍），峰值記憶體少 16%。</p>
+<p><b>限制與疑問</b>：decoder 本身已經很強時（FLUX.2 的寬 latent），收益會縮小；超過 16×16 的 patch 線性 head 是否夠用還沒證明，MiniMax-H3 的初步實驗顯示每個 token 要輸出 12,288 維，可能非加 refiner 不可。各模型的像素損失權重也沒調。</p>
+<p><b>為什麼值得看</b>：互動式影片與 world model 的延遲瓶頸常常在 VAE 解碼（昨晚的 FastFrames 也指出這點），DWD 是幾乎零成本的改法，而且時間一致性還變好。值得追問的是：同樣的「最後一步直出」能不能套到 3D／4D 生成，例如直接預測 Gaussian 參數而非經過 latent decoder。</p>
+
+<h3>2. Finetuning VLAs for Dexterous Manipulation：選對 checkpoint 比微調方法更重要</h3>
+<p><a href="https://arxiv.org/abs/2611.23676">arXiv:2611.23676</a>｜cs.RO｜Mila、Université de Montréal（Glen Berseth 組）、Renesas</p>
+<p><b>問題</b>：VLA 的預訓練資料幾乎都是平行夾爪，多指靈巧手極少。要把 VLA 搬到靈巧手上就得微調，而靈巧手遙操作很貴，示範只有幾十條。常見流程是先 SFT、再用 RL 在 latent noise 上「steer」策略，那 SFT 階段該怎麼做、該挑哪個 checkpoint 交給 RL？</p>
+<p><b>方法</b>：底座是 π0.5（3B PaliGemma + flow-matching action expert，一次輸出 32 步動作），目標是預訓練沒見過的 16-DoF LEAP hand。比較五種 SFT 配方：只訓練 action expert（Expert-only）、再加上 SigLIP 與 projector（Frozen-LM）、全參數、LoRA（rank 32）、以及 Frozen-LM 加 LM 的 LoRA。每種配方取四個 checkpoint，再用 DSRL（SAC 在 noise 空間學習）做 steering。任務是 RoboCasa 模擬中的 CoffeePressButton（Franka，56 條示範）與 ScrewLightbulb（xArm6，33 條示範），另外測兩個沒訓練過的物體擺放位置。</p>
+<p><b>結果</b>：只有 Expert-only 能穩定被 steer 到 95–100% 的成功率。ScrewLightbulb 在 8k 步時，Expert-only 訓練位置 100%、外插位置 88%，其他配方都在 33% 以下。Expert-only 隨訓練步數的外插成功率是 98、73、88、45，越晚越差。最反直覺的是：SFT 階段本身的成功率無法預測 RL 後的表現，CoffeePressButton 上甚至負相關；LoRA 在 18k 步時 RL 前成功率最高（76%），RL 後外插卻只有 7%。</p>
+<p><b>限制與疑問</b>：全部在模擬裡，而且早期 checkpoint 會用手掌去轉燈泡而不是抓住它，明顯是在鑽模擬器漏洞。每種配方只微調一次，SFT 本身的變異沒量到。兩個任務、一種手，結論能推多遠還不清楚。</p>
+<p><b>為什麼值得看</b>：這篇給了很實用的規則：凍住 VLM、完整訓練 action expert、挑「最早能重現示範技能」的 checkpoint，別用 SFT 成功率選模型。背後的直覺是 SFT 越久，策略的 noise 空間越窄、越難被 RL 推動。下一步自然是找一個離線指標來衡量 steerability，例如 noise 擾動下動作分佈的多樣性。</p>
+
+<h3>3. Code World Model 2.0：3D 代理幾何管狀態，影片模型管畫面，串流到 18 FPS</h3>
+<p><a href="https://arxiv.org/abs/2611.22925">arXiv:2611.22925</a>｜cs.CV｜Inclusion AI（Ant Group）、西湖大學、浙江大學（含沈春華、藍振忠）</p>
+<p><b>問題</b>：一種做可控 world model 的思路是「代理渲染」：用顯式的 3D 狀態（相機、靜態幾何、追蹤物件）渲染出粗糙的代理畫面，再讓影片模型把它畫成逼真影像。難處有兩個：大範圍移動只需要粗略佈局，近距離互動卻需要關節級的細節；串流推論必須少步、因果，而且不能在自己生成的歷史上累積漂移。</p>
+<p><b>方法</b>：系統叫 Invoker-Render，基於 MiniMax-H3 DiT，有一個雙向的創作模型和一個因果、4 步的串流模型，共用同一組條件：結構代理、外觀參考圖、系統指令與文字。代理去掉紋理與光照，粗的用剛體假人與 3D 框，細的加上關節化身體與著色幾何，兩種粒度一起訓練，沒給細節時模型會自己補。訓練採 Guidance-Free Training（β=2、10% 條件丟棄），再用四階段的 Progressive Forcing：teacher forcing、把歷史加噪的 resampling forcing、帶 GAN 判別器的 DMD 蒸餾成 4 步，最後在連續自生成 rollout 上繼續 DMD。長序列靠固定外觀錨點加有界的滑動 KV 視窗（含靜態 sink）。資料約 200 小時，其中約 150 小時是自己錄的 GTA V、Cyberpunk 2077、Elden Ring、Forza Horizon 5。</p>
+<p><b>結果</b>：140 段保留測試序列（6.6 至 20 秒），以 Gemini 3.8 Flash 做盲測兩兩比較、換算 Elo。Invoker-Render 整體 1232.0，高於 SolarRenderer 的 1135.3、StreamRender-H3 的 940.2、前代 Streaming CWM 的 692.4；對前代是 130 勝 8 和 2 負，對最強基線 SolarRenderer 是 88 勝 2 和 50 負。工程面，八卡節點在 1344×768 下每個 chunk 從 1770 ms 降到 930 ms，吞吐量從 9.9 提升到 18.0 FPS。</p>
+<p><b>限制與疑問</b>：評估完全依賴 VLM 評審的偏好，沒有 FVD 之類的客觀指標；摘要說能穩定跑 30 分鐘賽車，但論文只展示到約 299 秒的例子，沒有量化。視窗外的細節最後會被丟掉，作者承認需要長期記憶；也不支援串流中途切換代理粒度。訓練資料大量來自商業遊戲畫面。</p>
+<p><b>為什麼值得看</b>：跟昨天早報的 GameWM「引擎管規則、影片模型管畫面」是同一條路線，而這篇把它推到可用的串流速度。對機器人模擬來說，「物理引擎出代理、生成模型補外觀」可能比純像素 world model 更容易保持狀態一致；可以想想把 3DGS 場景當作細粒度代理會怎樣。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>ALIVE：讓串流影片 LLM 會主動開口、也會反問</h3>
+<p><a href="https://arxiv.org/abs/2611.21366">arXiv:2611.21366</a>（清華等，HF 19 票）。串流 video LLM 通常一題一答，ALIVE 讓它能持續監看、協調任務，並在資訊不足時主動向使用者確認。訓練先用 288K 筆對比式 SFT 教「何時該說話」，再用 RL 加上 BACA credit assignment，同時獎勵回應與「保持沉默」；作者另做 FSI-Bench，摘要宣稱四個公開基準與 FSI-Bench 都最高，但沒給數字。</p>
+
+<h3>WorldRuler：可自訂規則的互動 world model</h3>
+<p><a href="https://arxiv.org/abs/2611.24869">arXiv:2611.24869</a>（Alaya Lab，HF 15 票）。把使用者定義的規則、依賴關係和物件狀態存在可執行的 3D rule graph 裡，與影片生成和感知回饋組成閉環，存檔／讀檔後規則仍然成立。資料集 RuleVerse 由 GTA-V 與 Habitat 自動產生；摘要沒有給量化結果。</p>
+
+<h3>BiCAT：在 action tokenizer 裡建模雙臂協調</h3>
+<p><a href="https://arxiv.org/abs/2611.23499">arXiv:2611.23499</a>（Jiafei Duan 等）。不再把兩隻手臂的動作串成一個向量，而是共用一套運動表示，透過對稱的 cross-arm attention 與聯合 decoder 讓右臂條件於左臂。在 RoboTwin 2.0 十個任務上，平均成功率比八個基線中最強者高 17.6 個百分點，每個 action chunk 約 40.5 ms。</p>
+
+<h3>CoT-WAM：VLM 和 world-action model 用 plan latent 對話</h3>
+<p><a href="https://arxiv.org/abs/2611.23803">arXiv:2611.23803</a>。WAM 會預測畫面與動作，但缺乏語意推理；這篇用一個可學的 embedding 連接 VLM 和 WAM，訓練時以文字與目標影像監督，兩階段聯合訓練。宣稱在 LIBERO、CALVIN、RoboCasa-Kitchen 達到 SOTA，在 LIBERO-Plus／Pro 上零樣本泛化更好，並有實機實驗。</p>
+
+<h3>Facet-SLAM：第一個即時的 triangle splatting RGB-D SLAM</h3>
+<p><a href="https://arxiv.org/abs/2611.23935">arXiv:2611.23935</a>。以前的 triangle splatting SLAM 用光度追蹤，太慢；這篇把三角形質心設在融合深度上，再用 GICP 對齊，桌機 GPU 上追蹤約 100 FPS，Jetson AGX Orin 上也能跟上感測器頻率，比光度法快 20 倍以上。Replica 上 Delaunay mesh 的 chamfer distance 從 1.55 cm 降到 0.86 cm。</p>
+
+<h3>WaveView：新視角藏在初始噪聲的相位裡</h3>
+<p><a href="https://arxiv.org/abs/2611.23994">arXiv:2611.23994</a>。不改架構、不加條件分支，而是把 warp 後的來源影像用 DT-CWPT 小波注入預訓練生成器初始噪聲的相位，在遮擋區與極線方向約束較鬆。DL3DV 最難的重疊區間，共視區 PSNR 比同生成器的 MetaView 高 0.84 dB、速度快 2.1 倍；同樣的噪聲讓 AnyView 在 AnyViewBench 的零樣本 PSNR 從 11.58 升到 12.35 dB。</p>
+
+<h3>FreeForward4D：不用任何標註的駕駛場景 feed-forward 4D 重建</h3>
+<p><a href="https://arxiv.org/abs/2611.24007">arXiv:2611.24007</a>。用預訓練模型預測的相機與深度加上單目 metric depth，對齊到同一個公制座標系，取代資料集提供的相機、LiDAR 與 3D 框；物體運動用共享速度加局部 Gaussian 修正，訓練和推論都只吃 RGB 影片。Waymo 上 PSNR 27.66 dB、SSIM 0.836，全圖 PSNR 勝過 STORM、DGGT 等需要標註的方法。</p>
+
+<h3>One Shot, Any View：沿新軌跡「重拍」一段電影鏡頭</h3>
+<p><a href="https://arxiv.org/abs/2611.24253">arXiv:2611.24253</a>。輸入一段影片與新的相機軌跡，用 feed-forward 重建渲染出 point video 作為幾何條件，再由 reference-to-video 模型生成。重點是電影畫面（長焦、淺景深、暗光）會讓重建變差，所以訓練時用同一條重建管線處理多機位實拍，並用 geometry-anchored RoPE offset 避免抄到 point video 的劣化外觀。摘要沒有數字。</p>
+
+<h2>新聞與討論</h2>
+
+<h3>Google 發表 Gemini 4 Neon</h3>
+<p><a href="https://blog.google/innovation-and-ai/models-and-research/gemini-models/introducing-gemini-4-neon/">Google Blog</a>｜<a href="https://news.ycombinator.com/item?id=50552424">HN 討論（821 分）</a></p>
+<p>Neon 是 Gemini 4 家族的中階，位於 Carbon（最強）與 Hydrogen（快速）之間，1M context，價格每百萬 token 輸入 3 美元、輸出 15 美元。Google 列出的成績包括 Artificial Analysis Intelligence Index 61（第 3）、Terminal-Bench 4.1 65.2%、Chartography（讀專業圖表）73.5%，並稱在 high thinking 下每個任務成本比 Carbon 低 32%；另有給資安防禦者的 cyber 變體。HN 上大家主要抱怨型號命名太難記，也有人認為 Gemini 的文字比較不像「AI 腔」，但對 benchmark 普遍保留，想看實際專案。</p>
+
+<h3>Anthropic IPO 定價每股 83 美元，今天在 Nasdaq 掛牌</h3>
+<p><a href="https://www.anthropic.com/news/anthropic-prices-initial-public-offering">Anthropic 公告</a>｜<a href="https://news.ycombinator.com/item?id=50553843">HN 討論</a></p>
+<p>共發行 9.8 億股 Class A 股票，其中約 9.56 億股由公司發行，代號 ANT，預計 11 月 19 日開始交易、20 日交割，主承銷商為 Goldman Sachs 與 Morgan Stanley，另有 1.47 億股的超額配售選擇權。公告沒寫募資總額；以定價乘股數粗估，公司這部分約 794 億美元，是相當罕見的規模。</p>
+
+<h3>Ruby2Shell：Ruby 字串轉大寫的一個位元組溢位，預設設定的 Rails 也中招</h3>
+<p><a href="https://verialabs.com/ruby2shell/">Veria Labs</a>｜<a href="https://www.ruby-lang.org/en/news/2026/11/18/multiple-vulnerabilities-in-regexp-and-string/">Ruby 官方公告</a>｜<a href="https://news.ycombinator.com/item?id=50556287">HN 討論</a></p>
+<p>大多數單位元組編碼沒有大寫的 ß，upcase 時要變成兩個字元「SS」，但迴圈只檢查一個位元組；輸出緩衝區是輸入長度加 20 位元組，所以 21 個 ß 就能溢出一個位元組。這段程式從 Ruby 2.4.0 就存在，UTF-8 字串不受影響，但預設設定的 Rails 與 Sinatra 可被未驗證地觸發，GitLab、GitHub Enterprise Server、Mastodon、Discourse 等自架軟體都列在受影響名單。修正版本是 Ruby 4.0.10、3.4.13、3.3.14；PoC 預計一週後公開，有自架服務的話這週就該升級。繼 nginx HTTP/2 漏洞之後，這已經是本週第二個「未驗證遠端」等級的基礎設施漏洞。</p>
+
+<h3>DaisyRose-27B：RL 後訓練讓 27B 模型在長程 agent 任務上翻倍</h3>
+<p><a href="https://www.radixark.com/blog/daisyrose-27b">RadixArk Blog</a>｜<a href="https://news.ycombinator.com/item?id=50551046">HN 討論</a></p>
+<p>RadixArk 的第一個模型，以 Qwen3.8-27B 為底，用約 1,200 個長程 agent 任務做 RL，session 最長 1M token，在 144 張 H200 上訓練 18 天，其中 128 張跑 agent 推論、16 張跑 trainer，完全非同步。Terminal Bench 4.1 從 5.6 提升到 12.0，其他基準是小幅進步。部落格也公開了基礎設施數據：約 94.4 萬個 sandbox、尖峰 1,566 個同時運行，MFU 37%（對比開源 Megatron trainer 的 16%）。對想自己做 agentic RL 的實驗室，這份系統數據比分數更有參考價值。</p>
+
+<h3>用 LLM agent 做逆向工程：一位玩家的工作流程</h3>
+<p><a href="https://www.slowchronicle.com/posts/llm-assisted-reverse-engineering">Slow Chronicle</a>｜<a href="https://news.ycombinator.com/item?id=50553225">HN 討論</a></p>
+<p>作者用 DeepSeek v4.1 Flash 搭配 Ghidra MCP、radare2，逆向了 Sony A7III 的通訊協定（做成無線 webcam）、幾台合成器的韌體，還幫 Xteink X4 電子書閱讀器寫了自訂韌體。心得很實用：讓 agent 把所有發現寫進 Markdown 以撐過 context 壓縮；用 CSV 記錄每個假設並設計實驗去證偽，避免 agent 亂猜；實作用 Rust，因為嚴格的編譯器能給 agent 精確回饋。他也強調，agent 常常卡在錯的路線上，還是得靠人看推理過程把它拉回來。</p>
+
+<h3>tamserve：像 LLM serving 一樣做多鏡頭即時物件追蹤</h3>
+<p><a href="https://github.com/aryamandarda/tamserve">GitHub</a>｜<a href="https://news.ycombinator.com/item?id=50523377">HN 討論</a></p>
+<p>把 EdgeTAM／SAM 2 的追蹤做成 continuous batching：所有鏡頭的所有物件共用一份模型、一起批次推論，每個物件只保留提示幀、最近 6 幀與 15 幀摘要的有界記憶。單張 RTX 4090 上 64 路鏡頭 321 FPS、只用 5.7 GB，DAVIS 2017 分數與原版幾乎相同（0.8685 對 0.8686）；加上 SAM 3 可以用文字找物件。對需要多相機感知的機器人或實驗室資料收集，這是可以直接拿來用的 Apache-2.0 工具，但只能往前追蹤、不跨鏡頭維持身分。</p>
+
+<h3>一台 1 核 10GB 的 VM 跑 1,500 萬個 web server</h3>
+<p><a href="https://kapteko.com/15-million-webservers/">Kapteko</a>｜<a href="https://news.ycombinator.com/item?id=50556533">HN 討論</a></p>
+<p>半開玩笑的系統實驗：kernel 每個 socket 約吃 3.3KB，大約 250 萬個 server 就 OOM；改用 Rust 的 userland TCP/IP stack smoltcp，閒置連線每個只要約 620 位元組，最後撐到 1,600 萬個。位址靠 AnyIP 綁整個 IPv6 /64，guest 用 LFI 沙箱跑在同一個 process 裡。文中也比較了 DPDK 與 AF_XDP：前者最快但會整張網卡從 OS 消失、連 SSH 都斷，後者保留 kernel 控制。是理解「每個連線到底花多少記憶體」的好讀物。</p>
+
+<h3>劍橋辭典 2026 年度詞彙：human</h3>
+<p><a href="https://www.cam.ac.uk/news/cambridge-dictionary-reveals-word-of-the-year-2026">University of Cambridge</a>｜<a href="https://news.ycombinator.com/item?id=50546914">HN 討論</a></p>
+<p>理由是 AI 讓「何謂人」成為整年的公共議題：Bill Gates 談「保留給人類的工作」，Authors Guild 推出「Human Authored」書籍標章，McConaughey 與 Taylor Swift 為自己的聲音與形象註冊商標。辭典沿用的定義是「具有人的特質、缺點與感受，相對於神、動物或機器」，把機器放進對照組，在今年讀起來格外貼切。</p>
+</article>
+</body>
+</html>
