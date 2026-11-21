@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 早報｜2026-11-22（週日）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 早報｜2026-11-22（週日）</h1>
+<p><b>今日導讀</b>：週末 arXiv 沒有新清單，今天繼續從週五的 cs.CV / cs.RO 裡挑前兩期沒寫到的論文。三篇深讀都在處理同一個問題：模型「接下來該做什麼」要交給誰決定。機器人 world model 把物體怎麼反應交給 3D 點的模擬器，VLA 被中途叫停時要學會「拿著不動」，高解析度 world model 則讓同一個 backbone 先預測、再自己把畫面補清楚。新聞的主角是黎曼猜想的後續：Lean 社群在一天內完成驗證，正式背書了這份證明。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. Point Dynamics as Proxy：機器人 world model 先算 3D 點怎麼動，再交給影片模型畫出來</h3>
+<p><a href="https://arxiv.org/abs/2611.25946">arXiv:2611.25946</a>｜cs.CV / cs.RO｜MBZUAI、Institute of Foundation Models（Eric P. Xing 等）｜<a href="https://marsaki.github.io/point-dynamics-proxy/">專案頁</a></p>
+<p><b>問題</b>：機器人 world model 給定第一幀和一串動作，要預測未來影片，拿來評估 policy、做規劃或合成資料。近期的做法把機器人渲染成 mask、URDF 或軌跡當條件，手臂的動作因此跟得很準，但被操作的物體還是常常出錯：麵包和推它的鏟子分家，放開的杯子跟著張開的夾爪往上飄。作者認為原因在條件本身：動作只說了機器人去哪裡，沒說場景怎麼回應，影片模型得一邊畫外觀、一邊隱式推動力學。</p>
+<p><b>方法</b>：把「動力學預測」和「畫面渲染」拆開，中間用 3D 點當 proxy。第一幀的 RGB-D 反投影成場景點（去掉機器人像素），動作經 forward kinematics 變成 URDF 表面上的機器人點。模擬器用公開的 PointWorld-large（在 DROID 上訓練，1.5 cm 體素，DINOv3 特徵），預測每個場景點未來 10 步的位移。接著用 z-buffer point splatting 把模擬結果畫回三支和像素對齊的影片：robot render、把稠密點依最近模擬點做反距離加權後的 warp，以及 4,000 個場景點加 1,500 個機器人點、以初始 3D 位置著色的 track video。渲染器是 Wan2.2-TI2V-5B（DiT）或從 SVD 初始化的 Ctrl-World（UNet），proxy 經凍結的 VAE 編碼後在 channel 維度接上，新加的權重初始化為零，不用文字。</p>
+<p><b>結果</b>：在 DROID 上用 32.6 萬個片段訓練，測試 1,515 段（13 個實驗室）。主指標是用 CoTracker3 追蹤物體點算出的 object motion error。以 Wan 為例，數字動作 5.89 px，robot render 5.13，加 depth 4.97，point dynamics proxy 4.69，比 robot render 低 8.6%（Ctrl-World 低 6.2%），PSNR、LPIPS 幾乎不變。增益集中在推、拖、變形這類非剛體反應（Wan 降 12.3%）。換成 AllTracker 重新量，改善為 11.5% 和 7.1%。模擬器越好，影片越好：所有點靜止時誤差反而高 49%，手寫的「夾住就跟著走」規則補上 40% 的差距，PointWorld-large 幾乎追平標註點流（4.69 對 4.66 px）。把布的模擬運動凍結，61% 的物體點會跟著編輯走（沒看到編輯的 baseline 是 29%）。同樣預算下，把點動力學當輔助 loss（仿 PhysisForcing）只降 3.4%。在雙臂 WidowX 實機的 300 段資料上也降了 8.1%，可變形物體降 12.7%。</p>
+<p><b>限制與疑問</b>：影片只會和模擬一樣準，深度、追蹤、標註、模擬器的誤差會一路累積；模擬器和渲染器分開訓練，渲染器沒辦法修正模擬。反轉或加倍運動這類大而不常見的編輯，只有 28% 和 19% 被遵守，渲染器會把它拉回訓練分布。另外他們沒有和已發布的 DROID world model checkpoint 直接比較，因為那些模型多半需要 wrist view。</p>
+<p><b>為什麼值得看</b>：這是「code world model 先算狀態、再畫畫面」的思路在真實機器人資料上的乾淨對照實驗，四種條件逐級增加資訊，結論很好讀。對做 3D 點追蹤或粒子動力學的人來說，這篇提供了一條讓動力學的進步直接轉成 world model 品質的路。可以接著做的有：模擬器和渲染器聯合訓練、用 3DGS 取代點雲當 proxy，或者把可編輯的點運動拿來產生反事實資料。</p>
+
+<h3>2. SAFI：叫 VLA 停下來，不只是「不完成」，還要「別把東西摔了」</h3>
+<p><a href="https://arxiv.org/abs/2611.26239">arXiv:2611.26239</a>｜cs.RO｜University of Notre Dame（Meng Jiang 等）｜程式碼：franciscoliu/SAFI</p>
+<p><b>問題</b>：已有不少工作讓 VLA 拒絕或遺忘某個任務，但評估幾乎都從初始狀態開始。作者借用 LLM「給了開頭就會繼續講下去」的觀察，讓原始 policy 先執行一半，再把控制權交給被編輯過的 policy。結果有些方法從初始狀態完全不會開爐子，接手到一半時卻幾乎每次都把爐子打開。就算任務沒完成，機器人也可能把手上的瓶子直接丟下，所以「沒完成」並不等於安全。</p>
+<p><b>方法</b>：State-Aware Fallback Imitation 只有兩步，相當簡單。第一步建構 fallback 目標：在被禁止任務的每一幀示範上，把動作 chunk 換成「末端執行器位置與姿態不變」的指令，夾爪則固定為該 chunk 第一個示範的開合狀態，也就是「保持拿著」。觀測和語言指令都不改，這樣中途狀態也有監督。事前會先用腳本化的 hold 測試，確認「拿著不動」對該任務是合適的反應才套用。第二步做聯合模仿：fallback loss 和其他保留任務的原始動作 loss（都用 L1）等權相加，在 OpenVLA-OFT 的語言模型層上做 LoRA，並一起更新 action head。</p>
+<p><b>結果</b>：基準是 LIBERO（Goal、Spatial、Object）和 BadLIBERO 後門設定，比較對象有 GA、GradDiff、NPO-RT、RMU、Refusal FT（學回到原位）和 VLA-Forget。接手後的目標成功率，原始 policy 是 99.7%，SAFI 是 1.3%，物理事故率和 action saturation 都是 0。GA、GradDiff 雖然也壓得低，saturation 卻接近 100%，等於把指令推到控制器極限。Refusal FT 是 11.6% 目標成功、4.1% 事故。保留任務成功率在 Spatial 是 96.9%、Object 是 93.1%。物體最終位移平均 3.1 cm，夾爪接觸率 97.3%，其他方法的位移則落在 27.6 到 71.6 cm。消融實驗顯示，拿掉保留任務的模仿，保留成功率直接掉到 0。</p>
+<p><b>限制與疑問</b>：只測了 OpenVLA-OFT、選過的 LIBERO 任務、單一訓練種子，而且都在模擬器裡。「拿著不動」只適用於通過檢查的任務；物體不穩、或正在倒水這類互動中途，合理的 fallback 應該是放下或退開，論文尚未處理。我也好奇對 flow-matching 類的 VLA（π0 系列）是否一樣有效。</p>
+<p><b>為什麼值得看</b>：「中途接手」這個評估協議本身就很有價值，很多 VLA 安全或 unlearning 的結果可能都需要重測一次。它也提醒我們，機器人的拒絕必須是一個有物理後果的「動作」，不能只看任務有沒有完成。延伸方向包括學多種 fallback（放下、退回）、讓 VLM 判斷該用哪一種，以及在實機上量測。</p>
+
+<h3>3. ScaleWorld：同一個 backbone 先低解析度預測世界，再一步把它補成高解析度</h3>
+<p><a href="https://arxiv.org/abs/2611.26615">arXiv:2611.26615</a>｜cs.CV｜廈門大學、東南大學、香港城市大學、新加坡國立大學｜<a href="https://quyans.github.io/ScaleWorld/">專案頁</a></p>
+<p><b>問題</b>：互動式 video world model 想要細緻的畫面，但直接生成高解析度影片，運算和 KV cache 都很貴。常見做法是低解析度預測加一個獨立的 refiner（例如 SANA-WM、Ultra Flash），部署時就要存兩套權重。作者想知道，一個 world model 能不能學會高解析度 refinement，又保留原本的預測能力。</p>
+<p><b>方法</b>：以 Wan2.2 TI2V-5B 為底，預測在 480×832，refinement 在 960×1664，逐 chunk 自迴歸。每個 chunk 先多步去噪完成低解析度預測（條件是圖片、文字和 UCPE 相機編碼），再把上採樣後的 latent 接在 channel 上，用同一個 backbone 一步完成高解析度 refinement。新增的條件權重從零初始化，所以一開始和原本的 WM 等價。兩種角色的記憶不對稱：預測保留較長、乾淨重新編碼的低解析度歷史；refinement 只保留短的高解析度歷史，而且直接沿用生成時那次前向的 noisy KV，省掉一次額外的高解析度前向。作者觀察到混合 DMD 訓練時，兩種任務的梯度在 800 步時 30 個 block 全部方向相反，因此先分別用 DMD 訓練兩個 specialist，再用 task-asymmetric on-policy distillation（TA-OPD）在學生實際走到的去噪 query 上做局部 velocity matching，把兩者合進同一個學生。</p>
+<p><b>結果</b>：WBench 上，完整高解析度管線平均 81.60，和兩個獨立 specialist 串接的 81.58 相當，也高於 WorldPlay、LingBot-World 2.0、Matrix-Game 3.5 各自搭配 Ultra Flash 或 FlashVSR 的組合（最高 81.07）。只用原生預測時，統一模型 80.31，WM specialist 是 80.52，LingBot-World 2.0（fast）是 81.46；視覺品質 83.04 是比較的原生模型中最高的。蒸餾策略的消融：混合 DMD 72.0、CD 加混合 DMD 75.9、TA-OPD 80.3。noisy-forward 歷史讓 generator 每 chunk 從 0.60 秒降到 0.30 秒，端到端快 26.9%。四張 GPU 部署時，共用權重讓峰值記憶體從 45.42 GiB 降到 35.84 GiB（−21.1%），FPS 維持 11.94。</p>
+<p><b>限制與疑問</b>：省下的主要是權重記憶體，KV 並沒有變少；統一模型的 consistency 比 specialist 稍低，原生預測也還輸 LingBot-World 2.0。refinement 可能憑空加出不存在的結構，訓練用的合成退化也未必涵蓋 world model 真實的錯誤型態。</p>
+<p><b>為什麼值得看</b>：「先粗後細、共用權重、記憶不對稱」是 streaming world model 落地時很實際的設計。梯度衝突的診斷加上先分後合的 OPD，也適用於任何想把兩種能力塞進同一個 DiT 的情境，例如預測加深度、或生成加理解。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>SpecWM：用大模型自己的 velocity field 檢查草稿</h3>
+<p><a href="https://arxiv.org/abs/2611.26211">arXiv:2611.26211</a>　streaming world model 的 speculative 推論：小模型先出草稿 chunk，再用大模型的 latent velocity field 驗證，而不是解碼後交給外部打分器。驗證的結果本身就能當修正量，依兩個門檻決定 Accept、Refine（一步或三步）或 Reject。在 WBench Navigation 上比 target 快 1.63 倍，NavScore 從草稿的 75.99 提升到 85.63，不需要訓練。</p>
+
+<h3>ViDecide：把影片推理改成一連串「決定」</h3>
+<p><a href="https://arxiv.org/abs/2611.26389">arXiv:2611.26389</a>　作者認為影片模型在多步推理上失敗，是因為解答被當成固定長度的片段。ViDecide 讓 video diffusion 因果地預測狀態轉移，並自己決定何時停止；Corrective Fine-tuning 把失敗決策的噪聲對應到模型自己成功的延續，不需要 policy gradient。在抽象遊戲、規劃和新的多步機器人規劃 benchmark 上，嚴格成功率平均 83.8%，標準微調是 23.3%，最強的既有方法是 67.8%。</p>
+
+<h3>Stuck in Place：JEPA planner 失敗，多半是卡在原地</h3>
+<p><a href="https://arxiv.org/abs/2611.25415">arXiv:2611.25415</a>　追蹤 JEPA world model 在推物任務上的 MPC 迴圈後發現，不論有沒有分布偏移，至少 96% 的失敗是「物體不動、模型卻以為有進展」的停滯，warm-start 的梯度下降 planner 會一直回傳幾乎相同的計畫。作者提出 Unstick：部署前先做 on-policy 微調，執行時用預測誤差的殘差記憶，或每次重規劃都隨機初始化來打破固定點，就能拿回大部分 test-time adaptation 的增益。</p>
+
+<h3>World-delta：可以持續修正的增量 3D 場景生成</h3>
+<p><a href="https://arxiv.org/abs/2611.25802">arXiv:2611.25802</a>　新觀測進來時，生成的內容應該是可以被推翻的假設，而不是定案。作者維護一個記錄來源、觀測信心和生成不確定度的持久 world state，對每個位置判斷 KEEP、FUSE、REVISE 或 EXTEND，只對需要更新的區域做 masked flow matching，也只重新解碼受影響的 3D Gaussian chunk。訓練資料整合了 SceneSplat-49K 的十多個資料集。</p>
+
+<h3>UNVEIL：SAM 3 看到的比它偵測出來的多</h3>
+<p><a href="https://arxiv.org/abs/2611.25747">arXiv:2611.25747</a>　作者發現 SAM 3 的語意路徑其實對「透明物體」「陰影」「鏡子」這類概念有反應，但圖片層級的 presence 分數太低，會擋掉所有偵測。UNVEIL 複製一份語意路徑並在最後幾層加 LoRA，另外訓練一個從確認負例中學習的 presence decoder。在 PCM-Bench 的七個任務（顯著、偽裝、陰影、透明、邊緣、骨架等）都拿到可提示模型中的最高分，而且不改變 SAM 3 原本的輸出。</p>
+
+<h3>Real Cameras are Radiometric：把幾何相機模型升級成輻射度相機</h3>
+<p><a href="https://arxiv.org/abs/2611.25265">arXiv:2611.25265</a>　任何中心投影的相機模型都能「提升」成保留原投影、再加上有限光圈、自由形狀的對焦面和通用暗角函數的模型。校正直接用幾何校正時同一批標準校正板影像做逆渲染，不依賴特徵點，在保留測試集上的重投影誤差比幾何校正更低。作者也做了第一個多視角輻射度重建，能從失焦影像還原紋理的對焦反射率。做 3DGS 或 NeRF 時常被假設成針孔的那台相機，這篇值得看看。</p>
+
+<h3>AgentRoboCritic：前沿 agent 直接輸出數值動作控制機器人，問題出在哪</h3>
+<p><a href="https://arxiv.org/abs/2611.26613">arXiv:2611.26613</a>　在 12 個操作 benchmark 上，讓 GPT-6 Astra 等多模態 agent 不靠高階 primitive、直接輸出低階數值動作，並要求每個動作附上局部意圖，再由 critic 判斷結果與失敗模式。agent 的閉迴路恢復和語意 grounding 表現不錯，瓶頸在抓取和對齊這類精細的物理執行。作者釋出 12,844 個標註動作，微調後的開源 critic Muse-Glimmer-30B，失敗模式準確率從 32.58% 提升到 74.24%。</p>
+
+<h2>新聞與討論</h2>
+
+<h3>Lean 社群正式背書：黎曼猜想的 Lean 證明通過驗證</h3>
+<p><a href="https://leanprover-community.github.io/blog/posts/riemann-hypothesis/">Lean community blog</a>　昨天早報提到 Levent Alpöge 宣稱和 Claude 一起證明了 GRH，而且只提供 Lean 程式碼。現在 Lean 與 Mathlib 社群發表聯合聲明（Lean FRO 與 Mathlib Initiative 背書），表示對這份 1,700 萬行的證明「有完全的信心」。他們確認定理的陳述與 Mathlib 的 RiemannHypothesis 完全相同（用 comparator 和 con-leche 兩個工具比對），數十人重現了編譯，匯出的證明也被 Lean 官方 kernel 和多個以不同語言實作的獨立 checker 接受，其中 con-leche 和 con-ron 本身附有「不會接受錯誤證明」的形式化證明。MIT 的 Andrew Sutherland 用 Claude Code 跑完並整理了<a href="https://math.mit.edu/~drew/grh/">驗證檔案</a>：175,187 個 module 全部編譯通過，五個主定理只依賴三個標準公理，nanoda 在 80 執行緒上花了 27 分 42 秒接受整份證明。範圍是 Dirichlet L-function 的 GRH，不包括 Dedekind zeta 或一般的 automorphic L-function。他們還把證明和一份獨立形式化的 Robin 準則合併，得到不提 zeta 的除數和不等式（n &gt; 5040）。<a href="https://news.ycombinator.com/item?id=50589618">HN 討論</a>裡有人提醒，過去曾有假的 Collatz 反例騙過其中一個 checker；也有人指出，為了這份證明，Claude 等於把一大塊現代數學形式化了，這件事本身就很重要。</p>
+
+<h3>胰臟癌口服藥 daraxonrasib：61 位轉移病人中九成腫瘤停止生長</h3>
+<p><a href="https://www.theguardian.com/society/2026/nov/20/pill-pancreatic-cancer-breakthrough-daraxonrasib">The Guardian</a>　這是 KRAS 抑制劑，針對大多數胰臟癌都帶有的突變。試驗對象是剛確診、已轉移的晚期病人：90% 腫瘤停止生長，六成多腫瘤縮小或消失，約 8% 在 CT 上偵測不到。一年存活率 76.6%，單用化療通常是 40% 到 45%，中位追蹤 18 個月。醫師強調這還不能算治癒，需要更長的研究。<a href="https://news.ycombinator.com/item?id=50582069">HN 討論</a></p>
+
+<h3>GPGME 雙重釋放漏洞：一把使用者 ID 超長的金鑰就能觸發</h3>
+<p><a href="https://lists.gnupg.org/pipermail/gnupg-announce/2026q4/000517.html">GnuPG 公告</a>　GPGME 讀取 gpg 狀態行的函式在 realloc 之後，只在函式結尾才把新指標寫回 context，提早返回時 context 留著已釋放的舊指標，最後被釋放第二次。官方說可以用來外洩資料，也不能排除 RCE（CVE-2026-129975），影響 2.3.0 之前所有版本，包括多數郵件客戶端、XMPP、Samba、Flatpak，請更新到 2.3.1。原本預定 11/25 協同揭露，因為 GitLab 的另一個漏洞提前公開。<a href="https://news.ycombinator.com/item?id=50587208">HN 討論</a>裡有人挖出 Red Hat 五年前就在自家套件修過類似問題，只是沒回到上游。</p>
+
+<h3>LLM 只看 hex dump 就能讀、改、寫執行檔</h3>
+<p><a href="https://sgiannopoulos.github.io/blog/machine-code-programming/">Machine Code Programming</a>　作者拿掉所有工具，只把 xxd 的 hex dump 貼給 GPT-6.1 Sol。它認出四個程式在做什麼，包括一個 -O3、靜態連結、去除符號並把字串藏起來的 FreeBSD ministat，還從 t 分佈表的原始 64 位元浮點數看出「99.5% 信賴」其實用的是約 99.8% 的臨界值，作者回原始碼確認這是真的 bug。三次單次 patch（例如 wordcount 改了 74 個 byte、加上最長行）全部通過測試，從規格直接寫出完整 ELF64 的三個程式也都正確（wordcount 只有 391 B）。它還分析了一個真實的惡意程式，找出的 C2 位址和沙箱動態分析一致。這和前天晚報提到的 Weight-Space Programming 是同一個系列的提問。<a href="https://news.ycombinator.com/item?id=50546587">HN 討論</a></p>
+
+<h3>Inkling 2 Mini 壓到 5.4 GB</h3>
+<p><a href="https://github.com/ShinMegamiBoson/lookatmyquant">LookAtMyQuant</a>　昨天早報介紹的 Thinking Machines looped MoE，有人用 trellis code 量化，再配合 proximal 微調，把 18.89 GB 的文字權重壓到 5.38 GB（每權重 1.63 bit）。GSM8K（前 200 題）134 題、HumanEval 60/164，原版是 147 題和 66 題；9.14 GB 的 Unsloth UD-Q2_K_XL 則是 132 題和 49 題。8.87 GB 版本的 GSM8K 和原版一樣。<a href="https://news.ycombinator.com/item?id=50591853">HN 討論</a>的熱門留言提醒，KL 和單一 benchmark 很容易被刷高，也有人抱怨 looped 架構在自己的 GPU 上只有 Qwen 27B 三分之一的速度。</p>
+
+<h3>螢幕讓我的下載速度少了四分之三</h3>
+<p><a href="https://blog.tymscar.com/posts/studiodisplayethernet/">tymscar</a>　2.5G 的 USB 網卡接在 Studio Display XDR 上，下載只剩 600 Mbps，直接插 Mac 卻有 2.3 Gbps，上傳則一直正常。作者一路查到底：RTL8156B 每次 USB burst 只送 4 個 1 KB 封包，就要等主機回應；經過螢幕 hub 的往返平均約 7.6 µs，加上送 4 KB 的 8.2 µs，排空速度大約只有 2 Gbps（每秒約 16.8 萬個 frame），比 2.5 Gbps 的流入速度慢，緩衝區滿了就丟包，TCP 因此大幅退讓。換成 burst 為 8、連線速度也加倍的 RTL8157 網卡後，就再也不丟包了。這是一篇很好的「頻寬不只看 Gbps」的教材。<a href="https://news.ycombinator.com/item?id=50587875">HN 討論</a></p>
+
+<h3>巴西稅務局把稅額計算器以 MIT 授權放上 GitHub</h3>
+<p><a href="https://www.gov.br/receitafederal/pt-br/assuntos/noticias/2026/novembro/receita-federal-publica-primeiro-codigo-fonte-aberto-no-github-e-amplia-transparencia-da-reforma-tributaria">Receita Federal</a>　為了消費稅改革（新的 CBS 等稅種），巴西聯邦稅務局第一次以開源專案的形式公開軟體：官方的稅額計算器，讓企業的開票與會計系統可以直接用和稅務機關完全相同的計算邏輯，計算紀錄裡也附上法律依據。公告的法令同時登錄了初始版本的 hash，方便驗證程式碼的真偽。<a href="https://news.ycombinator.com/item?id=50532613">HN 討論</a></p>
+</article>
+</body>
+</html>
