@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 早報｜2026-11-23（週一）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 早報｜2026-11-23（週一）</h1>
+<p><b>今日導讀</b>：週末 arXiv 沒有新列表，這期從上週五還沒介紹過的論文裡挑。三篇深度閱讀剛好指向同一件事：模型把看過的影片擬合得再好，也不代表它對沒看過的未來答得對。MAWAM 讓一組機器人一起預測整個團隊的未來；MorphTwin 指出 spring-mass 物理分身「動作對了、材質錯了」的結構性原因；Kernel Physics-IQ 則說明，影片模型少跑幾步 denoising 反而在物理 benchmark 上拿高分，其實是評分方式在獎勵「押中間」。新聞部分，OpenAI 首席科學家公開了內部的 perplexity 曲線，並提議用它來訂業界的開發上限。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. MAWAM：一組機器人共用一個 world action model，一次生成全隊的動作和未來畫面</h3>
+<p><a href="https://arxiv.org/abs/2611.25105">arXiv:2611.25105</a>｜cs.RO｜NVIDIA、香港大學、MIT（作者包括 Chi-Pin Huang、Fu-En Yang、Yu-Chiang Frank Wang、Linxi Fan、Jan Kautz）</p>
+<p><b>問題</b>：多機器人協作時，每個動作都會改變隊友接下來面對的世界。現有方法大致三類：各自一個 policy 再學協調（容易互等或來回震盪）、直接生成聯合軌跡（沒有預測視覺後果）、用 LLM 或時序邏輯分派任務（只在任務層級協調）。近來的 world action model（同時預測未來畫面與動作）都是單一機器人的設計。作者的問題是：能不能用一個生成模型，同時預測整隊的未來觀測和可執行的動作？</p>
+<p><b>方法</b>：從單機器人的 world action model GR00T 2 出發。每台機器人的私有相機畫面、state、action 組成一條 stream，一個共用的 Transformer 對所有 agent 的 future-view tokens 和 action tokens 做雙向的 cross-agent attention，以 flow matching 一起去噪。為了不讓輸出「串台」，每台機器人的所有視角在 RoPE 上多一個 agent 軸，相位取自正 simplex 的頂點（任兩台距離相等），並把該機器人 action tokens 的平均加到它自己的 future-view tokens 上（action-to-video bias）。身分和「角色」分開：角色另用 learned embedding 表示，兩台都是拿相機的手臂可以共用一個角色，但仍保有各自的 state 和 action。訓練分兩段：warm-up 一次只看一台機器人，先適應相機和控制器；team training 再打開 cross-agent attention，用同步示範同時監督動作與未來畫面，並隨機指派身分、打亂 agent 順序。部署時每次預測 24 步，全隊同步執行前 8 步後重新規劃。</p>
+<p><b>結果</b>：真機是兩台 Galaxea R1 Pro，每台三支私有相機、沒有全域相機，三個任務（一起撐開洗衣袋放衣服、摺浴巾、遞雨傘）各 30 次。MAWAM 平均 67.8%，同資料重新實作的 MA-VLA 是 48.9%，CLS-DP 37.8%，GauDP 28.9%；拿掉 cross-agent attention 掉到 52.2%。模擬是 RoboFactory 八個 2–4 臂任務，平均 90.3%（MA-VLA 論文數字 83.4%）。消融很有說服力：四臂接力遞鞋子拿掉 cross-agent attention 從 95% 掉到 39%；team 階段拿掉未來畫面監督，Place Food 從 78% 掉到 47%；完全不給角色，Place Food 直接變 0%。刻意讓上一手的手臂多停 16 步，MAWAM 的接手方中位數會晚 12 步才動，成功率 99%，獨立 agent 只有 44%。</p>
+<p><b>限制與疑問</b>：最多四台、固定成員、同一種機器人。模擬的 baseline 多是引用各自論文的數字，不是同一套評估重跑。一次聯合採樣在 L40 上要 0.76–1.85 秒，四臂比兩臂慢約三成。另一個有趣的發現：測試時保留 future-view tokens 但不真的去噪成影片，成功率差不多；但若直接把這些 tokens 拿掉，接力任務從 95% 掉到 0%。也就是說，控制靠的是這些 token 當作全隊共享的計算空間，不需要一段畫完的影片。</p>
+<p><b>為什麼值得看</b>：這是把 world action model 從「單機想像未來」推到「多機一起想像同一個未來」的乾淨範例，simplex 身分編碼和角色分離的設計可以直接搬去做異質機器人或人機協作。未來 token 是共享計算空間、不必解碼成影片，這點和近期 Fast-WAM 等單機結果一致，對想把 WAM 做快的人很有參考價值。</p>
+
+<h3>2. MorphTwin：spring-mass 物理分身為什麼總是「拉得對、變薄的程度錯」</h3>
+<p><a href="https://arxiv.org/abs/2611.25963">arXiv:2611.25963</a>｜cs.CV｜中國科學技術大學、香港大學、Columbia、香港城市大學</p>
+<p><b>問題</b>：PhysTwin 這類方法從稀疏視角影片重建可互動的物理分身（spring-mass 動力學加 Gaussian 外觀），速度快、可即時互動。但作者觀察到，模型可以把影片裡的動作重現得很好，換一個新的施力方式卻反應錯誤。原因是結構性的：在無預應力、等向的三維 central-force 彈簧網路裡，小應變下 Lamé 參數被鎖在 λ = μ，也就是 Poisson's ratio 固定在 1/4。不管怎麼調勁度或拓撲，體積反應和形狀反應都綁在一起，所以「拉長多少」可以擬合，「同時變薄多少」就擬合不了。</p>
+<p><b>方法</b>：保留標準彈簧和顯式積分，在重建出來的不規則彈簧圖裡挑一些四節點單元，加上可以相對周圍節點移動的內部節點，稱為 response carriers：bulk carrier 在重心加一個輔助點，shear carrier 在外接球上加一對對稱的輔助點。三類彈簧（骨架、bulk、shear）各用一個對數勁度偏移量獨立控制，於是體積模數和剪切模數可以分開調。因為同樣的彈簧係數在不同離散化的圖上效果不同，作者離線對每張圖做標準化的體積與剪切形變測試，把「相對材質變化」對應到該圖的勁度更新，讓材質編輯和跨物體轉移有一致的意義。前處理沿用 PhysTwin（Grounded-SAM 2 遮罩、CoTracker3 追蹤、TRELLIS 形狀先驗）。</p>
+<p><b>結果</b>：Spring-Gaus 合成場景上，在相同 inverse 設定下，Poisson's ratio 的平均絕對誤差比 PhysTwin 低 75.8%，Young's modulus 的平均相對誤差低 22.1%。PhysTwin 的 20 個真實場景上，重建 PSNR 高 3.53 dB、未來預測高 1.99 dB，LPIPS 分別降 22.5% 和 24.8%，未來預測 Chamfer distance 從 12.00 降到 11.30 mm。作者自己錄了 15 段第一人稱雙目加外部 RGB-D 的互動資料，全視角下重建 PSNR 32.36 對 PhysTwin 28.74。速度上，3D 實心物體的互動 FPS 約 46 對 PhysTwin 34。</p>
+<p><b>限制與疑問</b>：每個場景的物理最佳化時間比 PhysTwin 長（2D 表面類約 109 對 72 分鐘）。追蹤誤差的改善其實不大（22.1 對 23.0 mm），影像指標的進步可能有一部分來自外觀最佳化。材質仍限於線彈性的小應變分析，塑性、黏彈性或大形變沒有處理。HTML 版本的後半部（材質辨識表格與限制）轉檔失敗，細節要看 PDF。</p>
+<p><b>為什麼值得看</b>：這篇的價值在於把「擬合誤差低但泛化差」追到一個可證明的結構限制，而不是再疊一個 neural correction。做 real-to-sim、可變形物體操作或用物理分身當機器人 world model 的人，可以把 carrier 的想法當成一個輕量的表達力補丁；它也提醒我們，評估物理分身要測新施力下的反應，不能只看重播誤差。</p>
+
+<h3>3. What One Sample Cannot See：影片模型少跑幾步反而物理分數變高，是評分在獎勵「押中間」</h3>
+<p><a href="https://arxiv.org/abs/2611.25632">arXiv:2611.25632</a>｜cs.CV｜哈爾濱工業大學</p>
+<p><b>問題</b>：之前 PhaseLock 發現，CogVideoX 只跑 2 步 denoising，Physics-IQ 分數比跑 50 步還高；但兩步的影片明明模糊、不同 seed 長得一樣、物體還會提早停住。原因是 Physics-IQ 拿每支生成影片只對比一段真實錄影（take 1），可是同一個實驗本來就有多種合理的未來。就像颱風可能往北也可能往南，報在中間的平方誤差反而比較小。</p>
+<p><b>方法</b>：作者證明 Physics-IQ 的每個成分（三種 motion-mask IoU 的 Jaccard 距離、含「兩張空 mask 算滿分」的慣例、pixel MSE，以及 PhaseLock 用的 phase coherence）都是 negative-type distance。對這類距離有一個預報驗證領域的經典恆等式：單一樣本對錄影的期望距離 = proper kernel score + 一半的模型自身離散度。後者完全不看錄影，所以把樣本之間的差異縮小，就能白賺分數，作者稱之為 dispersion premium。在像素上，賺法是模糊成平均；在二值 mask 上，賺法是乾脆不動：若真實未來只有 p 的機率會動，除非動的把握夠高（作者算例是至少 77%），停著不動的期望分數比較高。修正方法很便宜：每個條件多生成一個獨立樣本，用兩樣本的 U-statistic 估計 kernel score，把 pixel MSE 換成全影片 RMS（energy distance，能辨識整個分布），再用 52 組不重複的雙 take 做仿射正規化，得到 Kernel Physics-IQ。</p>
+<p><b>結果</b>：五個 image-to-video 模型（CogVideoX、Cosmos、Wan2.1、Wan2.2、HunyuanVideo）在 66 個場景上，預設的兩步採樣全部讓 Kernel Physics-IQ 下降，信賴區間都不含零；但官方分數在其中四個模型上升。CogVideoX 官方分數 0.301 → 0.356，Kernel Physics-IQ 0.737 → 0.607；拆開看是 0.200 的 dispersion premium 蓋過了 0.145 的 kernel 損失。兩步時它和錄影的 mask 重疊只從 0.17 升到 0.20，跨 seed 的重疊卻從 0.26 幾乎翻倍到 0.47。官方分數的增益集中在真實場景本來就靜止的部分。在已知機率的合成物理系統中，官方評分會把「只押一種結果」和忠實採樣打成平手，Kernel Physics-IQ 則把真實分布排在第一。</p>
+<p><b>限制與疑問</b>：Physics-IQ 的兩個 take 起始畫面並不完全相同，只能近似成同一分布的兩次抽樣；釋出資料中 66 對裡有 14 對兩個 take 是同一個檔案。kernel score 是「期望上」去除誘因，每個場景只有兩個樣本時變異不小，作者用七個 seed 和 bootstrap 才得到穩定結論。</p>
+<p><b>為什麼值得看</b>：任何用單一參考影片評估生成式 world model 的 benchmark（包括機器人 video policy 的 PSNR/LPIPS 比較）都可能有同樣的問題。結論很實用：多生成一個樣本，報 kernel score 和 spread–skill ratio，就能分辨模型是真的更懂物理，還是只是學會了押中間。</p>
+
+<h2>快速瀏覽</h2>
+<h3>BADAS-3.0：一支前鏡頭、50 ms 內完成感知與規劃</h3>
+<p><a href="https://arxiv.org/abs/2611.26294">arXiv:2611.26294</a>｜1B 參數的 ViT 影片編碼器加四個小 head，看兩秒單鏡頭畫面就輸出車速、剛走過的公制路徑、碰撞風險和六條 6.4 秒的候選軌跡。在五個軌跡 benchmark 上，minADE₆ 比讀六支相機、慢 100 倍以上的 34B Alpamayo 2 Super 低 44%；但作者也坦白，優勢來自兩者都沒訓練過的相機配置，在共同的配置上兩者打平。另外提出真實行車記錄器碰撞與 Euro NCAP 情境兩個安全 benchmark。</p>
+
+<h3>TacInno：只讓 VLA 學「視覺和動作解釋不了的觸覺」</h3>
+<p><a href="https://arxiv.org/abs/2611.26405">arXiv:2611.26405</a>｜觸覺加進 VLA 常常沒什麼用，因為夾爪閉合時凝膠的形變大多能從畫面和動作預測。TacInno 用一個以視覺和已執行動作為條件的 tokenizer，把未來觸覺變化中無法預測的部分（tactile innovation）壓成離散 code，只當訓練目標，部署時不加任何模組。模擬六個任務平均 87.5%、真機四個任務 70.5%，分別比最強的視觸覺 baseline 高 10.7 和 9.0 個百分點。</p>
+
+<h3>Hindsight Self-Distillation：用示範裡「之後的畫面」教 policy 看現在</h3>
+<p><a href="https://arxiv.org/abs/2611.25777">arXiv:2611.25777</a>｜teacher 同時看當下與之後的畫面，student 只看當下，兩者共用視覺編碼器和 action predictor；student 學 teacher 的去噪預測和視覺摘要。部署時當下畫面只編碼一次，每個去噪步重複使用。LIBERO 平均 98.50%、RoboTwin 2.0 平均 92.31%。和上週介紹的 HINT-WAM 是同一個方向，可以對照著讀。</p>
+
+<h3>Fast-JEPA：不逐步 rollout 的 latent world model 規劃</h3>
+<p><a href="https://arxiv.org/abs/2611.25927">arXiv:2611.25927</a>｜latent world model 規劃時，逐步 rollout 比較候選動作序列很貴。Fast-JEPA 先建一個朝目標的計畫引導搜尋，再直接預測整條候選序列的結果，避免遞迴展開。PushT、Reacher、Cube、TwoRoom 平均成功率 96.50%，規劃比 INTACT 快 2.41 倍；另提出測試動態分布外情況與時間限制的 DynaGoal benchmark。</p>
+
+<h3>Keel：讓前沿模型當 agent，直接改 VLM 的權重來治好「無限迴圈」</h3>
+<p><a href="https://arxiv.org/abs/2611.25257">arXiv:2611.25257</a>｜Qwen3.5 這類小型推理 VLM 在 thinking 模式下常在圖片題上陷入重複直到 token 用完。Keel 只告訴前沿多模態 LLM 症狀，給它失敗統計和注意力視覺化等工具，讓它自己定位原因、改權重、測試；harness 只保留在沒看過的題目上不降準確率的編輯。不需訓練、不改模型大小。和上週 Weight-Space Programming 系列一脈相承，這次是拿來修真實的 VLM 毛病。</p>
+
+<h3>WhisperBox：用喇叭和雷射斑點「聽」出不透明箱子裡的東西擺在哪</h3>
+<p><a href="https://arxiv.org/abs/2611.25728">arXiv:2611.25728</a>｜附近的喇叭激起箱子振動，在一面看得到的箱壁上打一格雷射點，用相機量每個點的 speckle 位移，模型把振動編碼成 latent，再解碼成箱內的 2D 佔據圖，全程不接觸。能泛化到沒看過的物體、位置、方向、重量，以及雷射與聲源位置的改變。有趣的分析：有用的頻段不一定是箱子的共振頻率。</p>
+
+<h3>Game2Player：agent 自己改網頁遊戲、自己玩，收集可驗證的遊戲經驗</h3>
+<p><a href="https://arxiv.org/abs/2611.24154">arXiv:2611.24154</a>｜Builder agent 改造現有網頁遊戲、暴露內部狀態、定義有進度與成功判定的任務；Coding Player 和 VLM Player 嘗試任務並回報問題給 Builder 修。最後做出 568 個驗證過的遊戲、3,436 個任務、15.7K 條軌跡（307 小時），留 50 個遊戲當 PlayerBench。環境和玩家一起演化，是擴充 visual agent 訓練資料的一個便宜路線。</p>
+
+<h2>新聞與討論</h2>
+<h3>OpenAI 首席科學家公開內部 perplexity 曲線，提議用它訂業界開發上限</h3>
+<p><a href="https://openai.com/index/perplexity-and-intelligence/">Perplexity and Intelligence</a>（Jakub Pachocki）。OpenAI 一直以內部程式碼庫的 held-out 資料追蹤 log-perplexity：GPT-3.5 約 0.99、GPT-4 約 0.91，低於 0.8 之後出現了資安與數學上的「transformative」能力；升到約 0.76 的模型時開始在數學開放問題上產出突破性結果。他預期進入 0.68–0.7 區間會再出現新能力，而且最快 2027 年 AI 可能在 pretraining 演算法研究上引發類似的雪崩。因此他提議各家以 perplexity 等指標訂共同上限，在監控能力（例如 CoT monitor 的後繼者）達到具體里程碑前不越過。文中也列出弱點：各家資料集不同難以比較、CoT 推理不會降低 perplexity、資料熵的下限未知。<a href="https://news.ycombinator.com/item?id=50601525">HN 討論</a>裡有人懷疑「特定 perplexity 門檻冒出特定能力」的說法，也有人問 pretraining 資料若越來越多是合成資料，熵本來就比較低，perplexity 下降是否部分只是資料變容易預測。</p>
+
+<h3>Anil Madhavapeddy：軟體是不是從來就太複雜，人類根本寫不好？</h3>
+<p><a href="https://anil.recoil.org/notes/software-too-complex-for-humans">Was software just always too complex for humans?</a>。劍橋的 Anil 看著黎曼猜想的 1,700 萬行 AI 輔助 Lean 證明被驗證通過，反思軟體工程：幾十年的人寫程式碼正被證明充滿 bug，他預期 2027 年資安壓力會加速。他今年四月還不相信所有軟硬體層能被形式化規格化，現在覺得「先衝刺寫出所有服務的形式規格、再從規格推導程式」變得可行，甚至要重建作業系統與指令集；並主張用 agent 刻意製造實作的多樣性，避免軟體單一化讓一個 bug 癱瘓所有主機。<a href="https://news.ycombinator.com/item?id=50601823">HN 討論</a>的反方意見是：複雜度主要來自一直在變的需求和重功能輕基礎的商業決策，不是人類能力的上限。</p>
+
+<h3>Tim O'Reilly：矽谷怎麼從創造價值變成抽取價值</h3>
+<p><a href="https://www.oreilly.com/radar/what-happened-to-silicon-valley/">What Happened to Silicon Valley?</a>，改寫自他十月在 Johns Hopkins 的演講。他把科技業的利潤分成大家共享的「rising tide」租金和靠權力不對稱抽取的「robber baron」租金，並認為從前者滑向後者幾乎是科技景氣循環的定律。例子包括：據 Hal Varian 說 Google 早期約 6% 的搜尋結果頁有廣告，如今 Amazon 搜尋頁是 16 則廣告對 4 個自然結果；以及「betting economy」裡一塊錢利潤值多少市值（他舉 Tesla 約 600 美元、Amazon 約 67、Google 約 34）。<a href="https://news.ycombinator.com/item?id=50602947">HN 討論</a>有人點出一個矛盾：AI 公司到底是沒有護城河的燒錢機器，還是在收強盜租金？兩者不能同時成立。</p>
+
+<h3>Show HN：Worker 755，你來當 LLM 的 subagent</h3>
+<p><a href="https://github.com/gulivan/worker755">Worker 755</a>（MIT）。立場對調的瀏覽器遊戲：真的 LLM（Claude、GPT、Gemini 等）當主管，在終端機裡給你指令，你有 90 秒在模擬的檔案系統與 shell 裡完成，回報會被主管檢查、要求修正、寫事故報告，最後給績效評語；遊戲另外暗中記錄「主管判斷錯了幾次」。劇情是委託人 Dan 的家庭照片、保密協議和演講稿可能被一個 rm 毀掉，可選沙盒或接著正式資料庫的舊系統。用 OpenRouter 等 API 金鑰，README 說用 Claude Haiku 跑完一輪最多幾分錢，也支援 Ollama 等本地模型。對研究 agent 評估的人，這是從「被管理者」角度體會 orchestrator 指令品質的好玩方式。<a href="https://news.ycombinator.com/item?id=50599762">HN 討論</a>。</p>
+
+<h3>老演算法回顧：Transvoxel，讓不同解析度的 Marching Cubes 網格無縫接起來</h3>
+<p><a href="https://transvoxel.org/">transvoxel.org</a>。Eric Lengyel 在 2009 年為 C4 Engine 發明的方法：大型體素地形做 LOD 時，不同解析度的 Marching Cubes 網格在交界會裂開，而洞穴與懸崖讓這比高度圖難補得多。Transvoxel 在全解析度和半解析度區域之間放「transition cell」，只需局部體素資料、可即時重新三角化；九個高解析度取樣原本對應的情況被歸納成 512 種、73 個等價類，查表就能處理。網站說明演算法沒有專利限制，查找表放在 GitHub。做 SDF/體素重建或 Gaussian 轉 mesh 的人，碰到多解析度接縫時值得回頭看這個經典解法。<a href="https://news.ycombinator.com/item?id=50559441">HN 討論</a>。</p>
+
+<h3>mod_wsgi 作者用 AI 寫新的 Python 應用伺服器 Muru</h3>
+<p><a href="https://simonwillison.net/2026/Nov/21/muru/">Simon Willison 的介紹</a>。Graham Dumpleton 二十年前寫了 mod_wsgi，現在用 AI 輔助以 Rust 寫 Muru，同時支援 ASGI 與 WSGI，三週內寫了十幾篇開發紀錄（import once / fork many、不重啟的 release、canary、Kubernetes 整合、頁面上的 tracing toolbar 等）。Simon 特別推薦他談「AI 作為一種生活方式」的那篇：表面上很多工作是 AI 做的，但判斷什麼還不夠好，仍然靠他二十年在 mod_wsgi 上犯過的錯。<a href="https://news.ycombinator.com/item?id=50597959">HN 討論</a>。</p>
+
+<h3>C++26 第二次完工：contracts 讓 ISO 投票史上第一次沒過</h3>
+<p><a href="https://herbsutter.com/2026/11/21/c26-is-done-again-trip-report-november-2026-iso-c-standards-meeting-buzios-brazil/">Herb Sutter 的巴西 Búzios 會議報告</a>。C++26 三月已經完成技術工作，但 DIS 投票第一次沒有全體通過：五個國家成員體首次對 contracts（pre、post、contract_assert）提出疑慮並投反對。這次六天會議大多在重審這些意見，採納了一項 contracts 擴充，但否決了把 contracts 移出 C++26 的要求，接下來會送第二次 DIS 投票。C++29 草案則加入了 break label / continue label、std::ranges::any_view、views::slice 等。<a href="https://news.ycombinator.com/item?id=50600838">HN 討論</a>。</p>
+
+<h3>輕鬆一下：鳥類學家在 GTA 6 裡找齊 60 種鳥</h3>
+<p><a href="https://www.audubon.org/magazine/birds-of-gta-6-field-guide-vice-city-wildlife">Audubon 雜誌</a>。GTA 6 首日營收超過 18 億美元，遊戲以邁阿密為原型的 Vice City 有數十種野生動物，進度選單列出至少 60 種鳥（宣傳時說 62 種）。用望遠鏡「研究」一隻鳥就會記錄下來。作者從第一個任務的雙冠鸕鶿開始，在安全屋後院就看到褐鵜鶘、笑鷗、和南佛州真的有的和尚鸚鵡，並評論 Rockstar 的美術哪些畫得準。對做開放世界生成或 world model 的人，這是個「虛擬生態做到多細」的有趣樣本。<a href="https://news.ycombinator.com/item?id=50602843">HN 討論</a>。</p>
+</article>
+</body>
+</html>
