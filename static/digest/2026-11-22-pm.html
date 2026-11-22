@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 晚報｜2026-11-22（週日）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 晚報｜2026-11-22（週日）</h1>
+<p><b>今日導讀</b>：週末 arXiv 沒有新清單，HF Daily Papers 也還停在週五，所以今晚從 HF 上週還在發燒的論文和週五 cs.CV / cs.RO 裡前幾期沒寫到的部分挑。三篇深讀的共同主題是「物理」：world action model 用 demo 的未來影片當自己的老師，PRIO 讓重建出來的 3D 物體在一次前向後就能即時被推、被抓，PhyDEX 則用「丟東西」這個任務量出現在的 VLA 對質量、重心和摩擦幾乎一無所知。新聞有一份把 Anthropic 用電拆到每個資料中心的碳排估算，以及 OpenRouter 下架幾家沒守住 Zero Data Retention 的推論供應商。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. HINT-WAM：讓 world action model 看著 demo 的「未來」當自己的老師</h3>
+<p><a href="https://arxiv.org/abs/2611.24789">arXiv:2611.24789</a>｜cs.RO｜National University of Singapore（Xinchao Wang 組）｜<a href="https://tuandattt.github.io/hintwam/">專案頁</a></p>
+<p><b>問題</b>：world action model（WAM）把未來影片預測和動作生成綁在一起，泛化和資料效率都不錯，但要在新任務上可靠執行還是得 post-train。SFT 有兩個毛病：flow-matching 的 action expert 只看過「加了噪的 demo 動作」，從沒看過自己 sampler 走出來的中間狀態（作者稱之為 sampler 層級的 exposure bias）；而且只看當前觀測時，demo 的那段動作只是好幾種合理延續之一，target 本身是模糊的。另一條路是 on-policy RL，但操作任務的獎勵稀疏，而且獎勵只給一個分數，不直接告訴 policy 動作該怎麼改。</p>
+<p><b>方法</b>：基底是 Fast-WAM，一個 Mixture-of-Transformers，大的 video DiT 和小的 action DiT 共用 attention，動作 token 只看當前幀。HINT-WAM 分三階段，video expert 全程凍結。Stage 0 先對 action expert 做 SFT。Stage A 在凍結的 SFT 模型上加約 13M 參數的「hindsight 分支」：把 demo 後續幾幀的 VAE latent 做空間平均、用 learned query 壓成 hindsight token，再透過 Flamingo 式的 tanh 門控 cross-attention adapter 讀進 action expert（門初始化為零，起步時與原模型完全相同），只訓練這個分支，得到「看得到未來」的老師。Stage B 是 on-policy self-distillation：學生從噪聲出發、無梯度地跑完自己的 10 步 Euler ODE，在誤差最大的最後幾個點上用單次前向得到 implied action，老師則加上 hindsight 自己採一個樣本。損失不是回歸老師的 velocity，而是 energy score：拉近學生樣本和老師樣本、同時讓學生的幾個樣本彼此推開，因為學生看不到未來，老師的行為對它而言是多峰的，回歸平均會落在兩個模式都錯的地方。另外加一個 BC anchor（demo 上的 flow-matching loss）防止跟著老師一起錯。整個過程不需要模擬器、不需要獎勵。</p>
+<p><b>結果</b>：LIBERO-90 的 90 個任務對原 checkpoint 是沒看過的（原本只有 15.56%）。SFT 到 78.88%，同時訓練 video 和 action expert 的 Full SFT 81.24%，HINT-WAM 85.18%。消融把來源拆得很乾淨：同樣步數只繼續 BC 反而掉到 71.56%；加入自己成功 rollout 的 self-imitation 79.62%；老師讀「別的 episode 的未來」（shuffled hindsight）80.28%。distillation 目標方面，velocity 回歸幾乎等於 SFT，kernel MMD 因高維下梯度消失也不好，energy score 最佳。RoboTwin 2.0 困難子集上原 checkpoint 已經訓練過這些任務，HINT-WAM 87.04 / 83.68（clean / randomized），略高於原模型，而 BC 和 Full SFT 都會變差。遺忘方面，不用 replay 時四個原 LIBERO suite 平均從 96.55% 掉到 SFT 的 37.45%，HINT-WAM 保住 44.05%；加 replay 後 95.10%，幾乎回到原水準。成本是 teacher 4.4 小時加 distillation 34 小時，Full SFT 要 127 小時。</p>
+<p><b>限制與疑問</b>：這裡的 on-policy 只指「動作的去噪軌跡是自己生成的」，觀測仍然取自 demo，不是 closed-loop 收集的新狀態，作者自己也把 closed-loop 列為下一步。所有實驗都在模擬器，沒有真機。不用 replay 時遺忘依然嚴重（LIBERO-Long 從 94% 到 8.2%），「減少遺忘」的說法要打折看。energy score 的學生樣本數曲線還沒飽和，代價是每多一個樣本就多一次 rollout。</p>
+<p><b>為什麼值得看</b>：LLM 那邊流行的「有特權資訊的自己當老師」第一次被乾淨地搬到連續動作的 flow-matching policy 上，而且解決了沒有 likelihood 時怎麼做分布層級蒸餾的問題（energy score 這招對任何 diffusion / flow policy 都可以直接試）。對做 VLA 的人，demo 的未來影片在 SFT 裡其實被浪費了，這篇給了一種零成本利用它的方式。延伸想法：把 hindsight 換成 3D 點軌跡或接觸事件、用 world model 自己預測的未來當 hindsight 做 test-time 自我改進。</p>
+
+<h3>2. PRIO：一次前向，把靜態的 mesh、點雲或 3DGS 變成能即時互動的物體</h3>
+<p><a href="https://arxiv.org/abs/2611.25500">arXiv:2611.25500</a>｜cs.CV｜UBC、Toronto、Stanford（Jiajun Wu）、Yonsei、NVIDIA（Peter Yichen Chen 等）</p>
+<p><b>問題</b>：3D 世界現在可以大規模重建或生成，但裡面的物體是死的：壓枕頭不會凹，拉門不會轉。要讓它們進入互動式 4D world model，需要一個能描述物體怎麼動、怎麼變形、怎麼即時回應動作的表示。現有方法只能二選一：physics-grounded 的生成方法能吃動作，但每段動畫要一分鐘到幾小時；線性的 reduced configuration space（如 LiCROM）能即時跑，但每個物體都要重新建；NeuROK 學了跨物體的先驗，但它的空間是非線性的，模擬每一步都要跑大網路。</p>
+<p><b>方法</b>：核心想法是「保持 configuration space 線性，但用網路預測它，而不是逐物體建構」。給定物體的靜態幾何（mesh 頂點、掃描點或 Gaussian 中心），網路輸出一個矩陣場 U(X)，任一點的位移是 U(X) 乘上一組共享的低維 latent 座標 q。架構是 Fourier 編碼加 DiffusionNet 抽點特徵、FPS 取樣後 self-attention 得到 shape token，查詢點用多尺度 Gaussian 加權插值取特徵，decoder 用 cross-attention 讀 shape token；查詢點彼此不 attend，所以可以在任意解析度評估。訓練時因為是線性的，最佳 q 直接用 pseudo-inverse 解出來，不需要 encoder，梯度穿過這個最小平方解去訓練 U；損失是正規化重建誤差、空間平滑項和 q 的大小正則。推論時把 q 當廣義座標代入 Euler–Lagrange 方程，因為線性，mass matrix 和 Jacobian 都可以預先算好，之後每一步只解幾百維的系統，不再跑網路。</p>
+<p><b>結果</b>：在沒見過的物體上做 inverse kinematics（用各方法的表示去擬合變形目標），PRIO 的 Chamfer 0.00522、IoU 0.975，次佳的 PhysSkin 是 0.01299 / 0.886，UniRig、Puppeteer、SkinTokens 和 NeuROK 更差（NeuROK 主要用關節物體訓練）。預訓練物體從 266 增加到 2,142 個時，未見形狀的重建誤差從 2.19% 降到 1.43%；在真實捕捉的 Deform360 上 zero-shot 也隨規模下降（7.71% 到 6.98%）。互動 4D 生成和 PhysDreamer、RealWonder、PhysCtrl、NeuROK 比，VLM 評分三項都最高，耗時 36 秒，對比 PhysDreamer 4.6 小時、NeuROK 34 分鐘。3DGS 的 ficus 跑 125 到 292 FPS；14.5 萬三角形的枕頭被機器人抓時每步 7.6 ms，八個絨毛玩具共近百萬三角形每步 25 ms。</p>
+<p><b>限制與疑問</b>：低維連續空間表達不了撕裂、斷裂等拓撲變化，也不含流體。預訓練資料全是模擬軌跡，材質參數在推論時怎麼設、能不能從影片估出來，正文沒有細談。互動生成的比較只用三個物體、靠 VLM 打分，說服力有限；和 VBD 的對比只是一顆蘋果。</p>
+<p><b>為什麼值得看</b>：這是把「3DGS 重建出來的場景」接上「機器人能互動的模擬」最直接的一條路之一，而且支援 Gaussian 原生表示，不用先轉 mesh。對 real-to-sim、可變形物體操作和 4D world model 的人都很實用：可以拿它當 world model 裡的物體動力學模組（像今早那篇 point dynamics proxy 的模擬器），或接在 feed-forward 3DGS 後面做「掃完就能玩」的數位分身。</p>
+
+<h3>3. PhyDEX：叫 VLA 把東西丟進籃子，三個模型平均成功率不到 3%</h3>
+<p><a href="https://arxiv.org/abs/2611.26565">arXiv:2611.26565</a>｜cs.RO｜VinUniversity、University of Arkansas、Stuttgart / DFKI、Liverpool</p>
+<p><b>問題</b>：現有 VLA benchmark 大多只考夾爪和物體的接觸（抓放、插入、擦拭），很少考物體和環境之間的牛頓力學：重力、摩擦、慣性、質量分布。這樣很難分辨 policy 是真的懂物理，還是只在訓練分布裡插值。作者用「dynamic extrinsic dexterity」的角度切入：把物體丟到手臂工作空間之外的目標，必須先推斷質量、重心和摩擦。</p>
+<p><b>方法</b>：資料集 35,357 條軌跡、143.2 小時、9 個任務、100 個 RoboCasa 廚房場景，在 Isaac Sim 上用 UR5e 加 Robotiq 夾爪生成。物體分三類：均勻、重心偏移的不規則物體、以及質量和重心在過程中會變的動態物體；目標分靜態單一、靜態多個和移動中。關鍵設計是物理參數和外觀獨立隨機化（質量、重心偏移、摩擦係數），所以長得一樣的東西行為可以不同。軌跡由 GraspGen-X 提抓取、cuRobo 規劃接近，再用 SLSQP 對釋放時的關節角、角速度和飛行時間做彈道最佳化，失敗就根據落點修正瞄準量重規劃，只保留模擬器判定成功的 episode，存成 LeRobot 格式並附 2 秒的腕部力 / 力矩。</p>
+<p><b>結果</b>：每個任務各自 fine-tune、各 50 次 rollout。GR00T N1.7、DynamicVLA、ForceVLA 的整體平均分別是 0.9%、0.2%、2.4%，移動目標全部是零。失敗分析顯示約 89% 的失敗發生在丟之前（抓取錯誤 38.5%、根本沒接近 28.8%、接近姿態錯 22.0%）；在走到丟這一步的約 21% 軌跡裡，也只有約 5.6% 丟中。把隨機化強度調到零時，ForceVLA 在靜態單一目標上升到 35.3%，但沒有任何模型在任何物體類別超過 44%。把真實物理參數接到 proprioception embedding 裡，GR00T 提升 12.5 個百分點、ForceVLA 提升 24 個百分點，DynamicVLA 不變。Unitree 人形機器人上平均 0.7% 到 8.7%。真機上三個外觀相同、物理不同的 3D 列印方塊，GR00T 平均 10.7%（隨物理偏離標準遞減：16%、12%、4%），ForceVLA 51.3%，DynamicVLA 0%。</p>
+<p><b>限制與疑問</b>：只有「丟」一種技能，物理只隨機化質量、重心、摩擦。近零的成功率很大一部分來自視覺和姿態的強隨機化，連抓都抓不到，跟「物理盲」是混在一起的；作者用 diversity score 試著拆，但結論是兩者都有。另一個疑點是真機上 ForceVLA 有 51.3%，遠高於模擬，作者歸因於場景簡單，但這也說明 benchmark 分數很依賴設定。只評估三個 policy，也沒有測 RL 或 in-context 適應的方法。</p>
+<p><b>為什麼值得看</b>：它把「VLA 有沒有物理常識」變成一個可量化的問題，而且給了很乾淨的證據：同樣的模型，餵進真實物理參數成功率就明顯上升，表示瓶頸在感知物理屬性而不在動作生成。對做 physical reasoning 的人，下一步很自然：讓 policy 先「掂一下」（互動式估計質量和重心）再丟，或用 world model 在想像中試丟。力 / 力矩這個模態在真機上的效果也值得重新評估。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>FAB：即時人體估計，並直接重定向到 Unitree G1</h3>
+<p><a href="https://arxiv.org/abs/2611.25801">arXiv:2611.25801</a>　單一作者 Jinkun Cao。FAB 不只預測參數化 mesh，而是直接預測骨架關節和稠密表面點，加一個 MHR 參數頭，再用一次學習式擬合加兩步 Gauss-Newton 得到 SMPL。從 fine-tune 過的 SAM 3D Body 蒸餾出的 ViT-L 學生在 RTX 4070 Ti SUPER 上單人即時，比 SAM 3D Body 的 eager-PyTorch 路徑快 4.6 倍，多數相機座標 benchmark 還更準。它也預測腳跟、腳尖、手、膝蓋的接觸，用來估世界座標運動、和場景深度對齊，並附 FAB-Retarget 把動作映射到 G1，作者稱比 GMR、OmniRetarget 等專門的重定向器更貼近原動作。</p>
+
+<h3>PaveSplat：feed-forward 3DGS 放大渲染時不再破洞</h3>
+<p><a href="https://arxiv.org/abs/2611.26045">arXiv:2611.26045</a>　pixel-aligned 的 feed-forward GS 每個像素一個 surfel，近期方法從預測深度解析地算出貼齊表面的 covariance，但深度框架病態的地方 surfel 方向會歪；在訓練解析度下每個 surfel 至少佔一個像素看不出來，放大渲染時就變成洞。PaveSplat 保留解析 covariance 當初始化，再加一個從 identity 起步的四元數殘差只在有幫助的地方轉正 surfel。RealEstate10K 上在 1x 到 8x 每個尺度都是「每像素一個 Gaussian」方法裡 PSNR、SSIM、LPIPS 最好，原解析度增益很小，好處在不重跑網路的高解析度重渲染。</p>
+
+<h3>OffBeat：同樣的相機和幀率，只改觸發時間就能捕捉更快的動作</h3>
+<p><a href="https://arxiv.org/abs/2611.26347">arXiv:2611.26347</a>　多相機錯開觸發可以把幀分散到更多時間點，但 4DSloMo 那種同一列依序觸發的排程，會讓那一列相機像一台移動的相機，把深度和運動混在一起。OffBeat 把錯開觸發的相機陣列建模成 multicoset sampler，只從校正資料推出哪些相機一起觸發和觸發順序，並證明 Spacetime Gaussians 的 primitive 壽命至少要一個相機幀間隔才不會在新視角閃爍。N3DV 模擬上，動態區域 PSNR 比整套 4DSloMo（含影片 diffusion）高 3.04 dB。</p>
+
+<h3>FirstCross：單光子 lidar 三視角重建，曝光只要 1%</h3>
+<p><a href="https://arxiv.org/abs/2611.26321">arXiv:2611.26321</a>　和 OffBeat 同一組作者。對實心物體，一條射線的 Poisson likelihood 只取決於它第一次進入物體的位置，據此拆出兩個可凸化的項：一個等於把 NeRF 的乘積 transmittance 換成 running-maximum 的 volume rendering。整個方法不用神經網路，只在 voxel grid 上解幾個凸問題。在 Transientangelo 自己的真實資料協定下每個場景、視角數和光通量都更準；三視角、光子少 100 倍時誤差仍不到對方用全部光子時的一半，單張 GPU 約一分鐘。</p>
+
+<h3>MoRE：剛體、可變形、被抓住的物體各交給一個動力學專家</h3>
+<p><a href="https://arxiv.org/abs/2611.25336">arXiv:2611.25336</a>　作者包括 Shenlong Wang、Wei-Chiu Ma。3D world model 難以同時處理不同物理機制的互動，MoRE 把機器人互動拆成 rigid、deformable、prehensile 三種 regime，各配一個 motion expert，組成 mixture-of-experts 的 3D world model，用模擬加真實資料訓練並接 MPC。摘要只說各 regime 的預測更準、真機 MPC 更好，沒有給具體數字，值得看專案頁的實驗。和 PRIO 一起讀，兩者對「物體動力學先驗」的做法正好互補。</p>
+
+<h3>π0.5 的 action sink 其實不是 sink</h3>
+<p><a href="https://arxiv.org/abs/2611.26385">arXiv:2611.26385</a>　先前工作把 flow-based VLA 動作塊首尾 token 吸走大量 attention 的現象叫 radial action sink。這篇在 π0.5 的 RoboCasa 五個任務上檢驗：首尾只比均勻分配多拿 1.4 個百分點的 attention，來源是 RoPE；它們的 value norm 正常，遮掉只讓成功率變動不到 4 點。真正像 LLM sink 的是 prefix 的 BOS token，把它的 value 歸零在兩組配對實驗中反而讓成功率提升 13.2 和 6.0 個百分點。結論：attention 多不代表 token 在做什麼，做 VLA 可解釋性要看 value 和干預實驗。</p>
+
+<h3>MC-Lens：用 global workspace theory 檢查 VLM 的概念存取</h3>
+<p><a href="https://arxiv.org/abs/2611.26590">arXiv:2611.26590</a>　HF 上 42 個 upvote。作者做了一個多模態 Jacobian lens，把 vision encoder 和 language decoder 的中間狀態都映到 decoder 詞彙定義的語意空間，比較兩個模態的概念可讀性，並做概念干預。發現概念在中間層可讀、會依任務被選擇性存取、而且確實參與下游推理；可靠的選擇性存取在訓練中比可讀性更晚出現，不同家族和大小的 VLM 有共通模式。標題的「意識」只是借用 GWT 的框架，可以和下面 Anil Seth 的文章對照著讀。</p>
+
+<h3>ContextRenderer：遊戲 world model 的生成式渲染器</h3>
+<p><a href="https://arxiv.org/abs/2611.25838">arXiv:2611.25838</a>　互動遊戲 world model 越來越常把「世界怎麼演化」交給可執行的引擎，再用影片模型把引擎給的粗略場景渲染成精細畫面。ContextRenderer 是自迴歸影片 diffusion，用 chunk 層級的互動監督跟上條件變化、用 recurrent history compression 在有限 token 預算內保持連續性，並對不同 proxy 表示做 flow alignment。資料集 WorldPrism 來自 agent 搭的世界、AAA 遊戲和開源影片，展示了一分鐘長、會隨 prompt 改變的互動渲染。</p>
+
+<h2>新聞與討論</h2>
+
+<h3>估算：Anthropic 2028 年的電力 87% 來自天然氣、11% 來自燃煤</h3>
+<p><a href="https://betterdatacenterproject.com/2026/11/16/how-ai-is-powered-a-breakdown-of-byop-and-grid-power/">Better Data Center Project</a>　這個倡議團體把 Anthropic 已簽約的 15 GW 算力中能對應到具體地點的 5.9 到 9.6 GW 逐一拆解：自建的現場燃氣、為它新建的電網燃氣，以及用 EPA AVERT 模型估算會被新增負載拉起來的邊際電廠。中位估計 2028 年排放 3,200 萬噸 CO₂e，超過加州全部發電，也超過 Google、Microsoft、Meta 2025 年 Scope 2 排放的總和；平均碳強度比美國電網高 35%，現場燃氣有 80% 是效率較差的 simple cycle 渦輪和引擎。報告也點名 Colossus 2 仍在用未取得許可、多數沒裝 SCR 的臨時渦輪。這是倡議團體在 PUE、利用率都用假設值下的估算，不是 Anthropic 公布的數字。<a href="https://news.ycombinator.com/item?id=50597612">HN 討論</a>裡有人認為 disaggregated inference 會讓每 MW 的 token 數暴增，這類擔憂很快會過時，也有人反問為什麼大家只比模型、從不問燒的是什麼。</p>
+
+<h3>OpenRouter 下架三家推論供應商，125 個端點失去 ZDR 資格</h3>
+<p><a href="https://openrouter.ai/blog/announcements/data-processing-incidents-on-inference-providers/">OpenRouter blog</a>　安全研究人員本週回報部分推論供應商的資料遭外洩，或有證據顯示沒遵守自己的資料政策。OpenRouter 強調自己沒有被入侵，但已下架三家供應商、把 125 個端點移出 Zero Data Retention 名單（含預防性移除）、通知可能受影響的客戶，接下來會持續跑研究人員的測試方法，並檢查請求是否被轉送給第三方。已公開的事件說明包括 Novita（MiniMax 請求）、Phala，以及 Together 坦承 2026 年 6、7 月有 prompt 外洩。<a href="https://news.ycombinator.com/item?id=50595554">HN 討論</a>的主流意見是：最好的 ZDR 是自己公司直接和供應商簽，而且即使簽了，沒有技術上的強制和稽核，也還是只能「相信」。也有人不滿 OpenRouter 沒點名那三家。</p>
+
+<h3>Upload2Shell：一個 Ghostscript 漏洞，打穿 Google、WordPress、Debian CUPS 和一堆 webmail</h3>
+<p><a href="https://pwn.ai/upload2shell">pwn.ai</a>　CVE-2026-125396 是 Ghostscript Type 1 字型載入器的 use-after-free，精心製作的文件能逃出 -dSAFER 沙箱，以渲染程序的身分執行任意指令。因為 Ghostscript 藏在列印、郵件預覽、上傳縮圖的底層（ImageMagick 會把副檔名是 .png 的檔案交給它），受影響的路徑很長：Google 的文件渲染、WordPress 核心上傳、Debian 13 的 CUPS 共享印表機（未認證遠端執行）、Roundcube 預覽附件、MediaWiki 的 PDF 上傳等。Artifex 在 9 月的 Ghostscript 10.08.0 修掉。<a href="https://news.ycombinator.com/item?id=50592097">HN</a> 上有人提醒：PostScript 本身就是程式語言，Ghostscript 的「偽沙箱」本來就常出事，而它幾乎是唯一的實作；如果你的服務會自動產生文件或圖片縮圖，值得查一下底下有沒有它。</p>
+
+<h3>Toyota、Nissan、Honda 開始共用零件規格</h3>
+<p><a href="https://www.caranddriver.com/news/a74490092/toyota-nissan-honda-standardize-parts-lower-costs/">Car and Driver</a>　據 Automotive News 報導，日本汽車工業協會會長（也是 Toyota 副會長）佐藤恒治宣布，三大車廠先從消費者看不到、又佔大量成本的地方開始統一：鋼材的品質標準、塑膠與樹脂的規範、線束的顏色編碼，明年開始實施，先找國內供應商談，之後擴大到海外與更多零件。背景是七家日本車廠都在面對中國車廠的成本壓力，佐藤說「我們都有強烈的危機感」。<a href="https://news.ycombinator.com/item?id=50596133">HN 討論</a>多半認為早該如此，並預期美國車廠也得跟進。</p>
+
+<h3>Anil Seth：意識比較可能是生命的性質，而不是計算的性質</h3>
+<p><a href="https://www.noemamag.com/the-mythology-of-conscious-ai/">Noema</a>　Sussex 意識科學中心主任 Anil Seth 的 Berggruen 獎得獎文章今天登上 HN。他的論點是：我們把智慧和意識綁在一起，是人類中心主義、人類例外論和擬人化共同造成的錯覺，語言模型特別會觸發這種錯覺（他建議把 hallucinate 改叫 confabulate）。「意識能在任何計算基質上實現」的 computational functionalism 只是一個假設；大腦的物質性和代謝（例如有些神經元放電是為了清除代謝廢物）可能是功能的一部分。他也認為刻意做出「看起來有意識」的 AI 本身就是壞主意。<a href="https://news.ycombinator.com/item?id=50595537">HN</a> 上最尖銳的反駁是：多數生命（細菌、昆蟲）並沒有意識，所以「生命 vs 計算」是假二分。</p>
+
+<h3>Split Radiance Cascades：在 3D 裡做 radiance cascades 的實作筆記</h3>
+<p><a href="https://www.jacktollenaar.top/articles/split-rc.html">Jack Tollenaar</a>　Radiance cascades 根據「penumbra 假說」（離光源近需要更多探針、較少方向；遠則相反）把不同解析度的探針層按射線區間合併，用較少樣本得到更正確的全域光照，但在 3D 裡探針數隨體積立方成長，記憶體吃不消。這篇照著 arXiv 上的 Split Radiance Cascades 論文實作：只在螢幕可見表面上用 hash table 稀疏配置探針，追一整條射線後再依命中距離決定把光照存進哪一層 cascade（ray splitting），合併時考慮稀疏網格和各探針的品質權重，再加時間累積。作者實測 RC 本身約 2 ms，加上 2 spp 光追約 13 ms。對做 neural rendering 或 3DGS 打光的人，是了解即時 GI 現況的好讀物。</p>
+</article>
+</body>
+</html>
