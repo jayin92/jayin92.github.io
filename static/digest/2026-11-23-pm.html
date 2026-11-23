@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 晚報｜2026-11-23（週一）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 晚報｜2026-11-23（週一）</h1>
+<p><b>今日導讀</b>：週一的 arXiv 新列表出來了，這期的主題是「模型其實知道，只是沒用上」。NoPeWorld 發現影片 world model 的 DiT 隱藏層早就知道前面有牆，只是照樣穿過去；ViewDreamer 讓同一個預訓練影片模型處理任意數量的機器人相機，只靠幾個共享 slot 交換資訊；StereoVLM 則讓 VLM 真的利用雙目幾何，而不是靠語意先驗猜距離。新聞部分，黎曼猜想的另一份人類證明有了第一篇像樣的解說，Antithesis 也示範了用 AI 加 TLA+ 和 Lean 證明兩個生產環境的 Raft 函式庫。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. Non-penetrating World Models：影片 world model 會穿牆，但它的 DiT 其實知道牆在哪</h3>
+<p><a href="https://arxiv.org/abs/2611.27963">arXiv:2611.27963</a>｜cs.CV｜香港理工大學 Learning &amp; Generation Lab，HF Daily Papers 今日第二高票</p>
+<p><b>問題</b>：互動式影片 world model 照著相機位姿或按鍵指令生成下一段影片，卻從不檢查這個動作在物理上做不做得到。叫它往牆走，作者測的六個生成器裡有五個直接穿過去，剩下一個（WorldPlay2）則違背指令往後退。訓練影片裡幾乎不會出現「指令被牆擋住」的畫面，所以這是分布外的指令；現有 benchmark 的軌跡也大多刻意繞開障礙物，量不到這件事。</p>
+<p><b>方法</b>：作者先做了 NoPeBench：在 UnrealZoo 的 32 個保留場景裡規劃 100 條「一定會撞上障礙物」的路線，另加 50 條暢通路線，用來檢查方法會不會在不必要的時候介入。Task 1 在真實歷史上只評單步決策；Task 2 跑 5 秒閉環生成，再用 VGGT 重建相機軌跡，對照 Unreal 的佔據地圖判斷有沒有穿模；Task 3 則是 131 張開放域圖片（含移動障礙、第三人稱視角），由 VLM 評審，Claude Opus 5.5 和 GPT-6 Astra 與人工標註的一致度最高。方法 NoPeWorld 本身很簡單：凍結 DiT，在中後段 block 的隱藏狀態上接一個不到 2M 參數的 head（token projector 加兩層 cross-attention），對 34 個候選動作（原指令、停下、縮短步長、各種轉向）預測安全機率、掃掠淨空距離和與原意圖的接近程度。訓練標籤來自 44 個訓練場景、729 段 Unreal 影片的真實幾何，目標是圖學裡的 collide-and-slide：正面撞牆就停，斜著撞就沿牆滑動。推論時，安全的指令原樣執行，不安全的就換成「安全集合裡最接近原意圖」的動作。它有兩種模式：Coll 讀當前 chunk 第 0 步 denoising 的特徵；Pred 讀上一個 chunk 寫入 KV 時的特徵，因此不必多跑任何一次 DiT。</p>
+<p><b>結果</b>：六個生成器平均下來，違規率從 74% 降到 16%（Coll 模式）。在 LingBot-World 2.0 上從 89% 降到 4%，Safe-Intent Score 從接近 0 升到約一半；Task 1 的漏判率從 100% 降到 0.6–11.5%。只會停車的外部深度防護（每個 chunk 解碼後跑 DA3）違規更少，但也沒辦法沿牆滑動；NoPeWorld 的 SIS 最高可達它的 3.1 倍。開放域靜態障礙上，LingBot-World 2.0 的違規率從 67% 降到 19%；有移動障礙的六組實驗全部勝過外部深度防護。成本方面，原本每條路線 53.7 秒，Pred 只多約 1%，Coll 多 18%，外部深度防護多 27%。探針分析也顯示，同一個 head 接在 VAE latent 或像素上幾乎沒有用，訊號只存在於 DiT 的狀態裡。</p>
+<p><b>限制與疑問</b>：動作只是 34 個離散候選，處理的是「相機或角色本身」穿過靜態幾何，還沒有推、搬、碰撞這類真正的接觸，作者自己也把這列為下一步。Coll 模式會改動 4–15% 的安全指令，Hy-Nomas 上高達 31.1%；對 WorldPlay2，加上之後的 SIS 反而低於原模型。Task 3 依賴 VLM 評審，而 Task 2 依賴「生成器會照著執行後的動作渲染」這個假設。</p>
+<p><b>為什麼值得看</b>：「生成模型知道但不照做」是個很好用的診斷視角，作法跟 probe 出 3D 結構的那一系列工作同源，只是直接把讀出來的結果接回控制迴路。對做 world model 當模擬器、或用影片模型訓練導航 policy 的人來說，這是幾乎零成本的安全層，而且同一個 head 設計能套在四種 backbone 上。延伸方向很明顯：把 collide-and-slide 換成機械臂與物體的接觸約束，或用同樣的 probe 當 RL 的獎勵。</p>
+
+<h3>2. ViewDreamer：一個機器人 world model 吃下任意數量、任意擺放的相機</h3>
+<p><a href="https://arxiv.org/abs/2611.26981">arXiv:2611.26981</a>｜cs.CV / cs.RO｜Imperial College London、Meta（通訊作者 Ye Mao、Wei Ye）</p>
+<p><b>問題</b>：機器人錄示範時通常有好幾支同步相機，但數量、位置和順序因機器人而異：雙臂比單臂多腕部相機，人形機器人又更多。現有影片模型要不是每個視角各自生成（腕部相機和頭部相機對物體位置的判斷會不一致），就是把所有視角拼成一張格狀畫面；後者要嘛縮小每個視角，要嘛讓 attention 成本隨視角數平方成長，而且把每支相機綁死在固定格位。</p>
+<p><b>方法</b>：核心是把「單視角生成」和「跨視角交流」拆開。每個視角都走預訓練 Wan2.2-TI2V-5B 原本的路徑，共用權重、各自的 3D RoPE；每個 DiT block 之後接一個 Cross-View Interaction（CVI）模組：READ 把所有視角的 token 收進少數幾個共享 slot，MIX 在 slot 之間和時間軸上做分解式 attention，WRITE 再把結果寫回各視角。輸出投影零初始化，所以一開始模型就等於原本的單視角生成器；成本隨視角數線性成長，對視角順序 permutation-equivariant，總共只多 86.8M 參數（不到 backbone 的 2%）。另有兩個訓練技巧：View-Count Curriculum 從單視角逐步增加到三個視角；Cross-View Slot Agreement 則用 DINOv2（語意）和 VGGT（幾何對應）離線算出跨視角的 patch 分群，監督最後一層 READ 的 slot 分配，讓同一個物體在不同相機裡落進同一個 slot。訓練資料是 14 種機器人、約 299 萬段 5 秒影片，在 128 張 B200 上訓練 32K 步。</p>
+<p><b>結果</b>：新 benchmark RoboView-Bench 取自 500 段保留下來的四相機 RoboCOIN 片段。三視角和四視角（訓練從沒看過四視角）下，SSIM、LPIPS、FID、FVD 都是所有比較模型中最好的，也全面勝過用同樣資料微調、逐視角生成的 Wan2.2-5B；腕部相機的 LPIPS 改善最多（0.050，其他視角是 0.019）。四視角時 Cosmos3-Nano 的跨視角一致性分數最高，但 FVD 是 ViewDreamer 的四倍以上。拿來初始化 world-action model（FastWAM-Joint 加 CVI）後，LIBERO-Plus 從 70.0% 升到 74.9%，第三人稱相機繞場景轉超過 30° 時從 24.6% 升到 44.1%；RoboTwin 2.0 隨機場景從 6.2% 翻倍到 14.8%。真實 Franka 四個任務的平均成功率從 30.0% 升到 67.5%，「把方塊放進同色杯子」從 20% 升到 90%。ablation 也顯示 CVI 優於拼圖式畫布和全視角 attention，每多一個視角只多約 13 秒的 DiT 時間。</p>
+<p><b>限制與疑問</b>：模型不吃相機內外參，作者的說法是很多資料集沒有標定，估出來的參數又不夠準；但這也代表跨視角一致性完全靠 slot 學出來。slot 數只有 4 個，場景一複雜可能就不夠用。RoboDojo 上只排第二，作者解釋領先的方法用了數千小時帶動作的資料預訓練。真機每個任務只有 10 次試驗。</p>
+<p><b>為什麼值得看</b>：「用 slot 當瓶頸做跨視角交流、其餘全部沿用單視角預訓練」是一個很容易搬走的設計，任何多相機的影片生成、4D 重建或多相機 VLA 都能套用。把基礎模型的對應關係蒸餾成 attention 監督（而不是 feature 對齊）也值得記下來。另一個有趣的問題是：既然不用標定，換一台相機配置不同的新機器人時，要多少資料才能適應？</p>
+
+<h3>3. StereoVLM：讓 VLM 真的用雙目幾何量距離，而不是靠常識猜</h3>
+<p><a href="https://arxiv.org/abs/2611.27915">arXiv:2611.27915</a>｜cs.CV｜香港科技大學（Dan Xu 組），HF 頁面掛在 XPeng Robotics 名下</p>
+<p><b>問題</b>：現有 VLM 推 3D 空間時，多半只看單張或沒有標定的多張圖，metric 尺度本來就有歧義；我們也很難分辨它答對是因為看到了幾何證據，還是靠「椅子大概多大」這類語意先驗。標定過的雙目相機能直接給出視差，搭配焦距與基線就能換算成公制深度。但作者的觀察是：只是把兩張圖餵給 VLM，它不會自動學會這件事。</p>
+<p><b>方法</b>：以 Qwen3-VL-Instruct 為底，把監督設計成一層層往上：像素對應（左圖一點在右圖的位置）、水平視差、給定標定後的公制深度，再到物件層級的對應、視差、深度、帶方向的 3D 框，以及「找出指令要操作的物體並框出 3D 框」。訓練資料是 23.4 萬組校正過的雙目影像（DROID、Xperience-10M、RoboCasa 和自家資料），真實資料的視差標籤由 S2M2 和 FoundationStereo 產生並過濾不可靠的區域；指令混合比例中，一般單目與影片指令佔 75%，以免忘掉原本的能力。另外他們也建了 Stereo3D-Bench（三個層級、八個任務、94,546 題），並加入干預實驗：把右圖換掉、或直接複製左圖，看分數會不會掉。</p>
+<p><b>結果</b>：關鍵發現是視差比深度更適合當監督。同樣的資料和預算下，直接用雙目深度監督能把主測試集的 δ1 從單目的 77.91% 拉到 87.26%，但在 OOD 測試集上反而從 51.00% 掉到 45.89%；改成預測視差，在兩個測試集上都最好，OOD 達 74.92%，比直接深度監督高 29.03 點。和 GPT-6 Astra 相比，StereoVLM-8B 把對應誤差從 9.27 降到 3.80 像素、視差誤差從 7.55 降到 3.76 像素，深度 δ1 從 75.96% 升到 95.17%；物件層級平均 66.98%，高出 19.37 點，帶方向 3D 框的 mIoU 從 17.92% 升到 37.70%。把右圖換成無效輸入後所有指標都下降，複製左圖掉得最多。遷移方面，五個空間推理 benchmark 平均從 47.94 升到 51.48；拿它初始化 GR00T 架構的 policy，在 24 個 RoboCasa 任務上的成功率是 42.4%，沒有雙目監督的版本是 38.1%，原始 Qwen3-VL 則是 34.9%。</p>
+<p><b>限制與疑問</b>：一定要有標定且同步的雙目相機；下游控制只在模擬廚房裡驗證，作者自己也提到 sim-to-real。主要比較對象是通用 VLM 和單目深度 VLM，沒有和「專用雙目網路算深度、再交給 VLM」的串接流程做同樣完整的比較（附錄宣稱勝過串接流程）。附錄還有一個值得注意的數字：沒有雙目表徵訓練時，單純多給一張右圖並不會提升控制表現。</p>
+<p><b>為什麼值得看</b>：很多機器人本來就裝了雙目相機，這篇說明「讓 VLM 學中間量（視差），而不是直接學最終量（深度）」對泛化影響很大，這個想法也可以用在法向量、光流這類幾何監督上。干預式評估（換掉右圖）是確認模型真的在用幾何的好做法，值得放進自己的 spatial VLM 評估裡。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>Hindsight Forcing：自迴歸影片擴散，讓歷史 chunk 從未來的 loss 學習</h3>
+<p><a href="https://arxiv.org/abs/2611.27074">arXiv:2611.27074</a>｜few-step 自迴歸影片生成為了避免記憶體爆炸，通常會截斷跨 chunk 的梯度，結果是早期 chunk 永遠不知道自己生成的歷史好不好接，於是 rollout 一長就漂移。Hindsight Forcing 用 latent straight-through bridge，把未來 chunk 的 loss 傳回每個歷史 chunk 的單一 denoising 步，不需要保留整條計算圖，也不加任何參數。在 VBench 上整體畫質和動態都勝過現有 baseline。</p>
+
+<h3>LoCo-WAM：用 test-time training 代替長歷史</h3>
+<p><a href="https://arxiv.org/abs/2611.26853">arXiv:2611.26853</a>｜world-action model 的輸入只保留短歷史，但每看到新畫面就用它更新影片 expert 裡的 LoRA，更新在同一個 episode 內累積、episode 之間重置。在 RoboCasa GR-1 上，只看 2.4 秒歷史的模型追平用 9.6 秒訓練的模型，4.8 秒版本則多出 4.8 個百分點。分析顯示，更新主要是讓模型想像的未來畫面變準，再間接改善動作。</p>
+
+<h3>GenPA：直接把影像生成模型當 robot policy</h3>
+<p><a href="https://arxiv.org/abs/2611.27446">arXiv:2611.27446</a>｜不預測未來畫面，只在影像生成 backbone 上接一個 19M 參數的動作回歸 adapter，並用原生的影像編輯目標做感知 co-training。LIBERO 達 99.10%、LIBERO-Plus 83.79%，在 H100 上每個 action chunk 只要 20.9 ms，比 VLA 和 WAM baseline 快 1.7–3.4 倍。ablation 發現，最有效的配方是監督「當前畫面的深度」，而不是未來畫面。</p>
+
+<h3>TSIR：用光線追蹤的三角形 splat 做逆渲染</h3>
+<p><a href="https://arxiv.org/abs/2611.27030">arXiv:2611.27030</a>｜Gaussian 互相重疊，讓表面重建和光傳輸都得做多層合成。TSIR 先重建不透明、帶可學 vertex shading normal 的三角形 splat，再直接對這些表面做 Monte Carlo 光線追蹤（直接光加間接反射）來估材質，並加入比超取樣更省的 anti-aliasing。摘要只說重打光品質勝過評估的 baseline，沒有給具體數字。</p>
+
+<h3>Tracktail：不需要深度輸入的多視角 3D 點追蹤</h3>
+<p><a href="https://arxiv.org/abs/2611.26779">arXiv:2611.26779</a>｜每支相機各自編碼影片特徵，跨相機的 attention 只在 per-query 的 decoder 裡做，所以 10 個視角、100 個查詢點只要 7 FPS、不到 4 GB 記憶體。另外用相機幾何算出每支相機的場景尺度來正規化，因此能跨越尺度差很多的資料集。在 Panoptic Studio、DexYCB、Multi-View Kubric 上勝過依賴估計深度的方法，程式碼、資料和權重都已公開。</p>
+
+<h3>Zing-1.0：遊戲引擎算規則，影片模型負責「畫出來」</h3>
+<p><a href="https://arxiv.org/abs/2611.27336">arXiv:2611.27336</a>｜可玩世界系統：可執行的引擎（WorldKit，讓 coding agent 搭建）處理玩家動作和世界規則並輸出代理影片，再由改成 block-causal 自迴歸的 MiniMax-H3 依文字和參考圖渲染成最終畫面。服務端在一張 H200 跑 DiT、兩張 H100 負責編解碼，832×480 下穩定 23.82 FPS。這和純 world model 的路線正好相反，可以跟今天的 NoPeWorld 對照著看：碰撞交給引擎，就不會有穿牆問題。</p>
+
+<h3>PhysForce：用「力」而不是軌跡來控制互動影片 world model</h3>
+<p><a href="https://arxiv.org/abs/2611.27164">arXiv:2611.27164</a>｜過去常把力表示成運動軌跡，等於把答案提前洩漏給模型。PhysForce 把力的位置、方向、大小編進 latent，但不暴露未來運動；再用 Physics Attribution Network 把力和局部 latent 變化對應起來，最後在分布外影片上用自監督獎勵做 RL。摘要宣稱力的響應、物理一致性和泛化都有提升，但沒有給具體數字。</p>
+
+<h3>cmHC：Hyper-Connections 的串流該混多少</h3>
+<p><a href="https://arxiv.org/abs/2611.27193">arXiv:2611.27193</a>｜HF 今日最高票（58）。mHC 把多條 residual stream 的混合矩陣限制成雙隨機矩陣；作者指出，太靠近 Birkhoff 多面體的頂點，各條 stream 幾乎互相獨立，太靠近中心，各條 stream 又變得分不出來。cmHC 把多面體往內部幾何收縮，淺層只收縮一點以免過度混合，並給出可證明的混合界，在 dense 和 MoE 模型上都有效；在 Ascend NPU 上的 fused operator 讓延遲最多降 44.8%。</p>
+
+<h2>新聞與討論</h2>
+
+<h3>黎曼猜想後續：Masullo 那份 940 頁人類證明的第一篇像樣解說，以及「1,700 萬行 Lean 到底多大」</h3>
+<p>上週提過的兩份 GRH 證明有了新進展。John Baez 在 <a href="https://johncarlosbaez.wordpress.com/2026/11/22/masullo-on-the-riemann-hypothesis/">Azimuth</a> 試著用簡化的方式說明 Masullo 的策略：延續 Connes 在 idele class group 上的 trace formula 框架，但完全不用 Weil positivity。把 trace 拆成逐個質數的貢獻，用 Poisson summation 讓大質數的項消失，再代入一個特別的 test function，讓幾何邊變成 L-function 對數導數的另一種寫法；只要這個寫法在臨界線右邊保持 holomorphic，就推得出 GRH。目前已有人回報問題：Eric Naslund 組織的 AI 輔助審查認為某個極限其實是 0 而不是 log 2，第 444 頁把 Schauder basis 的性質誤用到 Markushevich basis 上；最後該推出 GRH 的第 13 章甚至還只有占位符。Brian Conrad 說原本計畫再花一年修稿，是 Alpöge 的宣布逼得它倉促公開。另一篇 <a href="https://micjm.com/blog/yes-17m-lines-of-lean-is-a-lot/">Yes, 17M lines of Lean is a lot</a> 統計了 Mathlib 名題與 Reservoir 上所有 Lean 套件的行數：人寫的證明離 1,700 萬行差得很遠；Anthropic 九月發布的 AI 版費馬最後定理，大約是 Buzzard 人工專案的 450 倍長。<a href="https://news.ycombinator.com/item?id=50607668">HN 討論</a>中有人指出精簡專案已經把它壓到 1,300 萬行；<a href="https://news.ycombinator.com/item?id=50598441">Baez 那篇的討論</a>則多半在同情 Masullo 十二年的工作被搶了風頭，也有人反問：「誰先」真的那麼重要嗎？</p>
+
+<h3>Antithesis：用 AI、TLA+ 和 Lean 證明兩個生產環境 Raft 函式庫的安全性</h3>
+<p><a href="https://antithesis.com/blog/2026/verifying-formal-models/">Verifying formal models of Raft implementations</a>。對象是 HashiCorp Raft 和 etcd-raft，包含 pre-vote、snapshot、leadership transfer，etcd 還加上 read index 和 membership change。流程是由 Claude Fable 5.2 從原始碼推出 TLA+ 模型，用 TLC 在小規模上窮舉（最多 160 萬個狀態），再讓程式在 Antithesis 的故障注入環境裡輸出結構化 log，做 trace validation，檢查實際執行是否落在模型允許的路徑上；最後把模型翻成 Veil，在 Lean 裡證明 Election Safety、Leader Completeness、State-Machine Safety，凍結規格後再用 TLAPS 證一次。過程中修了好幾個 bug，包括已知的 open issue；每個函式庫花不到 1,200 美元的 token，加上約 2,000 個 Antithesis 運算小時。要注意，證明的是模型而不是程式碼本身，也只證安全性、不證活性。<a href="https://news.ycombinator.com/item?id=50577353">HN</a> 上一位前 HashiCorp 工程師留言說，IBM 早就不再投入資源維護這個 Raft 實作，即使它是三個產品的核心。</p>
+
+<h3>xnulinux：把 macOS 核心當成 Linux 的 kernel module 載入</h3>
+<p><a href="https://github.com/AFK-surf/xnulinux">xnulinux</a> 從 Apple 公開的原始碼編出 XNU，做成 <b>xnu.ko</b> 插進沒改過的 arm64 Linux 核心，由 GPL 那一側的 fki.ko 借給它 CPU、記憶體、計時器、檔案、網路和 GPU。結果是 macOS 27.2.1 能在 31–48 秒內開到桌面（同一台 Mac 上的 Apple 虛擬機要 49 秒），Safari、Finder、Spotlight 都能用，Metal 則經 metal2vulkan 和 Mesa Venus 轉到主機 GPU。目前仍需在 Apple Silicon 上的 arm64 Linux VM 裡跑。<a href="https://news.ycombinator.com/item?id=50607261">HN 討論</a>有人指出，macOS 沒有穩定的 syscall 介面，所以反過來在 Linux 核心上直接跑 macOS userspace 會是更有趣的方向。</p>
+
+<h3>Brake Check：四個位元組就能透過藍牙拉下別人拖車的煞車</h3>
+<p><a href="https://elementdigital.com.au/blog/brake-check-trailer-brakes-over-bluetooth/">Element Digital 的揭露</a>：澳洲 Elecbrakes 的拖車煞車控制器裝在拖車上、用藍牙接收車內遙控器或 app 的指令。任何手機或筆電只要在藍牙範圍內，不必配對、不必 PIN，送出四個位元組就能在高速行駛中以任意力道煞車。起因是作者開車時，自己的車內遙控器竟然自動連上一台 Sensys Gatso 替塔斯馬尼亞政府營運的拖車上的控制器。EB2 和 VM1 已在 7 月推出修補，但需要使用者自己在 app 裡更新；舊款 ELBC 2000 同樣有漏洞，至今沒有修補。作者也提到，協調揭露花的時間比研究本身還長。<a href="https://news.ycombinator.com/item?id=50581961">HN</a> 有歐洲讀者說，當地拖車多用慣性煞車，根本不需要這種電子控制器。</p>
+
+<h3>Togelius：給年輕研究者的建議，小心「理解債」</h3>
+<p>Julian Togelius 正在為新實驗室招 PhD 和博士後，<a href="http://togelius.blogspot.com/2026/11/advice-for-young-researchers.html">這篇文章</a>談 AI agent 能把一個想法直接做成一篇「扎實但無聊」的論文之後，博士訓練還剩下什麼。他提出 understanding debt 這個說法：讓 agent 做了太多事，自己就不再真正理解，之後給出的方向品質也會跟著下降。他建議初稿一定要自己寫，可以讓 agent 批評和潤稿，但「把 slop 推給同行讀是失禮的」。他也用「能坐飛機不代表永遠不該走路」比喻：親手實作會帶來不同層次的理解。<a href="https://news.ycombinator.com/item?id=50546124">HN 討論</a>裡有人推薦物理學家 Antoine Tilloy 的 The Short Age of Dragon Riders，認為那篇更直白、也更不令人安心。</p>
+
+<h3>Docker 改品牌：主打「讓你能信任 agent」</h3>
+<p><a href="https://www.docker.com/blog/meet-the-new-docker-built-to-run-on-trust/">The New Docker</a>：Docker 宣布新品牌，說容器隔離的是工作負載，但 agent 會自己決定要跑什麼、碰什麼，因此下一步要做 agent 的隔離、安全與治理，容器本身不會消失。全文幾乎都是品牌敘事，沒有具體的產品細節。<a href="https://news.ycombinator.com/item?id=50607194">HN</a> 的反應偏冷：有人說一篇講 trust 的文章，關於 trust 和實際改變都沒講什麼；也有人提醒，registry 的 Trusted Publishing 承諾了快兩年還沒做完。</p>
+
+<h3>Small SF：一張即時更新的舊金山微縮地圖</h3>
+<p><a href="https://smallsf.com/">Small SF</a> 是插畫風的等角舊金山地圖，上面的公車、飛機和渡輪都照即時資料移動。<a href="https://news.ycombinator.com/item?id=50603589">HN 討論</a>中有好幾個人分享自己用 LLM 花幾小時做的同類城市地圖，其中一位說他所在的城市沒有好的 3D 模型來源，就讓 agent 從網路照片一棟棟建模；也有人指出放大之後會看到公園消失、車輛穿過背景車輛等錯誤。</p>
+
+<h3>經典回顧：Jakobsen 2001 年的 Advanced Character Physics</h3>
+<p><a href="https://www.cs.cmu.edu/afs/cs/academic/class/15462-s13/www/lec_slides/Jakobsen.pdf">這篇 IO Interactive 的論文</a>今天又上了 HN。這是《Hitman: Codename 47》布料、植物和布娃娃屍體背後的方法：Verlet 積分、把碰撞與穿透直接投影回合法位置、用 relaxation 迭代解約束、把剛體建模成「粒子加距離約束」。它可以隨時中止迭代，用精度換速度。剛好可以搭配今天的 NoPeWorld 一起讀：二十五年前遊戲引擎就用「投影」處理穿模，現在的影片 world model 則要從自己的隱藏層裡把這件事找回來。<a href="https://news.ycombinator.com/item?id=50606704">HN 討論</a></p>
+</article>
+</body>
+</html>
