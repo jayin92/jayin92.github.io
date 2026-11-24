@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 早報｜2026-11-25（週三）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 早報｜2026-11-25（週三）</h1>
+<p><b>今日導讀</b>：arXiv 的 new list 還停在週二（昨晚已經讀過一輪），所以這期改從 HF 本週趨勢裡挑漏網之魚。三篇深度閱讀碰巧都在問同一件事：要用什麼「單位」來表示世界和決策。WorldLatent 把 RGB、深度和相機射線壓進同一個 latent；ViDecide 把影片推理切成一個一個「決策」來訓練；DexDuet 則認為模仿人手不能只追物體軌跡，接觸本身也要當成學習目標。新聞有 PyTorch 的 KL divergence 數值誤差、三元量化 27B 模型、TorchTPU 實測，還有 Quad9 撤出法國。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. WorldLatent：一個 32 通道的 latent，同時裝下影片、深度和相機</h3>
+<p><a href="https://arxiv.org/abs/2611.31209">arXiv 2611.31209</a>｜cs.CV｜University of Maryland、Google（第一作者在 Google 實習期間完成）</p>
+<p><b>問題</b>：4D 視覺目前是兩條平行的路。perception 這邊（DUSt3R、VGGT、DA3、DepthCrafter）只把影片轉成深度和 pose，不會生成；generation 這邊的影片 DiT 只在 2D RGB latent 裡作畫，沒有 3D grounding，相機常常幾乎不動。WVD、Aether 這類想把兩者合在一起的方法，做法是把幾何圖硬塞進凍結的 RGB VAE，再把幾個 latent 串起來。作者認為這樣有冗餘，token 數也會暴增。</p>
+<p><b>方法</b>：分兩階段。第一階段是 WorldVAE：RGB 影片、深度圖，以及 Plücker 射線的方向和 moment 四個模態，各自用從 Wan VAE 初始化（並凍結）的 encoder 編碼，再由一個 20M 參數的 DPT fusion 在四個 ViT 深度把四路 token 逐 patch 串接、經 MLP 融合成單一 32 通道的 latent。四個 decoder 分別解回各模態。loss 包含重建、LPIPS、幾何梯度、由深度加射線反投影出的 3D pointmap loss，以及 KL。訓練時會隨機遮掉某些模態，所以也能編碼部分模態。第二階段凍結 VAE，全參數微調 Wan2.1-T2V-14B。perception（只給 RGB）、text-to-4D（什麼都不給）和 depth+text 編輯，全都是「把缺的模態當 mask，去噪出完整 latent」，在同一個 loop 裡多任務訓練。資料是 1.4M 段 17 幀 clip，缺 ground truth 的用 DA3-Giant 標深度和 pose，caption 由 Gemini 3.5 Flash 生成。</p>
+<p><b>結果</b>：token 數和 RGB-only VAE 一樣都是 5,120，三模態分開編碼則是 15,360，每次 NFE 的運算從 569.1 降到 148.1 TFLOPs。代價是 RGB 重建 PSNR 從 35.13 降到 32.23。zero-shot perception 只用 8 步去噪、不做 global alignment：Sintel 的 δ1 是 0.769，所有方法中最好，略高於 teacher DA3-Giant 的 0.763、VDA-L 的 0.736 和 VGGT 的 0.705，pose AUC@30 0.701 排第二。ScanNet AbsRel 0.042，和 DA3 並列第二；Bonn 的 AUC@30 0.918 也是第二。生成方面，原版 Wan 的相機平均只轉 0.99°、dynamic degree 0.400，WorldLatent 是 30.45° 和 0.964（真實影片為 24.55°、0.945），warp 和 drift 誤差維持在真實影片的水準。ablation：融合的 32 通道比直接串接的 64 通道 AUC@30 高 9.3 點（.692 對 .599）。對 latent 做 ridge 投影到 Wan 的 16 通道 RGB latent，R² 達 0.96，剩下正交的 16 維幾乎只編碼幾何。</p>
+<p><b>限制與疑問</b>：只有 17 幀、解析度不高，離長影片 world model 還很遠。幾何監督大多來自 DA3-Giant 的偽標籤，所以「超過 teacher」的幅度只有 0.006，比較像持平。生成的 subject consistency 從 0.911 掉到 0.856，相機一動，主體就比較不穩。在 1.3B 的控制實驗裡，unified 模型的 perception（δ1 .773）其實輸給 perception-only specialist（.811），作者把這歸因於容量，靠放大到 14B 解決。這個說法還需要同規模的 14B specialist 來驗證。</p>
+<p><b>為什麼值得看</b>：這篇示範了「把幾何塞進影片 latent，而不多花 token」的做法：通道翻倍，DiT 只有輸入和輸出投影層變大。對做 world model 或 4D 生成的人，這種 latent 可以直接當成 planning 或 novel view 的狀態表示。R² 0.96 的子空間拆解也給了一個方便的工具，可以只改外觀、鎖住幾何。值得追問的是：射線 moment 這種表示能不能撐住更長的軌跡，以及換成 metric depth 之後尺度是否穩定。</p>
+
+<h3>2. ViDecide：影片模型要學推理，訓練單位應該是「一步決策」，不是一段 clip</h3>
+<p><a href="https://arxiv.org/abs/2611.26389">arXiv 2611.26389</a>｜cs.CV｜NTU S-Lab、KlingAI Research、CUHK（HF 38 upvotes）</p>
+<p><b>問題</b>：拿影片生成模型解迷宮、推箱子、河內塔，最後一幀常常看起來到了終點，但中間有棋子瞬移、蛇穿牆之類的違規。就算用專家解答微調、或用 VBVR-Pro 那種 video-level RLVR 訓練，Seedance 2.5 和 VBVR-Pro-RLVR 仍然常常失敗。作者把問題歸成三點：固定長度的 clip 一起去噪，既忽略因果順序，也事先寫死了推理長度；flow matching 的訓練重心在低噪聲的細節重建，但「下一步要走哪」其實是在高噪聲階段決定的；video-level reward 會因為一兩步錯誤而懲罰整支影片，credit assignment 很糊。</p>
+<p><b>方法</b>：(1) 改成 autoregressive，一次生成一段（遊戲 K=1，機器人 K=8），每段都以先前所有狀態為條件，並加入視覺 EOS 幀（重複最後一幀、外框塗紅），讓模型自己決定何時停。(2) decision-focused schedule：timestep 以 logit 平移 log s 往高噪聲偏，所有比較都用 s=10，Wan2.2 預設是 5。(3) Corrective Fine-tuning（CFT）：先收集失敗的 rollout，從驗證器指出的失敗點往前幾步重新抽樣，留下成功的續寫，再找出兩者分岔的那一步，把當初產生錯誤決策的那組 noise 直接配上成功的那一段來做 flow-matching 回歸，並額外加重 t=1 的權重，同時混入專家資料。整個過程沒有 policy gradient。主實驗全參數微調 Wan2.2-5B，384×384、16 fps，推論只用 5 步去噪。</p>
+<p><b>結果</b>：以 strict success rate 計（每一步都合法且到達目標），在 VideoRLVR（Maze、FlowFree、Sokoban）、VBVR-MultiStep 六個 planning 任務，以及作者用 RoboTwin 2.0 雙臂環境新建的 RoboTwin-Plan 上，平均從標準 SFT 的 23.3% 提升到 83.8%，最強的既有方法是 67.8%。RoboTwin-Plan 上是 78.0% 對 63.9%，光是換 schedule 就從 33.3% 拉到 73.9%。post-training 比較裡，Flow-GRPO 和 DiffusionNFT 幾乎沒有幫助；CFT 比同一批續寫、但不做 noise mapping 的 decision-level RFT 最多高 7.3 點，在 Sokoban-Hard 上半個 epoch 就提升超過 20 點。有一個很有意思的對照：用精確 solver 產生的修正來訓練，FlowFree 只有 48.2%，CFT 是 84.4%，作者的解釋是 solver 的答案不在模型自己的分佈裡。分佈外測試（4 到 5 箱的 Sokoban、9×9 FlowFree）：因果生成解出 32–51%，加上 CFT 後是 38–74%，雙向生成幾乎是零。</p>
+<p><b>限制與疑問</b>：每個 benchmark 各訓一個模型，沒有和一般影片資料混合訓練。CFT 需要能逐步檢查合法性的 verifier，開放式任務就很難套用。RoboTwin-Plan 只評估生成出來的影片，沒有轉成動作去實際執行，作者也承認還需要 inverse dynamics model。商用模型的評測只用 20–30 題，而且是寬鬆標準。</p>
+<p><b>為什麼值得看</b>：「把 noise 對到正確答案」是一種很便宜的、針對單步決策的 credit assignment，幾乎可以原封不動搬到 autoregressive world-action model 或 diffusion policy：在 rollout 失敗的那一步分岔、重新抽樣，再做回歸。高噪聲才是決策階段這個觀察，也提醒做 WAM 的人去檢查自己的 timestep 分佈。和前天晚報的 Hindsight Forcing、LoCo-WAM 放在一起看，影片模型做規劃的訓練方式正快速往 LLM 的 SFT 加自我修正那條路靠攏。</p>
+
+<h3>3. DexDuet：從人類示範學雙手靈巧操作，接觸點也要跟著人</h3>
+<p><a href="https://arxiv.org/abs/2611.30495">arXiv 2611.30495</a>｜cs.RO｜MBZUAI、Motphys</p>
+<p><b>問題</b>：把人類雙手的示範（ARCTIC、OakInk2）retarget 到機器人手，再在模擬器裡用 RL 追蹤物體軌跡，是 DexMachina、ManipTrans、CHORD 這一系列的做法。但物體軌跡追得準，不代表手握對了地方：機器人可能換另一隻手去撐、手指在物體表面打滑，最後一放手物體就掉了。另外，assist 用的 virtual object controller 是整段示範一起撤掉的，只要中間有一個難的階段（例如換手），整個 curriculum 就卡住。</p>
+<p><b>方法</b>：三個元件。(1) 每隻手一個 policy，兩者共用同一個 actor 網路，各自看自己的狀態加上對方的狀態；PPO 的 ratio 也按手分開 clip，用 centralized critic 的兩個 value head 估 advantage，避免一隻手更新過頭時另一隻也被一起 clip 掉。(2) 兩個互動 reward：hand graph reward 比較手掌法向、手掌方向、各指方向（相對於物體座標）和指尖間距；hand-object contact reward 把手分成手掌與各手指區域，比較每個區域到每個物體部件的距離和最近點位置，懲罰人類沒有做出的接觸。(3) A-RSI：示範切成 B 段，每段有自己的 assistance 等級，成功率高就降、低就升，並受一個隨訓練下降的上限約束；episode 從 policy 自己到過的 keyframe 開始，比較常抽到失敗率高的段，也讓失敗段之前的幾段多練。另外提出新指標 Contact-AUC，衡量人手「握住」的時間窗內，機器人手的接觸點相對於物體漂移了多少。</p>
+<p><b>結果</b>：涵蓋 DexMachina、SPIDER、ManipTrans 三個 benchmark 和 V2D 人形挑戰，三個模擬器、五種手。ADD-AUC 比各 benchmark 的 baseline 高 11–41 點，最誇張的是 Inspire 手的 Ketchup-300，從 4.9 到 86.9；V2D 上幾乎是重訓 CHORD 的兩倍。在追蹤精度差不到 3 點的 122 對 run 裡，DexDuet 有 117 對的 Contact-AUC 較高。11 位評分者在 264 次判斷中有 251 次認為 Contact-AUC 較高的一方比較像人。示範結束後凍結參考、再撐 3 秒的 hold 測試，baseline 有 62/140 次偏離超過 3 cm，DexDuet 是 11 次。ablation：拿掉 per-hand policy，21 個 run 有 20 個追蹤變差；把 A-RSI 換成單一等級的 curriculum，Contact-AUC 降 6.3 點，訓練也多花 20% 的 update。實機部分有雙 Franka + Allegro 轉瓶子、放手把，以及 Unitree G1 + Inspire 邊走邊放箱子。</p>
+<p><b>限制與疑問</b>：一個示範訓一個 policy，單 GPU 約一天，不能泛化到新物體或新動作。policy 讀的是模擬器裡的物體真值狀態；實機是 open-loop 回放模擬軌跡，不是閉迴路部署。Contact-AUC 是作者自己提出的指標，baseline 本來就沒有針對它最佳化，勝率 117/122 有一部分是可以預期的。</p>
+<p><b>為什麼值得看</b>：對做 human-to-robot 資料管線的人來說，這篇補上了「接觸要能保留」這個常被忽略的環節。產出的模擬軌跡接觸比較乾淨，拿來當 VLA 的示範資料或 distill 成通用 policy 應該比較好用。可以接著想的是：把 contact reward 換成從單目影片估出的接觸（例如今天快速瀏覽裡的 ViDiHand2），整條管線就能直接吃 egocentric 影片。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>Lyris：用一張照片走三分鐘、50 公尺，回頭還對得上</h3>
+<p><a href="https://arxiv.org/abs/2611.31239">arXiv 2611.31239</a>｜長影片生成在沒看過的地方沒有東西可以錨定：相機會飄，文字也只能說出物體，放不準位置。Lyris 在看過或生成過的地方用持續累積的點雲記憶，沒看過的地方則讓 VLM 寫一份「每個物體一個帶標籤 3D 框」的粗略 layout，沿相機路徑渲染給影片模型參考。在四個資料集的一分鐘來回路徑上，相機誤差降為 1/3.8，回到原處時的一致性平均提升 22%。</p>
+
+<h3>ViDiHand2：用幾何求解取代深度回歸，從野外影片重建 metric 3D 手部</h3>
+<p><a href="https://arxiv.org/abs/2611.30597">arXiv 2611.30597</a>｜ACE Robotics｜以影片擴散模型當 backbone 的手部重建，原本直接回歸深度，換一台相機就不準。這篇改成用像素對齊的 2D 關節加 MANO 的 metric 結構解幾何約束，並在整個 clip 上做 ray fitting，遇到遮擋時再以信心值和 MANO 預測融合。七個資料集、18 個 baseline，野外絕對關節誤差降 42%，偵測失敗少 8.82 倍，57 FPS，程式碼已開源。</p>
+
+<h3>WeaveVLA：給 VLA 一張會隨時間更新的 3D 關係圖</h3>
+<p><a href="https://arxiv.org/abs/2611.31126">arXiv 2611.31126</a>｜HKUST｜用任務條件的稀疏 GNN 編碼物體、夾爪和參考物之間的相對 3D 關係，每條邊帶一個 recurrent 狀態，跨幀累積幾何證據，再用 learned query 讀出成 relational token 給 action expert。接在 StarVLA-GR00T 和 π0.5 上，LIBERO-Plus 分別從 74.9% 提升到 82.0%、從 85.7% 到 87.8%；三個實機任務在 OOD 擾動下從 33.3% 提升到 53.3%。</p>
+
+<h3>RUIBench：同一個 agent，只換「機器人使用介面」，成功率從 45% 變 81%</h3>
+<p><a href="https://arxiv.org/abs/2611.31115">arXiv 2611.31115</a>｜Show Lab（HF 22 upvotes）｜30 個操作任務，6 種動作抽象層級乘上 2 種互動形式，共 13 種介面，感知和控制都共用。換介面就讓前沿 agent 從 45% 到 81%、微調過的 4B 模型從 13% 到 47%。好的介面會減少不必要的決策、但保留必要的回饋。他們也發現一個「驗證落差」：agent 常常在畫面上明顯失敗時仍宣稱成功。可以和昨晚的 Embo-Harness 對照著看。</p>
+
+<h3>SAFI：教 VLA 在半路「安全地停下來」</h3>
+<p><a href="https://arxiv.org/abs/2611.26239">arXiv 2611.26239</a>｜Notre Dame｜作者發現，從初始狀態就拒絕執行禁止任務的 policy，若從執行到一半的狀態接手，仍會把任務做完；就算沒做完，也可能直接把手上的東西丟掉。SAFI 把禁止任務的示範改標成「手臂靜止、夾爪維持」，再和其他任務一起微調 OpenVLA-OFT。在 LIBERO 上，接手後的禁止任務完成率降到 1.3%，沒有發生物理事故，其他任務的表現也維持住。</p>
+
+<h3>Open Vision Banana：把開源圖像生成器變成通用 perception 模型，問題卡在「尺度」</h3>
+<p><a href="https://arxiv.org/abs/2611.28489">arXiv 2611.28489</a>｜用一個共享的 LoRA，讓 Qwen-Image-2.1（7B）以「畫成 RGB」的方式輸出 metric depth 和各種分割。分析 42 個 checkpoint 後發現：相對幾何很早就學會（median-aligned 的 NYUv2 δ1 一直在 0.89–0.93），但絕對尺度飄在 0.11–0.50 之間；十個 seed ensemble 可把未對齊 δ1 從 0.348 提升到 0.516。validation loss 和 Cityscapes mIoU 呈負相關（Spearman 約 −0.9），所以不能拿 loss 來挑 checkpoint。程式碼、資料和所有評測輸出都會釋出，是很誠實的負面結果報告。</p>
+
+<h3>3AGameFactory-Motion：讓 agent 寫參數化的骨架和動作程式，給任意 3D 資產做 rigging</h3>
+<p><a href="https://arxiv.org/abs/2611.30013">arXiv 2611.30013</a>｜Peking University（HF 57 upvotes）｜提出 DivDynBench，涵蓋六類形態，指令包含多階段部件協調，以及時間、角度、次數、軌跡等明確約束。作者比較了專門的動作生成模型、「先生成影片再還原動作」和 agent 直接生成三種路線，最後讓 LLM agent 只寫精簡的參數化骨架和動作程式，rigging、運動學求解和幾何修正交給 deterministic executor，可靠度和控制精度都比較好。</p>
+
+<h2>新聞與討論</h2>
+
+<h3>KL divergence 不會是負的，但 PyTorch 算得出來</h3>
+<p><a href="https://arxiv.org/abs/2611.30835">arXiv 2611.30835</a>｜作者用 850 萬個有認證參考值的輸入，測試 PyTorch 18 種 closed-form KL 和 <b>F.kl_div</b>，CPU 和 GPU 都有。兩個分佈接近時（KL 約 1e-7），超過 85% 的 FP32 值相對誤差至少 1%，再更接近時約 30% 會變成負數；就算多升一級精度，23 種配置中仍有 22 種錯得很明顯。修正方法是穩定的 closed-form 分解、compensated arithmetic 和解析梯度。這些誤差會實際影響 identical-start distillation（top-1 最多有 97% 不一致）、量化 LLM 的 KL layer ranking，以及 GPT-2 circuit 分析 19–59% 的 edge score。做 distillation 或 RL 的 KL penalty 的人都值得檢查一下。HN 上有人吐槽論文讀起來像 AI 寫的，也有人說這其實比較像一份 bug report。<a href="https://news.ycombinator.com/item?id=50629962">HN 討論</a></p>
+
+<h3>Ternary Bonsai 2.5 27B：5.9 GB 的三元量化模型，SWE-bench Verified 75.6</h3>
+<p><a href="https://prismml.com/news/bonsai-2-5-27b">PrismML 公告</a>｜以 Qwen3.8 27B 為基礎的三元權重模型，大小維持 5.9 GB，這次主攻 agentic coding 和多輪工具使用。官方表格：SWE-bench Verified 從上一版的 60.8 提升到 75.6（全精度原模型 80.6），AppWorld 從 51.2 到 90.5（原模型 93.2），Terminal-Bench 2.1 是 60.1（原模型 70.8）。H100 上生成 291 tok/s、RTX 4090 上 204 tok/s（皆含 MTP），Apache 2.0 授權，支援 llama.cpp 和 MLX。數字都是廠商自己報的，白皮書還沒有獨立驗證。<a href="https://news.ycombinator.com/item?id=50633922">HN 討論</a></p>
+
+<h3>從 CUDA、JAX 搬到 TorchTPU：一個 Cayley graph solver 的實測</h3>
+<p><a href="https://andlukyane.com/blog/cayley-graphs-and-torchtpu">Andrey Lukyanenko 的部落格</a>｜Google 新出的 TorchTPU 不是 PyTorch/XLA，它把 ATen op 直接 lower 到 StableHLO，"tpu" 用起來就像 "cuda"。作者拿 3.4M 參數的 transformer 啟發函數加 beam search 解魔術方塊類謎題：一開始訓練比 A100 慢 1.65 倍、beam search 比 JAX 慢 5.7 倍。打開 fused eager、去掉動態 shape，再重寫 attention 之後（T=51、head_dim=32 的 attention 只用到 MXU 約 2.5% 的 tile），訓練追平 A100，beam search 每層反而比 JAX 快 25%。實作和 profiling 都是 coding agent 做的；文中整理的「data-dependent shape 會強迫 host round-trip」幾條規則，任何想把 PyTorch 程式搬上 TPU 的人都用得到。<a href="https://news.ycombinator.com/item?id=50633424">HN 討論</a></p>
+
+<h3>GreyNoise：一個大量使用 LLM 的入侵行動，打進 22 家機構的 Check Point 管理伺服器</h3>
+<p><a href="https://www.greynoise.io/blog/check-point-security-management-servers-intrusion-campaign">GreyNoise 報告</a>｜10 月 17 日到 11 月 2 日之間，代號 GT13 的攻擊者用了 99 個 IP（ExpressVPN 出口加上被攻陷的設備），入侵橫跨 17 個國家或地區、金融、能源、政府等產業的 24 台 Check Point Security Management Server，串連了 HFS、Citrix、Ivanti、NetLogon 等多個 CVE。GreyNoise 研判對方用 LLM 和 agent 系統做掃描、漏洞利用和工具開發。HN 上最多人討論的細節有兩個：一是攻擊者靠連續登入收集 Math.random() 的輸出，反推出 V8 PRNG 狀態，偽造 session；二是攻擊者佔領伺服器後，還幫它打了 Linux UAF 的 nftables 修補，免得被別人搶走。<a href="https://news.ycombinator.com/item?id=50630594">HN 討論</a></p>
+
+<h3>Quad9 正式停止對法國用戶提供 DNS 服務</h3>
+<p><a href="https://quad9.net/news/blog/quad9-service-deactivation-in-france/">Quad9 公告</a>｜體育轉播權方 beIN 透過法院要求 Quad9 在 DNS 層封鎖盜版網站，Quad9 敗訴後還被罰款。Quad9 的立場是：recursive resolver 不是內容管制的工具，任何人幾秒鐘就能架自己的 resolver，封鎖根本無效；所以他們選擇在 11 月 24 日巴黎時間 09:00 起，用 geoIP 拒絕法國的查詢，並坦承這種方法一定會誤封和漏封。HN 上有人貼出 dig 結果，回應是 REFUSED，附帶 EDE 18「因法國法律而無法服務」；也有人認為撤出反而等於順了對方的意。<a href="https://news.ycombinator.com/item?id=50625384">HN 討論</a></p>
+
+<h3>「LLM agent 是替母公司工作，不是替你」</h3>
+<p><a href="https://michaelharley.net/posts/2026/11/01/llm-agents-work-for-their-parent-companies-not-for-you/">Michael Harley 的部落格</a>｜作者用 Claude Code 寫了一個 skill：從 Instagram reel 辨識歌曲，再去 Bandcamp 找購買連結。Bandcamp 加了 challenge 之後，模型不肯幫忙繞過，但另一個分支下載 YouTube 音訊時卻照做不誤。他由此推論，商用模型最終會替廣告主和政府做事，所以想改跑自家機房的本地模型。文章本身是主觀抱怨，但拿到 783 分、上百則留言，對齊與「agent 到底聽誰的」已經是使用者層級的議題；留言裡也有人直接反駁「這只是你的意見」。<a href="https://news.ycombinator.com/item?id=50627340">HN 討論</a></p>
+
+<h3>輕鬆一下：互動 3D 圖解機械錶怎麼走時</h3>
+<p><a href="https://martincmartin.github.io/slidev-stem/watches/article/1/">How a Mechanical Watch Keeps Time</a>｜從 1675 年 Huygens 的游絲、擺輪的慣量和等時性開始，每個零件都可以拖曳旋轉，算是 Ciechanowski 那篇經典 Mechanical Watch 的入門版。一支 100 美元的機械錶有 99.99% 的準度，相當於一天誤差約 9 秒。HN 上有錶迷指出，圖中擒縱叉的形狀其實沒辦法把能量推回擺輪，照這樣做的錶會停。<a href="https://news.ycombinator.com/item?id=50599458">HN 討論</a></p>
+</article>
+</body>
+</html>
