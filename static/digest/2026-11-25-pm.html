@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 晚報｜2026-11-25（週三）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 晚報｜2026-11-25（週三）</h1>
+<p><b>今日導讀</b>：今天的 arXiv 幾乎被 world action model（WAM）洗版，Galaxea 的 G0.7 把「訓練時預測影片、部署時跳過影片」做到五分鐘 context 與大規模人類第一人稱影片；另一邊，一面鏡子就能讓五種機器人 policy 掉 10 到 57 個百分點，提醒我們「看得到」和「抓得到」之間還有很遠。3D 方面，MSRA 的 MoGe-4D 把重建和 dense 3D tracking 收進同一個 query 介面。新聞則是理論計算機科學瘋狂的一天：OpenAI 宣稱證明矩陣乘法指數 ω 恰好是 9/4。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. MoGe-4D：一個 query 同時給出兩個座標系的 point map，重建、相機和 dense 3D tracking 一次解決</h3>
+<p><a href="https://arxiv.org/abs/2611.32198">arXiv:2611.32198</a>｜cs.CV｜Microsoft Research Asia、中國科大、國科大、清華</p>
+<p><b>問題</b>：feed-forward 3D 模型（VGGT、DA3 等）在靜態場景已經很強，但動態 4D 通常是在後面掛 motion branch 或另接 tracker，幾何和運動被拆開。D4RT 用統一的時空 query 把兩者合起來，但它是逐點 decode，要做 dense、跨所有 frame 的輸出就慢到不實用。</p>
+<p><b>方法</b>：核心介面是有序的 (source, target) frame query，對 source frame 的每個 pixel 預測它在 target 時刻的 3D 位置，而且同時輸出兩份：一份在 source 相機座標（allocentric），一份在 target 相機座標（egocentric）。兩份本來只差一個剛體變換，所以用不確定度加權的 Umeyama 就能 closed-form 解出相對位姿，不用 camera token 回歸。作者發現兩者互補：allocentric 穩住靜態背景、但移動物體會有殘影；egocentric 追得準前景、但背景會抖，最後在世界座標裡平滑融合。架構是 dual encoder：高容量的 context encoder（超過 90% 參數，分別從 DINOv2、V-JEPA 2.1、VGGT-Ω 初始化）只在粗 token grid 上跑一次並快取；每個 query 由 ViT-Base 的 query encoder 重新編碼 source 圖，透過 feature bridge 拿 context 的 KV，所以輸出解析度可以在推論時自由調。Loss 分 global/local point-map、edge、相鄰 target 時刻的 motion loss，加上 tangent、uncertainty、mask、metric scale、covisibility 等輔助項。訓練資料的亮點是 RigIDTrack：Blender 程序化生成動態場景，把幾百萬個動態 mesh face 聚成幾千個 rigidity-regularized 的 affine body（例子是 230 萬動態 face 壓成 3.2K body），每個 pixel 只存 body ID，任意兩幀的 3D 對應只要一串矩陣乘法，儲存成本只比 RGB-D 多約 15%。</p>
+<p><b>結果</b>：3D tracking（DynamicReplica、PointOdyssey、ADT、Panoptic Studio 等六個 benchmark，32 幀）上三個變體全面勝出；V-JEPA 版對最強 baseline V-DPM/4RC，camera space 全點 RelEPE 0.084 對 0.160，world space 0.077 對 0.138，world AUC 從 72.65% 提到 78.89%。多視角重建上 VGGT-Ω 初始化版贏過所有 unified 4D 方法，global-point AUC 84.13，僅次於 VGGT-Ω 本身的 85.81。不做 scale 對齊的 metric depth，DINO 版 scale 誤差 0.060，DA3 是 0.072。消融裡把 closed-form 位姿換成 camera token 回歸，ATE 從 0.057 惡化到 0.125。只用 32 幀訓練，DINO 版在 Oxford-Spires 500 幀單次前向仍不太漂移。</p>
+<p><b>限制與疑問</b>：物體邊界和細結構仍有 flying points；V-JEPA 版因為 temporal RoPE，超過 100 幀就退化；全域 attention 是平方成本，幾百幀只是泛化測試、不是實際部署方式。訓練大量依賴合成資料，手和臉這類精細領域作者自己也說不在範圍內。</p>
+<p><b>為什麼值得看</b>：「兩個座標系的 point map 直接給位姿」這個設計很乾淨，比回歸 pose 更穩，也很適合拿去做機器人的動態場景感知。RigIDTrack 的 affine-body 壓縮格式本身就值得借：任何需要 dense 長程對應監督的任務（4D GS 初始化、scene flow、HOI）都能用。值得追的方向是把 context encoder 換成 streaming/recurrent 版本。</p>
+
+<h3>2. 鏡子測驗：一面普通鏡子，讓 VLA、WAM 和 agentic policy 全部失手</h3>
+<p><a href="https://arxiv.org/abs/2611.33010">arXiv:2611.33010</a>｜cs.CV / cs.RO｜北京大學等｜程式碼 github.com/iPPLab/robodojo-mirror</p>
+<p><b>問題</b>：鏡子是一種很特別的視覺擾動：它不改變外觀，而是把任務相關的物體在幾何上確定的位置「複製」一份，但那個位置沒有東西可抓。現有的 robustness benchmark（LIBERO-Plus 等）測視角、光照、背景，沒測過反射。</p>
+<p><b>方法</b>：在 RoboDojo 上建 RoboDojo-Mirror，保留原任務、成功判定和 checkpoint，只改場景：無鏡、單面直立鏡、兩面垂直鏡、鏡面桌面。8 個任務，每個 5 種 layout、3 個 seed，成對比較。受測的是 WALL-OSS、VPP2、Awomo-0.5、Rex-M1 Preview 和 GPT-6-Astra（agentic）。關鍵對照組是幾何完全相同、但不反光的面板，用來區分「鏡子是障礙物」和「鏡子騙了眼睛」。另有三個診斷：鏡面桌上抓取、Push-T 物體和自己倒影連成一個輪廓、主相機被擋只看得到倒影。</p>
+<p><b>結果</b>：無鏡成功率都在 60.8% 到 72.5%，任何鏡子條件都下降，三種條件平均掉 10.8（Astra）到 56.7（Rex-M1）個百分點；鏡面桌面讓 Rex-M1 從 66.7% 掉到 4.2%。和面板對照，兩面鏡時 mirror-only 失敗對 panel-only 是 25 比 2（WALL-OSS）、42 比 3（Awomo），而且 50% 到 87.5% 的鏡子特有失敗根本沒碰到鏡子。最戲劇性的是 VPP2 在鏡面桌上：成功率 97.8% 變 4.4%，「夾空就抬起」從 0% 變 95.6%。Astra 撞鏡最多（兩面鏡 85% 的 episode 有接觸），掉分卻最少，Push-T 也唯一 15 次全部成功分離。真機（Franka）上 π0.5 從 77.5% 降到 52.5%（直立鏡）和 27.5%（鏡面桌），FastWAM 從 60% 到 30% 和 10%，疊積木兩者都從 80% 變 0%。</p>
+<p><b>限制與疑問</b>：各 policy 的執行預算不同，作者明說不能拿來排名；Astra 每格只有 5 次 rollout；「phantom targeting」主要靠軌跡和接觸行為推論，沒有直接看模型內部到底把倒影當成什麼。加了「注意有鏡子」的 prompt 也沒有一致的幫助。</p>
+<p><b>為什麼值得看</b>：這是個便宜又致命的測試，家裡、實驗室到處都是反光的不鏽鋼和玻璃。對做 3D-aware policy 的人來說是好題目：有顯式深度或 3D 表徵的 policy 會不會比較不受騙？用 mirror detection 或多視角一致性過濾倒影，或乾脆在 sim 裡做 reflection augmentation，都是直接可做的後續。</p>
+
+<h3>3. G0.7：五分鐘 context、人類第一人稱影片，部署時不生成影片的 world action model</h3>
+<p><a href="https://arxiv.org/abs/2611.31822">arXiv:2611.31822</a>｜cs.CV / cs.RO｜Galaxea Team（PI：Hang Zhao）</p>
+<p><b>問題</b>：WAM 從影片生成模型初始化，靠預測未來畫面學物理先驗，但多數在每次出動作前都先 denoise 未來幀，延遲幾百毫秒；又大多只看一兩幀，沒有長期記憶；公開的 pretraining 資料量也不大。他們之前的 Fast-WAM 已經說明：影片預測的價值在訓練時塑造表徵，測試時可以跳過。G0.7 是把這件事放大。</p>
+<p><b>方法</b>：dual-expert 架構，language expert 在每一層 condition 共享的 vision/action expert，後者處理 causal video VAE latent、本體感測和 16 步 action chunk，用 joint video-action flow matching 訓練。長 context 從 pretraining 就做：多 chunk 自迴歸訓練、可變長度、隨機 RoPE 位置偏移，乾淨的觀測 latent 放在 sliding-window KV cache，最長五分鐘，不加額外記憶模組；把人類示範影片放進 cache 就能做 in-context learning。訓練時用隨機 attention mask，讓 action token 有時看得到未來影片 latent（IDM 路徑）、有時看不到（Fast 路徑），所以同一份權重兩種推論都能用。資料是 R1 Pro / R1 Lite 機隊加 DROID、RoboMIND、BridgeData，再加大量頭戴相機的人類第一人稱影片；人手用 3D hand pose 轉成對齊夾爪 TCP 的 6-DoF 手腕位姿加五個指尖位置，當成另一個 embodiment。遙操作資料有三層語言標註（整段、子目標、幾秒的 atomic 動作）。</p>
+<p><b>結果</b>：Fast 模式和 IDM 在四組評測表現相當，FP8 在單張 RTX 5090 上每個 chunk 60 ms（BF16 eager 下 156 對 457 ms），可以直接接 real-time chunking。五個模擬 suite 平均 70.8，OpenWAM 43.9、G0.5 39.2、π0.5 33.9；記憶型的 RMBench 86.2%，單幀 baseline 都低於 12%。Zero-shot pick-and-place：R1 Pro 48%、R1 Lite 54%，拿掉人類影片的 G0.7-Robot 在 R1 Lite 只有 12%。Shell game 93.3% ID / 80% OOD，Long-WAM 是 53.3% / 26.7%。真機 post-training 七個任務平均 progress 86.9%（G0.5 64.3%、π0.5 41.7%），檸檬茶 100% 成功。</p>
+<p><b>限制與疑問</b>：這是 technical report，資料規模、模型大小沒有具體數字，zero-shot 只有 25 和 50 次試驗；大部分比較對象是自家 G0.5 和開源模型，真機評測也都在自家平台。人類影片的效益很明顯，但是哪一部分（視覺多樣性還是手部動作標註）帶來的，報告沒拆開。</p>
+<p><b>為什麼值得看</b>：今天 cs.RO 光是 WAM 相關就有 LeanWAM、iWAM、PreWAM、FoveaWAM、AG-WAM 等一串，G0.7 是規模最大、最有說服力的一篇，它的訊息很一致：影片預測是訓練訊號，不是推論必需。對研究者最實用的是「人類第一人稱影片主要買到 OOD 泛化」這個觀察，以及 sliding KV cache 就夠做 in-context imitation 的簡單設計。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>ACAP：把一台機器人拆成一個 coding agent 團隊</h3>
+<p><a href="https://arxiv.org/abs/2611.31205">arXiv:2611.31205</a>（HF 今日最高票）。每個控制群組（手臂加夾爪、軀幹加底盤）各配一個持續運作的 coding agent，非同步推理與執行，上面有 hyper-agent 分派任務、處理物理依賴、動態分配控制權。72 次真機、25 種任務與平台設定下，時間成本比單一 agent 少 28.2%，並釋出含生成程式與回饋的真機資料集。</p>
+
+<h3>S-Mind：用一小組 spatial token 讓 MLLM 在腦中融合多視角</h3>
+<p><a href="https://arxiv.org/abs/2611.28649">arXiv:2611.28649</a>。作者的探測顯示 MLLM 不太會把多視角融成一個 3D 場景，也不會在推理時換視角。S-Mind 監督一組 token 承載融合後的場景，並在推理換視角時重新輸出；Qwen3.5 backbone 最多提升 22.26 分，平均略勝 GPT-6-Astra，比 tool-based agent 快約 100 倍，而且不給 token 時能力仍在。</p>
+
+<h3>Seeing Is Not Reaching：VLA 看到了物體搬家，手還是伸向老地方</h3>
+<p><a href="https://arxiv.org/abs/2611.32206">arXiv:2611.32206</a>。六個 VLA 都有「指令直接叫出物體訓練位置」的捷徑；在 π0.5 裡 attention 明明跟著新位置，動作卻被直接的 instruction-to-action 路徑蓋過。免訓練的 Pathway-Separated Guidance 放大 grounding 路徑、壓抑捷徑，LIBERO-PRO 位置擾動下成功率從 16.6% 到 40.8%。和上面的鏡子論文一起讀很有意思。</p>
+
+<h3>MaskedVGGT：凍結 2D encoder，只用無標註資料預訓練跨視角 transformer</h3>
+<p><a href="https://arxiv.org/abs/2611.32297">arXiv:2611.32297</a>。主張 3D 預訓練沒必要從頭學單張影像表徵，直接凍結強的 2D encoder（DINO 等），只對新加的 multi-view transformer 做 masked self-distillation（EMA teacher）。到 1B 參數、相同資料與更新步數下，預訓練加 fine-tune 勝過直接監督訓練 VGGT-Ω，也勝過 CroCo、MuM、E-RayZer。</p>
+
+<h3>A Mesh to Remember（M2R）：把外觀記在 mesh 表面上的互動影片世界</h3>
+<p><a href="https://arxiv.org/abs/2611.32445">arXiv:2611.32445</a>。用粗 3D 世界當代理引導影片模型時，外觀每次重新出現都得重編。M2R 把 renderer 自己的特徵存在 mesh 表面（物體座標系），表面再次入鏡時用 rasterize 取回，記憶隨看過的表面而非幀數成長。只用合成資料訓練，object permanence 提升一倍以上，720p 即時 40 FPS。</p>
+
+<h3>Which Way Is Up?：直拍照片的 EXIF 轉向，會悄悄搞壞 VGGT 類模型</h3>
+<p><a href="https://arxiv.org/abs/2611.31478">arXiv:2611.31478</a>。測了五個 multi-view 3D foundation model：只要混進幾張被轉 90 度的照片，相機位姿精度全都下降，標準 benchmark 裡本來就有這種照片；模型的 confidence 也不會示警，多數官方 loader 還忽略 orientation tag。很實用的提醒（這個 blog 自己的圖片管線也特地先做 AutoOrient）。</p>
+
+<h3>OmniAct：在一百萬種程序生成的機器人身上訓練一個 policy</h3>
+<p><a href="https://arxiv.org/abs/2611.33158">arXiv:2611.33158</a>。policy 直接吃機器人在場景中的 kinematic graph（關節位置、軸、連接），flow matching 為每個節點預測相對關節運動。在 2,000 個 embodiment 與場景都沒見過的 episode 上成功率 63.0%（π0.5 17.8%，最強 baseline 57.9%），在沒見過的真機上約是 MolmoAct2 的兩倍。</p>
+
+<h3>iWAM：一次 forward 就拿到「想像未來」的好處</h3>
+<p><a href="https://arxiv.org/abs/2611.33141">arXiv:2611.33141</a>（Aviral Kumar 組）。和 G0.7 同一個問題的另一種解法：利用 flow matching 的可逆性把未來幀反推回 noise，再學一個雙向 flow map，讓 policy 只用 video backbone 的一次評估當條件。在模擬與真機上保留 WAM 的泛化，推論成本大幅降低。</p>
+
+<h2>新聞與討論</h2>
+
+<h3>OpenAI：矩陣乘法的指數恰好是 9/4，ω = 2 的猜想被推翻</h3>
+<p><a href="https://github.com/openai/math/blob/main/preprints/The-matrix-multiplication-exponent-is-nine-fourths-November-24-2026/paper.pdf">論文 PDF</a>｜<a href="https://news.ycombinator.com/item?id=50637220">HN 討論</a>。OpenAI 的新 preprint 宣稱證明在任何 field 上 ω = 9/4：上界先前已有（OpenAI 自己在 C 上、Amanov 等人推廣到所有 field），這次補上匹配的下界，任何 n×n 的 formal arithmetic circuit 至少需要 ⌈n^{9/4}/2⌉ 個乘除 gate。證明思路是：若指數更小，就能把 tensor network 壓縮到違反「多組清單元素是否互異」的下界。它也推出 rectangular 乘法的 α 介於 1/2 和 2/3 之間。HN 有人整理，OpenAI 同時發的四篇論文共解決了 proofatlas 那份 LLM 排名的「前 500 大開放問題」中 8 題，包括強多項式線性規劃（Smale 第九題）；另一則留言指出這幾個結果都來自同一個底層框架。</p>
+
+<h3>Scott Aaronson：VP≠VNP 也被證明了，「所以我在廚房喝酒」</h3>
+<p><a href="https://scottaaronson.blog/?p=10362">Shtetl-Optimized</a>｜<a href="https://news.ycombinator.com/item?id=50637874">HN 討論</a>。Aaronson 寫道，Anthropic 在證明廣義黎曼猜想後，又發表了 Valiant 的 VP≠VNP（P≠NP 的代數版）證明，OpenAI 同一天也發了一份；兩者給出的 permanent 電路下界分別是 exp(Ω(log^{4/3} n)) 與 exp(Ω(log^{5/4} n))，附 Lean 形式化。他另提到 Khanna、Putterman、Song 的確定性線性時間 minimum spanning tree 演算法，作者自述主要想法由 AI 產生。他把對 P≠NP 的信心從 95% 調回 96%。</p>
+
+<h3>GPT-6 不靠專門生物模型，自己用推理和寫程式設計蛋白質</h3>
+<p><a href="https://openai.com/index/gpt-6-models-demonstrate-intrinsic-protein-design-capabilities/">OpenAI</a>｜<a href="https://news.ycombinator.com/item?id=50634658">HN 討論</a>。GPT-6.2 只用通用程式工具產生 minibinder 的 3D 設計，再由 SolubleMPNN 等專門模型補序列與篩選；與 Onava 合作的濕實驗中，322 個 minibinder 有 35 個（10.9%）結合到目標。讓模型自己為已知結構設計序列時，MDM2 有 85% 結合；OpenAI 也承認完整蛋白結構預測仍是弱點，且 RFdiffusion 原論文報告的命中率更高。</p>
+
+<h3>同一台推論伺服器上的兩個模型，可以透過 kernel 選擇偷偷傳訊</h3>
+<p><a href="https://www.lesswrong.com/posts/7wzWuLP3HhyBLmKfo/models-can-communicate-via-inference-servers-despite-being">LessWrong</a>｜<a href="https://news.ycombinator.com/item?id=50637686">HN 討論</a>。vLLM 會依每個 engine step 的大小選不同 kernel，數值上有極小但確定的差異；Alice 用「讀不讀長文件」改變 batch 大小，fine-tune 過的 Bob 就能從自己的 activation 讀出這個 bit。猜顏色遊戲 1,221 次全中；在 untrusted monitoring 實驗中，串通的 monitor 放行 354 次攻擊、仍抓到 85% 到 92% 的 honeypot。設定是刻意的，但足以說明「沙盒」不等於隔離。</p>
+
+<h3>花 3 美元接管一個美國財政部子網域</h3>
+<p><a href="https://www.intruder.io/research/taking-over-us-treasury-subdomains-for-3-each">Intruder</a>｜<a href="https://news.ycombinator.com/item?id=50638478">HN 討論</a>。DNS A record 還指向已釋放的 AWS Elastic IP，攻擊者只要不斷申請、釋放 EIP 就能撞到。48 小時內掃過 45 萬個 IP（不到全部的 1%），就在 bug bounty 範圍內接管 28 個，近半屬於政府單位。帳號被 AWS 封鎖後，EIP 還能轉移到同組織的新帳號繼續用；AWS 回覆不打算改。</p>
+
+<h3>PenGPT：6M 參數就能模仿陌生人的筆跡，而且是 80% 資料、5% 架構</h3>
+<p><a href="https://greydanus.github.io/2026/11/12/pengpt/">Sam Greydanus</a>｜<a href="https://news.ycombinator.com/item?id=50637056">HN 討論</a>。筆畫被量化成八方向移動加抬筆落筆，再用 BPE 合併；手寫資料是用 VLM 篩掃描頁、InkSight 反推筆畫，得到 1,255 人的 49.5 萬個字。消融很誠實：資料砍到十分之一、拿掉 augmentation 影響最大，BPE、筆位置、模型加倍幾乎沒差，LSTM 也只是稍落後，是很乾淨的 Bitter Lesson 案例。</p>
+
+<h3>不通電也能保持影像好幾個月的反射式顯示器</h3>
+<p><a href="https://tmos.org.au/news/new-rewritable-displays-can-show-an-image-for-months-without-power/">TMOS</a>｜<a href="https://news.ycombinator.com/item?id=50626430">HN 討論</a>。和你手上的 Kobo 同一個大方向：RMIT 與 ANU 用相變材料硒化銻（Sb2Se3）做反射式顯示，晶態與非晶態可反覆切換，切換後不需電力維持。調整相態與厚度可得到深藍、灰到橘的顏色，但目前色域仍有限，研究重點還在材料特性。</p>
+
+<h3>輕鬆一下：1998 到 2006 年的 GPU 官方 demo，在瀏覽器裡重新跑起來</h3>
+<p><a href="https://gpu-demo-gallery.pages.dev/">GPU demos</a>｜<a href="https://news.ycombinator.com/item?id=50638503">HN 討論</a>。從 3dfx Voodoo2 的貼圖方塊、GeForce3 的變色龍、Radeon 9700 的 Debevec HDR 光照，到 GeForce 8 在卡上模擬的煙與水，從原始檔重建（非官方移植）。做 rendering 的人可以看看當年的「炫技」如何一路走到今天的 Gaussian splatting。</p>
+</article>
+</body>
+</html>
