@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 早報｜2026-11-26（週四）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 早報｜2026-11-26（週四）</h1>
+<p><b>今日導讀</b>：今天的主軸是「量測與解析度」。SpatialArena 用同一套規則重測 52 個幾何模型，發現公開 benchmark 已經飽和、真實大場景還差很遠；Qwen-Image-HD 改用一塊一塊地畫來生成 4K；DiffGR00T 則讓人形機器人的執行誤差第一次能以梯度回傳到 VLA。新聞那邊，AI 解數學的浪潮已經燒到密碼學的邊緣，1Password 也發生了一起典型的 GitHub 帳號入侵事件。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. SpatialArena：幾何基礎模型到底走到哪了？同一把尺量 52 個模型</h3>
+<p><a href="https://arxiv.org/abs/2611.32816">arXiv:2611.32816</a>｜cs.CV｜Yu Chen、Jiankang Deng 等</p>
+<p><b>問題</b>：單張深度、VGGT 類 feed-forward 3D/4D 重建、會輸出幾何的 VLM，論文裡的數字幾乎無法互相比較。每篇的抽幀、解析度、test split 都不一樣；更麻煩的是 up-to-scale 的預測都要先 align 才能算分，而 align 的方式影響可能比模型之間的差距還大。作者舉例：disparity 模型若在 depth space 擬合，AbsRel 幾乎變成三倍；常用的 Umeyama 軌跡對齊，在追蹤失敗時會把錯誤低估好幾倍。</p>
+<p><b>方法</b>：建一個 arena，五個任務（MonoDepth、VideoDepth、MVRecon、SfM、SLAM），23 個公開資料集、418,929 張影像，再加上自己拍的 30 個大場景「Spatial Arena」：手持 LiDAR 加三相機 rig，LiDAR SLAM 與 bundle adjustment 給位姿，再用 LiDAR 監督的 3DGS 渲染出 dense depth 當 pseudo-label，並逐幀人工檢查。深度一律用 Huber IRLS、在模型自己宣告的輸出空間裡對齊；軌跡用 pose-aware、對 outlier 穩健的相似轉換。訓練資料有洩漏的資料集不計入排名。另外把幾何先驗變成明確的 track：只給 RGB、加 GT 相機、或加 GT 深度。</p>
+<p><b>結果</b>：（1）單張深度在公開資料上接近飽和，最佳 AbsRel 兩年只從 5.5% 進步到 4.9%，但在 Spatial Arena 上誤差高出三到四倍。（2）通用模型正在吃掉專用模型：前二十名全是多視角 3D/4D 模型；VideoDepth 上 3D/4D 模型最佳 AbsRel 從 DUSt3R 的 45% 降到 VGGT-Ω 的 6.5%，專用 video depth 模型最好是 14.0%。（3）VLM 進步最快但起點很低，在 Spatial Arena 上最佳 AbsRel 仍有 28.2%。SLAM 方面，feed-forward 模型在 7-Scenes 漂移 ≤18.2%，到 Spatial Arena 變成 42–221%。關鍵不是幀數，而是幀間移動量：每幀移動 0.55 m，7-Scenes 只有 0.10 m。長序列只有 Pi-Long 這類「切 chunk、每段把誤差框住」的系統撐得住（大範圍漂移 19.7%）。另外，所有模型在 20 m 外都低估深度，相機 roll 大時誤差會加倍，作者解讀為模型學到的是重力先驗，而不是與方向無關的幾何。</p>
+<p><b>限制與疑問</b>：roll 的影響是用前、側相機的不同影像比較出來的，內容差異（側拍天空、立面較多）也混在裡面。趨勢線只有一到三年的資料；商用 VLM 只在 MonoDepth 上用 query grid 測，分數只代表粗略精度。benchmark 和 leaderboard 尚未釋出。</p>
+<p><b>為什麼值得看</b>：如果你在做 feed-forward 重建或 SLAM，這篇等於一份「該往哪裡投資」的清單：大幅度相機運動的訓練資料、bounded memory 與漂移修正、遠近同時存在的深度範圍、以及失敗偵測與 confidence。它的 alignment 研究（Huber IRLS、在原生輸出空間擬合）也值得直接搬進自己的 eval code，避免報出被 alignment 美化的數字。</p>
+
+<h3>2. Qwen-Image-HD：不直接畫 4K，而是一塊 1K tile 接一塊地畫</h3>
+<p><a href="https://arxiv.org/abs/2611.32736">arXiv:2611.32736</a>｜cs.CV｜由 Qwen-Image 2.0 延伸到高解析度</p>
+<p><b>問題</b>：要讓生成器輸出 4K，常見作法是在完整高解析度畫布上 fine-tune，序列很長、每一步很貴；而且在算力有限時，草地、植被這類區域會出現不自然的重複條紋。</p>
+<p><b>方法</b>：把 4K 畫布切成 4×4 個約 1K 的 tile，從左到右、由上而下自回歸生成，每個 tile 內部是 Rectified Flow。條件有兩種尺度：一是上方與左方鄰居的邊界帶（256 px），提供細節與連續性；二是一張固定大小的「歷史縮圖」，把已完成區域縮小 4 倍貼上、未完成處留白，提供全局構圖。關鍵在座標：作者把 RoPE 的 row/column 換成整張畫布上的絕對位置，縮圖用 stride 4，讓模型知道每塊條件在畫布上的實際位置與尺度。這樣每次呼叫的影像 token 上限是 10,240，直接做 4K 則是 65,536。推論時另有 Wavefront 排程：同一條反對角線上的 tile 可以並行，在 4 張 GPU 上再搭配 CFG 分支並行與 sequence parallel。</p>
+<p><b>結果</b>：Qwen-Image-Bench 4K 上 Q-Judger Overall 59.44，高於 FLUX-3-Image-Klein-Base 的 57.69，以及同 backbone 全圖 SFT 的 58.27。訓練成本：750 EFLOPs 對 SFT 的 2,350 EFLOPs，少了 68%（966 vs 4,426 GPU-hours）。作者自訂的條紋指標 NSE 從 0.0316 降到 0.0124，和人工判讀的一致率約 91%；人評在細節清晰度上 68.3% 對 7.2%。消融中拿掉歷史縮圖掉最多（Overall −8.95），出現區塊突變與重複內容；拿掉鄰居則會在 tile 交界出現十字形接縫。Wavefront 把 4 卡延遲從 Serial 的 166 秒降到 139 秒，代價是 Overall 掉到 58.52。</p>
+<p><b>限制與疑問</b>：NSE 是作者自己提出的指標，只量條紋、不量清晰度；評估多半靠 Q-Judger 這個模型裁判。生成仍是逐塊進行，總計算量隨畫布線性增加；Wavefront 歷史與訓練不一致造成的品質損失也還沒完全解決。</p>
+<p><b>為什麼值得看</b>：「固定大小的全局摘要 + 高解析度局部鄰居 + 共用座標系」這組設計，幾乎可以直接搬到 video world model 或大場景 3D 生成：用一張縮圖當長期記憶，用邊界帶保證接縫連續。對 streaming 影片生成的 KV cache 爆炸問題，這也是一個值得對照的思路。</p>
+
+<h3>3. DiffGR00T：讓人形機器人的平衡與追蹤誤差，以梯度回傳到 VLA</h3>
+<p><a href="https://arxiv.org/abs/2611.32665">arXiv:2611.32665</a>｜cs.RO｜上海交通大學自動化系</p>
+<p><b>問題</b>：人形機器人常用階層式架構：VLA 輸出動作意圖或 motion token，再交給預訓練的 whole-body controller（如 SONIC）執行。兩者分開訓練，所以執行時的追蹤誤差、跌倒和漂移，沒有任何梯度能回到 VLA。直接對剛體模擬器微分，又會卡在接觸切換的不平滑。</p>
+<p><b>方法</b>：用一個學出來、對動作條件化的 world model 取代模擬器，讓整條路徑可微。GR00T N1.7 用四步 flow matching 產生 40 步的 motion-token chunk（每步 64 維 body token 加 14 維手指）；凍結的 SONIC decoder 把 token 和十幀本體感覺歷史轉成 29 維關節目標；world model 預測 20 ms 後的狀態增量（root pose、關節、速度，heading frame 內表示），再積分出下一個狀態。world model 用四種資料訓練一次後就固定：乾淨的 controller replay、加 token 噪聲的 replay（涵蓋偏離與恢復狀態）、VLA 閉環資料、同一狀態下四種動作的 branch group（學動作差異）。訓練時把 10 步可微 rollout 的執行損失，連同固定 critic 對剩下 10 步的估值，一路經過 world model、凍結的 decoder 和 sampler 反傳，只更新 action head 的 LoRA（16.9M 參數，佔 1.64B 的 1%）。損失包含 root 漂移、任務轉換幀加權、以及防止機器人原地不動的 anti-stall 項。</p>
+<p><b>結果</b>：HumanoidArena（Isaac Lab，Unitree G1）四個任務共 240 個成對 episode，平均成功率從 59.2% 升到 71.7%。SitSofa 48.3→65.0、OpenDoor 65.0→78.3、Boxing 71.7→81.7、VisionNavi 51.7→61.7，VisionNavi 的跌倒率從 15.0% 降到 8.3%，McNemar 檢定顯著。每次成功所需的模擬步數平均少約 20%。world model 不需要精準，只需要方向對：它對 405 組反事實動作的四選一排序正確率是 70.4%（隨機 25%）。整個訓練只要 300 次更新，在兩張 RTX 4090 上約一小時。</p>
+<p><b>限制與疑問</b>：所有量化結果都來自模擬；實機 G1 只有定性展示，而且是用實機資料重新微調過，不是 zero-shot。world model 不做 on-policy 更新，策略移動太遠時梯度可能失準。anti-stall 幾乎只對 SitSofa 有效，看起來有點像針對任務調出來的項。</p>
+<p><b>為什麼值得看</b>：這是「用 world model 當可微模擬器來 fine-tune VLA」的乾淨範例，也提供了實用的檢查方法：先用反事實排序決定可信的微分視窗長度，再訓練。同一個框架可以延伸到 manipulation 的接觸力、腕部相機的 latent 動力學，或把 critic 換成 video world model 的獎勵。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>ICLWorld：同一個 agent，會用電腦，不代表會用機器人</h3>
+<p><a href="https://arxiv.org/abs/2611.32649">arXiv:2611.32649</a>　線上 benchmark：30 個環境、160 個帶有反直覺規則的任務，規則以文字或示範影片提供，用來測 agent 的 in-context learning。最強的 Claude Opus 5.5 與 GPT-6 Astra 在 computer use 上成功 82% 與 76%，robot use 只有 27% 與 26%。GPT-6 Astra 能正確回答 98% 的機器人規則問題，卻只完成其中 20% 的任務：知道規則和照著做是兩回事。</p>
+
+<h3>X-3DComposer：把物件當成「視角」，一次前向排好整個 3D 場景</h3>
+<p><a href="https://arxiv.org/abs/2611.32491">arXiv:2611.32491</a>　給場景影像、物件 mask 和任意來源的 3D 資產，把資產的 render 和場景影像一起丟進改自 VGGT-Ω 的多視角幾何模型。每個物件的旋轉、平移和逐軸縮放，可以從它的 render 的預測相機以封閉形式算出，約一秒完成。在 IndoorMix 上，場景級 Chamfer distance 比 SceneMaker 低 52%。</p>
+
+<h3>SplatTok：3DGS 壓縮不必保留原本的 primitive</h3>
+<p><a href="https://arxiv.org/abs/2611.32202">arXiv:2611.32202</a>　transformer 把一個 splat 編成空間錨定的 latent token，共用 decoder 再「重新合成」一組全新的 Gaussian，只用渲染結果監督。只靠輸入 splat 的 render，PSNR 就和 FCGS 相同，檔案小 4 到 6.5 倍（約壓縮 75–110 倍）；有原始訓練影像時，以小 13–41% 的檔案超過 HAC++。</p>
+
+<h3>Residual Guidance：串流影片生成換 prompt 時的「慣性」</h3>
+<p><a href="https://arxiv.org/abs/2611.32820">arXiv:2611.32820</a>　KAIST。chunk-by-chunk 的即時影片模型在使用者換 prompt 後，常常繼續照舊 prompt 生成，作者稱之為 context inertia。這個 training-free 的方法把上一個 chunk 重新加噪，在新 prompt 下、不帶 cache 去噪一次，把得到的 residual 加到下一個 chunk 的早期去噪步。每個 chunk 只多一次 forward，可直接套用到現有模型。</p>
+
+<h3>PhyCoVE：影片編輯模型改得了外觀，改不了物理</h3>
+<p><a href="https://arxiv.org/abs/2611.29184">arXiv:2611.29184</a>　533 個案例，涵蓋剛體、彈性體、流體的「反事實物理編輯」，例如移除物體、改變物理量、插入新物體後場景會怎麼演變。模擬案例由 coding agent 搭建，真實案例實拍。七個開源與商用模型中，最好的也只重現約七分之一的物理變化。</p>
+
+<h3>Skill Envelopes：凍結的 VLA 負責執行，程式碼負責收拾殘局</h3>
+<p><a href="https://arxiv.org/abs/2611.32245">arXiv:2611.32245</a>　把多個凍結的 VLA 技能串起來時，常在交接處失敗。原因是凍結技能會死板地重走習慣軌跡，撞上前一步留下的物件。作者量出每個技能成功時掃過的 3D 體積，做成 CHECK/FREE 兩個幾何工具。在 LIBERO-Goal 上用凍結的 π0.5，含抽屜的 3–4 步任務鏈成功率從 29.7% 升到 93.8%。</p>
+
+<h3>RePT：只學 2D 點之間的關係，3D 幾何自己長出來</h3>
+<p><a href="https://arxiv.org/abs/2611.31601">arXiv:2611.31601</a>　訓練目標是跨視角的 2D 點預測，預測的是「不同物理點之間」的關係，完全沒有 3D 監督。學到的關係空間中，大小與角度對應真實的 3D 位移：在 16 個場景上擬合的線性 readout，於 39 個未見場景上的 Pearson r 為 0.72 與 0.78。可以和 SpatialArena 一起讀，思考幾何表徵是否一定要直接回歸。</p>
+
+<h3>Loom Attention：讓 Transformer 每個 token 都能重新接線</h3>
+<p><a href="https://arxiv.org/abs/2611.30634">arXiv:2611.30634</a>　每個 head 除了沿 token 做水平注意力，也對前面 head 的輸出做垂直注意力，用 gated linear attention 存在第二條「矩陣 residual stream」裡。同樣 300B tokens、只多 2% FLOPs，LoomPythia-2.8B 在 0-shot 追平、5-shot 超過 Pythia-12B。HF 上今天票數最高的架構論文之一。</p>
+
+<h2>新聞與討論</h2>
+
+<h3>1Password 資安事件：員工 GitHub 帳號被盜，攻擊者推了惡意程式到後端</h3>
+<p><a href="https://1password.com/blog/update-on-nov-2026-security-incident">1Password 官方說明</a>　11 月 19 日起調查。攻擊者取得一名員工的公司 GitHub 帳號，看到原始碼、進入 CI/CD，並推送惡意程式到後端服務，下載了部分用戶的姓名、email、帳號 ID、SRP 參數，以及邀請和帳號復原 email 裡的 token。vault 內容與金鑰不受影響，因為那些只有用戶自己持有的金鑰才能解。1Password 已輪替內部憑證，並把邀請與復原驗證碼從 6 位數字加長為 10 位英數字。<a href="https://news.ycombinator.com/item?id=50644817">HN 討論</a>（703 分）裡，最高票留言指出，這正是所有 SaaS 被入侵的標準劇本：員工越多，總有一台筆電會失守。也有人追問，為什麼被盜帳號可以直接把程式推到正式環境，公告沒有交代 branch protection 的問題。</p>
+
+<h3>Google Cogentic 一次放出六篇論文，包括無條件的 L[1/3] 整數分解</h3>
+<p><a href="https://github.com/google-research/google-research/tree/master/cogentic_research_papers">Cogentic research papers</a>　Google 的數學 agent 框架 Cogentic（基於 Gemini 4）11 月 25 日上傳六篇論文。其中一篇證明整數分解可在期望時間 L_N[1/3, 105] 內完成，不依賴任何未證明的假設，等於讓 number field sieve 的 1/3 指數第一次有嚴格保證（之前的嚴格界是 Lenstra–Pomerance 1992 年的 L[1/2, 1]）。README 說完整證明已有只依賴 Mathlib 的 Lean 4 形式化，會另外釋出。另一篇給出確定性的次指數分解，以及二次非剩餘的建構。要注意，常數 105 遠大於啟發式 GNFS 的約 1.9，所以這是理論突破，不會直接威脅 RSA。<a href="https://news.ycombinator.com/item?id=50642086">HN 討論</a>（387 分）；同時 Reddit 上有「實驗室已破解多項式時間分解」的傳言（<a href="https://news.ycombinator.com/item?id=50643065">HN</a>），目前沒有任何證據。</p>
+
+<h3>Scott Aaronson：「我現在打從骨子裡覺得 P ≠ NP 的證明不遠了」</h3>
+<p><a href="https://scottaaronson.blog/?p=10379">Shtetl-Optimized</a>　接續昨天晚報提過的 ω = 9/4。Aaronson 寫到，晚餐甜點時間又看到 OpenAI 證明 Fourier transform 所需的線性閘數是 N(log N)^(1/2+o(1))，而且上下界相符，打破 FFT 從 1960 年代以來的 O(N log N)。他也說，從多個可靠來源得知實驗室手上還有密碼學方面的「炸彈」，但細節未經證實，所以不願散布。他呼籲：既然這些證明都附有 Lean 證書，就別再拿雞毛蒜皮的小事否認正在發生的事。留言區有不同意見，Ernest Davis 指出，Alpöge 的 RH 證明不到一週就有人寫出三份結構解說，證明並非人類無法理解。<a href="https://news.ycombinator.com/item?id=50646108">HN 討論</a>。</p>
+
+<h3>OpenAI 推翻 polynomial Hirsch conjecture</h3>
+<p><a href="https://github.com/openai/math/blob/main/preprints/Superpolynomial-graph-diameter-of-simple-polytopes-November-24-2026/paper.pdf">論文 PDF</a>　作者構造了一族有 n 個 facet 的 simple 有理多面體，它們的圖直徑成長得比 n 的任何固定次方都快，而維度是 n^o(1)。即使允許一步跨越任何低維面，仍然存在相距超多項式步的頂點對。Hirsch 原始的 n − d 上界早在 2010 年就被 Santos 以 43 維反例推翻，這次連「至少有多項式上界」也不成立。<a href="https://news.ycombinator.com/item?id=50644980">HN 討論</a>的重點是：這代表任何沿著邊走的 simplex pivot rule，在最壞情況下都不可能是多項式時間。也有人調侃，數學突破現在都以 GitHub patch notes 的形式出現了。</p>
+
+<h3>用 Lean 和差分測試檢查 Clojure 核心，找到 17 個沒人回報過的 bug</h3>
+<p><a href="https://s.conao3.com/blog/2026/e4f733">Conao3 Notes</a>　作者把 Java 實作的小函式建模成 Lean 中的 BitVec 運算，用 <b>bv_decide</b> 找反例；大型持久化資料結構則和 java.util 的集合做差分測試。最有代表性的兩個：vector-of 在 drop 後 reduce，元素數 ≥ 65505 時永遠不會結束，因為 0xffe0 這個 mask 把 bit 16 以上也清掉了（2010 年起就在）；HAMT 的 hash collision node 在 dissoc 時記錯了 hash，導致 map 印得出某個 key，get 卻拿不到。HAMT 和 vector 的樹本體在 300 萬次操作中沒有問題，bug 都藏在「兩種機制交會」的地方，例如 = 與 hash 的不一致。<a href="https://news.ycombinator.com/item?id=50642939">HN 討論</a>。</p>
+
+<h3>讓 Claude 把 Rockbox 移植到 9 美元、只有 512 KiB SRAM 的雜牌 MP3 播放器</h3>
+<p><a href="https://jayd.ml/2026/11/14/rockbox-on-yp3.html">Jayden's Blog</a>　晶片是網路上查不到資料的雙核 Cortex-M4，2 MB flash、沒有 cache，而現有最小的 Rockbox 目標也有 2 MiB 記憶體。作者幾乎只負責按 reset：agent 透過 ghidra-mcp 逆向韌體，把 task 注入原廠 FreeRTOS 來探測硬體，用攝影機看螢幕、用 line-in 聽音訊，一夜之間逆向出藍牙堆疊並寫好 HAL。之後改成 clean-room 流程：一個有 Ghidra 的「髒」agent、一個防止資訊外洩的裁判 agent、一個實作 agent。整理成工具包後，第二台播放器只花 4 小時就跑起 Rockbox。作者也提到，最早用 Codex/Sol 5.6 進度很慢，後來換成 Opus 5.5。<a href="https://news.ycombinator.com/item?id=50624446">HN 討論</a>裡不少人說，廉價硬體搭上 agent 寫的韌體，正是他們最近最著迷的事。</p>
+
+<h3>LoRA 的 rank 該設多大？用「資料集有幾個 bit」來預測</h3>
+<p><a href="https://engram.com/blog/lora-size">Engram 部落格</a>　核心想法是用 base model 下的負對數似然，把資料集大小換算成 bit。作者用反向 arithmetic coding 從隨機 bit 解碼出文字，造出「剛好 N bit」的合成資料，藉此量出不同 rank 的 LoRA 能記多少：容量隨 rank 遞減報酬，不像全參數微調那樣大致線性。他們也觀察到，學到多少新資訊，大約就會忘掉等量的舊資訊。在真實資料上，用這個方法預測所需 rank 的誤差在 5% 以內。對要替很多用戶各自維護 adapter 的人很實用。<a href="https://news.ycombinator.com/item?id=50635783">HN 討論</a>。</p>
+</article>
+</body>
+</html>
