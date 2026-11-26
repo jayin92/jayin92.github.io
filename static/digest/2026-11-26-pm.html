@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 晚報｜2026-11-26（週四）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 晚報｜2026-11-26（週四）</h1>
+<p><b>今日導讀</b>：今晚的主題是「凍結的大模型，靠外掛的結構撐起來」。NVIDIA 的 Agentic LongLive 不改影片生成器，只在旁邊放一個非同步的記憶 agent；Cairn 不動 VLA 的權重，只在去噪時用 3D 物體路徑把它拉回正軌；FoundSurface 則是站在凍結的 VGGT 上，把離散的 pointmap 變成連續的表面。新聞方面，Anthropic 放出更短的 GRH Lean 證明，Ubuntu 的 kernel 修補速度又被點名。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. Agentic LongLive：讓即時影片生成器有一個「不會讓畫面等它」的記憶 agent</h3>
+<p><a href="https://arxiv.org/abs/2611.34907">arXiv:2611.34907</a>｜cs.CV｜NVIDIA、MIT、CUHK（Song Han、Yukang Chen 等）</p>
+<p><b>問題</b>：即時的 autoregressive 影片生成器可以邊生成邊接收新 prompt，但長故事裡人物、物件和地點會慢慢走樣，因為它唯一的記憶是 KV cache（attention sink 加最近的視窗），錯誤會一路被複製下去。現有加上記憶的 agent 系統都假設離線：先讀完整個劇本、預先規劃每個 shot、失敗就重畫。作者列出即時情境的四個限制：不知道未來的 prompt、沒有長度上限、影片不能停下來等、也不能回頭重來。</p>
+<p><b>方法</b>：底層是凍結的 LongLive-2.0（Wan2.2-TI2V-5B，4 步、每個 shot 10.5 秒）。另一組 GPU 上跑記憶 agent，它只讀已經揭露的 prompt，不看生成的影片（open loop），為每個實體維護文字狀態和會演化的圖片。記憶分兩層：一張全域圖 G（主角與關鍵物件放在攝影棚背景上），以及每個 shot 的記憶圖 M_i，後者經凍結的 VAE 編碼後，在輔助 GPU 上預先填成 sink 的 K/V，生成器看到的是 [G, M_{i-2}, M_{i-1}]。prompt 提到某個實體時，會附上一張「entity card」描述它目前的狀態；另由 LLM 做場景路由，決定是回到已知地點還是新地點。關鍵在非同步：第 i 個 shot 的記憶在生成第 i-1 個 shot 時就開始準備，邊界時換上最新已預填好的版本，來不及就沿用舊的。planner 是 Qwen3-8B 的 LoRA，先 rejection-sampling fine-tuning，再用 GRPO，reward 結合文字、圖片、精確度等項，其中圖片項以下游影片結果做校準。</p>
+<p><b>結果</b>：在作者自建的 LongStory-Online（25 個故事、857 個 shot、約 150 分鐘）上，相對 LongLive-2.0 內建記憶，State 從 38.2 到 64.5、Identity 從 44.1 到 89.0、Location 從 68.8 到 98.0、Revisit 從 15.0 到 55.4，影像品質 0.667 到 0.729。Self-Forcing、CausVid、Rolling Forcing、Causal-Forcing 都明顯落後。速度方面，H100 上 15.9 FPS、等待 0 秒，而同步版 agent 只有 10.0 FPS、每個 shot 要等 9.40 秒。換到 MiniMax-H3 骨幹上也有類似提升。消融顯示 entity cards 單獨就把 Identity 拉到 86.5，但 Location/Revisit 要靠圖片記憶。</p>
+<p><b>限制與疑問</b>：完整系統要六張 H100，原本只要兩張。記憶永遠落後故事一個 prompt，當前 prompt 才第一次提到的變化可能來不及畫進記憶圖。benchmark 與 judge（Gemini 3.8 Flash）都是作者自己的，Hard 版故事也由 Gemini 撰寫；雖然用 GPT-5.5 重評了部分結果，仍值得保留。文中的 overhead 數字（+0.9% 與表內 16.0 對 15.8）也有些對不上。</p>
+<p><b>為什麼值得看</b>：這是把「記憶」從模型裡拉出來、變成平行系統的乾淨案例，而且把延遲當第一級限制。對 world model 和機器人 WAM 很有參考價值（作者也展示了 Long-WAM 的延伸）：policy 不能停下來等規劃，類似「下一步的 context 由旁邊的 agent 預先填好 KV」的設計可以直接搬過去。也可以想想把 open loop 改成會看生成結果的 closed loop 後，能不能修正漂移。</p>
+
+<h3>2. Cairn：用物體的 3D 路徑，在測試時引導凍結的 VLA</h3>
+<p><a href="https://arxiv.org/abs/2611.34914">arXiv:2611.34914</a>｜cs.RO｜University of Pennsylvania、Athena RC（Kostas Daniilidis）</p>
+<p><b>問題</b>：像 π0.5 這樣的 VLA 是不錯的低階控制器，但它把物體擺哪裡、怎麼走，綁死在訓練時的佈局上。把收納盒挪個位置或多放一個障礙物，它就放錯地方或撞上去。重新 fine-tune 要新資料又可能遺忘；OmniGuide 這類局部 3D 能量引導則會卡在 local minima，也不管被拿著的物體走什麼路線。</p>
+<p><b>方法</b>：Cairn 學一個「物體路徑先驗」：從抓取到放下，被拿著的物體以 K 個 SE(3) waypoint 表示（位置加 6D 旋轉），最後一個 waypoint 就是放置點，所以目標和路線一起推。網路建在 3DFA 上，場景用 Point Transformer V3 編碼，被抓物體有自己的 point-MLP 分支，指令用 CLIP，總共只有 4.35M 參數，以 rectified flow 加 SO(3) geodesic 旋轉項訓練，完全不用機器人動作。資料從 LIBERO 的 4,605 條人類示範，以 MimicGen 式重新錨定生成：移動收納位置、加入六類障礙物、用 MPLib 檢查可行性，得到 16,049 條示範和 79,470 條替代路線。測試時先取樣 VLA 自己「想怎麼做」，用來加權並精煉 16 條路線，剔除離場景 1.5 cm 以內的，取 medoid 當計畫；在 VLA 每次去噪中，用阻尼 Gauss-Newton 修正把預測的物體位置拉向下一個 waypoint，再加上旋轉與夾爪能量。VLA 權重完全不動。</p>
+<p><b>結果</b>：在 LIBERO-Shift（1,941 個 held-out 場景、約一半有障礙物）上，π0.5 單獨 24.5%，OmniGuide 24.8%，OmniGuide 加目標 50.9%，3D HAMSTER 29.2%，Cairn 95.1%，甚至高於 fine-tune 過的 π0.5（91.3%），而且原本的 LIBERO 成功率維持 97.0%（fine-tune 版掉到 70.5%）。每個 chunk 190 ms，π0.5 單獨是 128 ms。路徑品質上，先驗在 GPU 0.37 秒就給出平均 3.4 條不同路線，RRT-Connect 要 45.5 秒、只給一條。第三方的 LIBERO-PRO 上從 27.3% 到 38.0%。真機（Franka FR3、π0.5-DROID，先驗只用實驗室掃描複製場景的生成資料訓練）：「碗放到箱子後面」0/10 到 9/10，「放到櫃子頂端」0/10 到 8/10。</p>
+<p><b>限制與疑問</b>：引導只在抓取之後才開始，抓錯物體或沒抓到仍然失敗；LIBERO-PRO 40 個任務中有 13 個不是單次搬運，直接不引導。真機只有 3 個任務、各 10 次。沒有專門的 limitations 章節，訓練成本也沒寫。</p>
+<p><b>為什麼值得看</b>：它把「中層的物體中心幾何計畫」和「低階 VLA」用測試時引導接起來，而不是再訓一個大模型。消融顯示少了旋轉項掉 13.8 分、用密集 waypoint 掉 10.5 到 19.3 分，說明稀疏、物體中心的表示是關鍵。延伸想法：先驗改從人類搬東西的影片學（作者列為 future work），或接上 3D 重建模型直接從真實場景產生先驗的輸入。</p>
+
+<h3>3. FoundSurface：從沒有位姿的照片，一次前向重建連續的場景表面</h3>
+<p><a href="https://arxiv.org/abs/2611.34128">arXiv:2611.34128</a>｜cs.CV｜vLAR Group、The Hong Kong Polytechnic University、Regressor, Inc.（Bo Yang 等）</p>
+<p><b>問題</b>：DUSt3R 一路到 VGGT 的 pointmap 方法不需相機位姿，但輸出是離散、稀疏的點；RayDF、RayletDF 這類 ray-based 方法能給連續表面，卻需要準確的位姿或稀疏點雲。作者想要兩者兼得：從無位姿照片直接得到連續、高保真的表面，而且不做 per-scene optimization。</p>
+<p><b>方法</b>：由粗到細、由離散到連續的四個模組。第一，用預訓練 VGGT 取得 pointmap、位姿和內參，並把第 4、11、17、23 層的 patch feature 串接後用 MLP 融合。第二，以目標視角為中心挑參考視角：把各視角的 pointmap 投到目標視角做 pseudo-depth，依深度一致性投票，取重疊最多的 top-k（預設 2 張）。第三，粗略的 ray-surface 距離回歸：目標視角的 Plücker ray map 經卷積 tokenize，Transformer 交替做 self 和 cross attention 去讀參考特徵，輸出每條射線到表面的距離。第四，raylet 精修：沿用 RayletDF，把 pointmap 體素化後過 sparse convolution 取得 anchor 特徵，每條 raylet 找最近的 anchor，用 MLP 回歸殘差 Δd，法向量則以閉式解從精修後的點推出。訓練資料是九個有深度標註的公開資料集（BlendMVS、ScanNet、HyperSim、ARKitScenes 等），兩階段分開訓練，粗階段用 ℓ1 加梯度損失。</p>
+<p><b>結果</b>：在 out-of-domain 零樣本設定下，以 ADE（公尺，越低越好）和 VGGT 投影、PriorDA、CUT3R、FLARE、RayletDF 比較，在 ScanNet++、7Scenes、MultiScan、Replica、MuSHRoom、Tanks&amp;Temples 上 ADE 都是最低，例如 ScanNet++ 0.132 對 RayletDF 0.179，MultiScan 0.205 對 0.331；7Scenes 的差距則很小（0.123 對 PriorDA 0.154）。輸入 5 到 100 張圖都領先，單張圖也比 CUT3R 好。消融中拿掉 local coordinates 傷害最大。一個值得注意的分析是：VGGT pointmap 誤差在 5 cm 內時 ADE 只有 0.041，誤差超過 20 cm 就升到 0.534。（註：部分表格數字是由論文 HTML 的摘要轉述，引用前建議核對原文。）</p>
+<p><b>限制與疑問</b>：整個方法依賴大型 VGGT 骨幹，鏡子與透明玻璃會讓 VGGT 出錯，FoundSurface 會一起繼承；完整訓練約 288 A800 GPU-hours。我也好奇它和直接對 VGGT 輸出做 TSDF fusion 或 2DGS 後處理相比，在速度與品質上的差距，文中沒有這類比較。</p>
+<p><b>為什麼值得看</b>：這代表 feed-forward 重建的下一步：不是再換一個更大的 pointmap 模型，而是在凍結的幾何基礎模型上加一個「連續表面頭」。對需要 mesh 或碰撞幾何的機器人、AR 應用特別實用；誤差隨 VGGT 品質劇烈變化這點也提醒我們，下游表面品質的上限其實由骨幹決定，換成更新的骨幹可能是最便宜的提升。</p>
+
+<h2>快速瀏覽</h2>
+<p><b>VibeVideoAgent：讓寫程式產生影片的 agent 「看得到」自己的成品</b>（<a href="https://arxiv.org/abs/2611.34237">2611.34237</a>，Kling，HF 今日最高票）。用程式渲染影片的 coding agent，常常跑完沒報錯，畫面卻有標籤重疊、構圖失誤或音畫不同步。這個免訓練框架把多模態感知放在跟 coder 分開的短生命 context 裡，只回傳精簡的 Findings，並先在最小預覽上測最有風險的決定；在 239 個 VibeVideoBench 任務上，Claude Opus 5.5 的整體音畫品質從 4.03 提升到 4.43。</p>
+<p><b>SPARC：用幾何對應剪掉影片 DiT 的 attention，同時得到相機控制和場景記憶</b>（<a href="https://arxiv.org/abs/2611.34064">2611.34064</a>，Hujun Bao、Zhaopeng Cui 團隊）。已觀察過的 token 只 attend 幾何上對應的歷史 token 和局部時空鄰居，沒看過的區域保留 dense attention，不需額外的控制或記憶模組。作者報告相機跟隨、回訪一致性與畫質都更好，搭配四步蒸餾推論加速超過 50 倍。</p>
+<p><b>SplatWAM：直接在 3D Gaussian 上做 action-conditioned world model</b>（<a href="https://arxiv.org/abs/2611.33467">2611.33467</a>）。tokenizer 把任意數量的無位姿視角變成固定數量的 Gaussian token，dynamics 模型每個 action 一次前向就預測下一個 Gaussian 狀態。在 OGBench Scene 上新視角渲染比影片 world model 快 12 倍（RTX 5090 約 80 FPS）、PSNR 高最多 2.0 dB；約 1B 的模型在 LIBERO 上贏過約 7B 的 WorldVLA 和 OpenVLA。</p>
+<p><b>JetDiffusion：NVFP4 稀疏 attention，讓 Wan2.1-14B 端到端快 273 倍</b>（<a href="https://arxiv.org/abs/2611.33268">2611.33268</a>，Hao Zhang 團隊）。可訓練的 Video Sparse Quantized Attention 在 90% 稀疏度下比 FlashAttention 快 8 到 29 倍，再加上 NVFP4 線性量化和步數蒸餾。作者坦言三者聯合適應很難，因此設計了分階段的訓練流程，最後在 RTX 5090 上以相近畫質達到 273 倍加速。</p>
+<p><b>RoboARC：VLA 一題都解不出來的物理謎題</b>（<a href="https://arxiv.org/abs/2611.33390">2611.33390</a>，Guanya Shi、Manling Li、Jianfeng Gao 等）。90 個 MuJoCo 任務、六種空間限制、三台機器人。最強的 coding agent（Codex 裡的 GPT-6 Astra）在有完整模擬狀態時解出 86%，換成真實感測器、只能試一次時剩 43%；四個 zero-shot VLA 在 18 個單臂謎題上全數掛零。給 agent 物體位姿加零件幾何，成功率從 24% 跳到 60%。</p>
+<p><b>DexEngine：把人類手物互動資料變成機器人能執行的整機軌跡</b>（<a href="https://arxiv.org/abs/2611.33579">2611.33579</a>，Minsu Cho 團隊）。把每段人手動作放進手臂可達範圍、求出跟隨人手的手臂動作，再在物理模擬裡用 residual RL 修正。從九個資料集產出四種靈巧手各約 5,200 段，擴增成 65,000 條軌跡（116 小時）；比 floating-hand 方法追蹤更準，比 RL 方法快 10 倍以上，用它 mid-train 的 policy 在模擬與真機上都更好。</p>
+<p><b>Best-of-N 引導會讓 VLA 學會 reward hacking</b>（<a href="https://arxiv.org/abs/2611.33398">2611.33398</a>，NeurIPS 2026 Physical World AI workshop）。用 π0.5 在 60 個 LIBERO-Safety 案例上實驗：verifier 不準時，N 越大反而越容易挑到利用 verifier 誤差的動作。verifier 校準和 softmax 取樣在部分設定下能緩解，和今天的 Cairn 一起看，正好是「測試時引導」的兩面。</p>
+
+<h2>新聞與討論</h2>
+<p><b>Anthropic 放出更短的 GRH Lean 證明</b>：<a href="https://github.com/lsernau/grh-lean">lsernau/grh-lean</a> 是 Riemann Hypothesis 與 Dirichlet L-function 的 GRH 的 Lean 4 證明，基於 Levent Alpöge 的證明、與 Anthropic 同事和 Claude 合作完成，只用 Mathlib 的三個標準公理。它有約 30 萬行的可讀版和約 7.6 萬行的精簡版，12 核、24 GB 記憶體要建一到兩小時。README 也直說：目前只通過機器檢查，還沒有數學家完整讀過，也沒有論文。<a href="https://news.ycombinator.com/item?id=50648050">HN 討論</a>的焦點是「信任什麼」：有人指出 GRH 的定義直接取自被大量使用的 Mathlib，所以真正要問的是陳述對不對，而不是 Lean 有沒有編譯過。</p>
+<p><b>GPT-6.2 Astra 首次贏過 Google 內部 code golf 紀錄</b>：<a href="https://bjin.github.io/go-codegolf-benchmark/#leaderboard">go/codegolf benchmark</a> 取自 2015 年 Google 內部比賽的 32 題、8 種語言，分數是（最佳已知長度 ÷ 你的長度）的平方。在 JS/Python/C++ 合計上，Astra 92.265% 對人類紀錄 87.533%，三個語言都領先，96 格中有 62 格破了人類紀錄，人類仍守住 14 格。<a href="https://news.ycombinator.com/item?id=50601280">HN 上</a>有人引用自己的對戰評測：Astra 寫程式贏 65%，寫作與討論卻只贏 30%，強項相當集中。</p>
+<p><b>Ubuntu 的 kernel 安全修補太慢，加上一個 12 年的 NFS pre-auth root</b>：Hanno Böck 在 <a href="https://www.openwall.com/lists/oss-security/2026/11/25/9">oss-security</a> 指出，Linux TCP 的遠端記憶體破壞漏洞 NoisyTCP（CVE-2026-99288）公開九天後，其他發行版都修了，Ubuntu 還沒有；AMD 虛擬化的 KVM host escape 也一樣。他認為 Ubuntu LTS 跑的 7.0 kernel 不是 longterm 版本，要 backport 幾乎不可行，建議改用 longterm kernel。同一天的 <a href="https://news.ycombinator.com/item?id=50647161">Nfs2root</a>（CVE-2026-99362，nfsd 的 pre-auth heap overflow）原文我們無法讀取，但 HN 留言指出修補已進入 6.12.117、6.18.61、7.3.2 等分支，偏偏沒有 Ubuntu 26.04 用的 7.0。<a href="https://news.ycombinator.com/item?id=50647181">Ubuntu 討論串</a>則在吵：stable kernel 維護者早說過要整包跟 stable release，不能自己挑 patch。實驗室有 NFS 伺服器的話值得檢查一下。</p>
+<p><b>Bare Metal Qwen：純組合語言、開機就跑 Qwen3-0.6B</b>：<a href="https://github.com/alesha-pro/llm.asm/tree/main/02-baremetal-os">llm.asm</a> 的第二階段是一個可開機的 x86-64 OS，沒有 Linux、libc、C 或 Rust，kernel 只有 24,252 bytes，冷開機 74 到 94 ms 就進入對話，QEMU/KVM（EPYC 7642、16 vCPU）上解碼 134.9 tok/s，且和第一階段 token 完全一致。作者聲稱在每種執行緒數都贏過 llama.cpp 的 CPU Q8_0，這點未經驗證；<a href="https://news.ycombinator.com/item?id=50648365">HN</a> 上也有人提醒，很多「贏過 llama.cpp」其實是靠過度量化換來的。</p>
+<p><b>Minipg：一個執行檔就是一個 PostgreSQL</b>：Jeff Lindsay 的 <a href="https://progrium.github.io/minipg/">Minipg</a> 把資料、設定、帳密和 Postgres 版本放進一個 .pgdb 目錄，需要時自動啟動、閒置就停。它內嵌 Docker Hub 的 postgres:18-alpine，透過 Zig 寫的 h9 執行，不用 VM 也不用 Docker；支援 Linux x86_64/arm64 和 Apple Silicon，作者也提醒還很早期，native backend 單一 client 約慢 2 倍。<a href="https://news.ycombinator.com/item?id=50650892">HN</a> 上主要拿它和 WebAssembly 的 pglite 比較。</p>
+<p><b>輕鬆一下：保存下來的 UI style guide 合集</b>：Marcin Wichary 整理的 <a href="https://aresluna.org/ui-style-guides/">UI style guides</a> 從 1980 年的 Apple Lisa 到今天的 Windows，涵蓋 Amiga、NeXTSTEP、Newton、Palm OS、PenPoint、OPEN LOOK、BlackBerry、Symbian 等，每份都附 PDF 或封存連結，也能一次打包下載。<a href="https://news.ycombinator.com/item?id=50649834">HN</a> 上有人用 Claude 檢查連結，抓到 Symbian Belle 的 PDF 其實指向 2010 年的 Symbian^3 檔案。</p>
+</article>
+</body>
+</html>
