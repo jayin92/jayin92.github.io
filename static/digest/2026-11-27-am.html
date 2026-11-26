@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 早報｜2026-11-27（週五）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 早報｜2026-11-27（週五）</h1>
+<p><b>今日導讀</b>：今天的主題是「訓練資料不夠，就換一個地方找」。CMU 的 I2VT 讓影片編輯器只看單張圖片就學會改動作、改表情；WorldReforge 用 6 萬多條模擬的失敗抓取，補上機器人 world model 從沒見過的「出錯物理」；Real2SimLab 則把「看影片寫模擬程式」這個新方向的評測和訓練資料，整理成一個共用平台。新聞方面，Google 要求 AI agent 改走它的 Workspace MCP，紐約時報因為 AI metadata 叫攝影師別更新 Photoshop。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. I2VT：影片編輯器只看圖片，就學會改動作、改表情和重新打光</h3>
+<p><a href="https://arxiv.org/abs/2611.34941">arXiv:2611.34941</a>｜cs.CV｜Carnegie Mellon University、Nanyang Technological University、University of Michigan、UTS｜HF 43 upvotes</p>
+<p><b>問題</b>：圖像編輯模型已經能依指令做很細的修改，影片編輯器卻還停在基本款，連物件移除都只算普通，更別說改一個人的動作、表情、身體姿勢或場景打光。主要瓶頸是成對的「原始影片 / 編輯後影片」資料很難做：編輯結果必須整段都照指令改，其他地方又不能動。作者的問題是：能不能不收集任何新影片，就把圖像編輯器的能力搬到影片編輯器上？</p>
+<p><b>方法</b>：關鍵觀察是「一張圖就是一幀的影片」，而且現在很多圖像與影片編輯器共用同一個 VAE latent 空間（這裡是 16 通道的 Wan 2.1 VAE）。I2VT 讓影片編輯器（student）「扮演」圖像編輯器：把一張圖當成單幀影片，從純噪聲沿著自己的去噪軌跡走，每一步把當下的 noisy latent 丟給凍結的圖像編輯器 JoyAI-Image-Edit（teacher），讓 teacher 給出目標 velocity，student 再用 stop-gradient 的 velocity matching loss 去對齊。這是一種 on-policy 的線上蒸餾，對照組是先用 teacher 產生編輯後圖片、再拿來做 flow matching 的離線蒸餾。三個 CFG scale（rollout、student、teacher）各自可調，在 student 較弱的動作與身體動作任務上會加大 teacher guidance。資料 I2VT-17K 是從 OpenVE-3M 抽出的單張畫面，新任務的指令由 VLM 先描述畫面再撰寫，並過濾掉畫面不具備條件的編輯（例如要舉手，手必須看得見且還沒舉起）。只用 LoRA 微調 200 步，1.3B 模型約 20 A100 GPU-hours，14B 模型約 20 到 25 B300 GPU-hours。</p>
+<p><b>結果</b>：作者另外推出 OpenVE++，在 OpenVE-Bench 上加了動作、表情、身體動作、打光四類共 207 段影片。評分用 Gemini 2.5 Pro（以及 Gemini 3.8 Flash）依 1 到 5 分打分。基本編輯上，Bernini-R-1.3B 從 3.10 升到 3.48，VideoCoF 從 2.29 升到 3.19，Bernini-R-14B 從 3.33 升到 3.68。新任務上進步更大：VideoCoF 從 1.17 跳到 3.33，Bernini-R-1.3B 從 1.66 到 2.99。合併訓練後的 I2VT-14B 在 OpenVE-Bench 得 3.58，超過 VInO（17B，3.32）和 JoyAI-Video-Edit（16B，3.28）；I2VT-CoF 在 OpenVE++ 的 Gemini 3.8 Flash 評分達 4.01，VInO 是 3.31。離線蒸餾的對照很有意思：三種離線設定在新任務上也學得會，但基本編輯整體幾乎沒進步（3.08 到 3.19），I2VT 則是 3.48。VBench 的時間一致性指標前後差不多。</p>
+<p><b>限制與疑問</b>：主要分數全靠 Gemini 當評審（附錄有 user study），且 OpenVE++ 是作者自己做的，又只有 207 段。單幀訓練能否處理真正需要跨幀推理的編輯（例如「站起來」這種動作的時間過程），論文主要靠 qualitative 圖和 VBench 支撐；VBench 測的是穩定度，不是動作是否自然。方法也依賴 teacher 與 student 共用 latent 空間，不同 VAE 的組合就用不上。</p>
+<p><b>為什麼值得看</b>：這是「用便宜模態的 teacher 教昂貴模態的 student」很乾淨的一個例子，而且 on-policy 蒸餾比離線蒸餾好這個結論，跟 LLM 那邊的經驗一致。對做 world model 或 robot video generation 的人來說，同樣的招數可以拿來注入單張圖片上容易取得的能力，例如用圖像的 depth 或 relighting 模型當 teacher，去強化影片模型。</p>
+
+<h3>2. WorldReforge：機器人 world model 只看過成功示範，用模擬的失敗抓取補課</h3>
+<p><a href="https://arxiv.org/abs/2611.33925">arXiv:2611.33925</a>｜cs.RO｜浙江大學、上海創智學院（Chunhua Shen、Hao Chen 團隊）｜HF 13 upvotes</p>
+<p><b>問題</b>：action-conditioned world model 越來越常被拿來評估和規劃 policy，但機器人資料幾乎都是成功示範。只要抓取偏了一公分或夾太早，物體就會被推走、傾斜或滑掉，而這些「出錯的物理」模型幾乎沒看過。作者先做診斷：五個預訓練模型（Cosmos3 Edge/Nano/Super、DreamDojo、LingBot-VA）在物體運動誤差上，最多只比「直接複製第一幀」的靜態 baseline 好 10.4%，DreamDojo 和 LingBot-VA 甚至更差。拿這樣的模型評估 policy，很可能高估 policy 的能力。</p>
+<p><b>方法</b>：先做 Reforge 資料集：用 RoboLab 和 cuRobo 生成成功的參考抓取，再對末端執行器的平移、旋轉和夾爪閉合時機加擾動，共 62,125 條模擬軌跡、96 個物體，其中 13,577 條與失敗有關，每條都有物體 pose、接觸、表面點等 ground truth；另收 300 條真實失敗軌跡（Reforge-Real）只做評測。訓練上，在 flow matching 之外加兩個輔助 loss，推論時都不增加參數。Interaction Alignment（IA）用物體與接觸區域的 soft mask，對 clean-future 估計做依面積正規化的局部重建，避免小小的接觸區被全域 loss 淹沒。Surface Correspondence（SC）把物體表面點經由模擬器的物體和相機變換投影成跨幀軌跡，要求 backbone 的中間特徵能用 cosine similarity 的 softmax 在未來幀找到同一個表面點。</p>
+<p><b>結果</b>：在 Cosmos3 Nano 上，WorldReforge 把物體 ADE 從 9.07 降到 6.51（整體降 28.2%），沒見過的物體降 35.0%；預測「兩個不同動作會造成多不同的結果」的誤差降 43.3%。只在模擬裡訓練，DROID 上 PSNR 提升 1.04 dB，真實失敗影片提升 0.68 dB。資料組成實驗指出分工：加入夾爪閉合卻沒夾住的失敗，讓這類接觸的物體誤差降 18.0%；但「抓住後保持穩定」仍然要靠成功的持握資料來教。</p>
+<p><b>限制與疑問</b>：表格裡藏了一個值得注意的數字：DreamDojo 只用 Reforge 資料做 post-training，物體 ADE 反而從 9.57 變差到 11.81，加了 IA 和 SC 也只到 11.62，所以這招並非對每個 backbone 都有效。任務只有單一抓取，作者也說長時程操作留待未來。評測主要在自己的模擬 split 上，真實影片只用 PSNR/SSIM，沒有量真實物體軌跡。</p>
+<p><b>為什麼值得看</b>：「world model 幾乎打不贏靜態 baseline」這個診斷本身就很有警示意義，做 world-model-based policy evaluation 的人都該在自己的設定上跑一次。SC 這種用模擬 ground truth 監督生成模型內部特徵的做法，也可以延伸到 3DGS 或 point tracking 的 supervision 上。</p>
+
+<h3>3. Real2SimLab：讓 coding agent「看影片寫模擬程式」有一個共同的考場</h3>
+<p><a href="https://arxiv.org/abs/2611.34849">arXiv:2611.34849</a>｜cs.RO｜北京大學（通用人工智能國家重點實驗室）、香港大學、Ngoro Robotics｜HF 101 upvotes，今天最高</p>
+<p><b>問題</b>：real-to-sim 有個新做法：直接請 coding agent 看一段影片，寫出能重現該事件的模擬程式。程式可以重播、換視角渲染，還能讀出每個物體在每個時刻的狀態。但相關 benchmark 各自為政：Physics-IQ 給前 3 秒影片、評接下來 5 秒的畫面；Video2World 要一個含場景和機器人動作的模擬套件；4DCodeBench 要建 4D 世界的 script；PhysCodeGym 要 Blender 場景。每對方法和 benchmark 都要寫 adapter，結果難以比較。</p>
+<p><b>方法</b>：平台把「method 交出的程式」當成共同介面。每個 task 是一個資料夾，分成 visible/（影片、相機參數、場景描述）和 hidden/（參考答案、官方 scorer 的輸入），hidden 永遠不掛進 agent 的 sandbox。agent 交件後，平台會把程式凍結、算 fingerprint，再離線從唯讀目錄重跑一次，對重跑的輸出打分，因此分數只反映程式本身，跟寫程式時的 session 無關。平台也檢查 session-consistent（重跑結果和 session 內一樣）和 reproducible（同 seed 跑兩次一樣）。6 個 benchmark 裡有 5 個保留官方 scorer；IRIS 和自家的合成套件（彈跳球、阻尼擺、滑塊、帶阻力拋射、雙球碰撞）則用「reproduction skill」，以靜態場景的誤差當作 0 分，完全重現是 1 分。訓練資料管線會把影格縮成縮圖、在所有時間位移下比對，濾掉和評測集重疊的錄影。</p>
+<p><b>結果</b>：這是平台論文，作者明說還沒系統比較各方法，也還沒用自己的資料訓練任何模型。目前接了 Harbor 上的 47 個 agent（含 OpenHands、Aider），Codex、Claude Code、Gemini CLI 等 5 個也能直接在 sandbox 裡跑。adapter 的驗證包括 Physics-IQ 分數與官方 pipeline 一致、Video2World 參考套件能重現 Push-T 的成績。去污染檢查在 40 個改過編碼、縮放、裁切的合成評測影片副本中抓到 36 個，而且在真實資料上抓出 PhysCodeGym 從 Physics-IQ 重用的全部 27 段 clip。另附一份整理近 300 篇 real2sim 論文的 Awesome-Real2Sim。</p>
+<p><b>限制與疑問</b>：沒有任何 agent 的實際排行榜，價值要等社群跑起來才看得出來。IRIS 只接了八類裡的「掉落球」一類，而且分數與原 benchmark 的參數還原分數不可比。訓練資料目前主要靠五種簡單合成現象，離真實場景很遠。</p>
+<p><b>為什麼值得看</b>：PhysCodeGym 重用了 27 段 Physics-IQ 測試影片這件事，本身就是值得記住的提醒：拿公開影片拼訓練集時，很可能已經把別人的測試集吃進去了。對做 physics-aware video model 或 real2sim2real 的人來說，「凍結後重跑才評分」的設計也很值得借用。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>PyRUA-Dex：不用示範，讓 coding agent 寫出雙手靈巧操作的程式化 policy</h3>
+<p>北大團隊讓多個 coding agent 平行探索技能與組合方式，再由一個 distilling agent 把成功嘗試濃縮成技能庫和一支程式，最後在隨機化場景中精修。Bench2Dex 得 72.9 分，DexJoCo 在完全隨機化下成功率 81.0%，兩者都超過所有訓練出來的 policy。真機上用兩隻 22-DoF 的手彈鋼琴、寫書法，學一首新曲子最快只要 30 分鐘。<a href="https://arxiv.org/abs/2611.33144">arXiv:2611.33144</a></p>
+
+<h3>RoboEvo²：harness 和 policy 互相拉著進步</h3>
+<p>policy 失敗時，coding agent 去搜尋 Code、Code+ICL、Code+Policy 等補救路線，把驗證過的解法存成技能和記憶；驗證過的軌跡再回頭訓練 policy，並用 Counterfactual Preference Distillation 讓它偏好「同一起點下成功的修正」。LIBERO-PRO 上單獨 policy 成功率從 11.0% 升到 84.1%，混合模式從 30.4% 到 90.5%，Unitree G1-D 上混合成功率 95.0%。<a href="https://arxiv.org/abs/2611.34675">arXiv:2611.34675</a></p>
+
+<h3>HOG-WAM：預測未來的 HOG 特徵，讓 world-action model 不怕畫面雜訊</h3>
+<p>在 FastWAM 旁邊加一個只在訓練時使用的 HOG DiT，用非對稱 attention 讀 RGB 特徵，預測未來幀的方向梯度直方圖，推論時移除。RoboTwin 混合雜訊下成功率從 78.86% 到 82.86%；四個 Franka 真機任務的平均成功率從 40% 到 59%。一個復古的手工特徵當輔助監督，在真機上的收穫比在模擬中大。<a href="https://arxiv.org/abs/2611.34811">arXiv:2611.34811</a></p>
+
+<h3>Integral（KAIST）：讓 VLM 透過自己的表示來生成圖片</h3>
+<p>作者認為統一多模態模型難做，主因是理解與生成用了不同的視覺表示。Integral 從凍結的 vision encoder 聚合多層特徵成共享 visual token（Abstraction Fusion），再加一條只在 block 邊界與 VLM 互動的輕量生成支路（Block-wise MoT）。對照實驗顯示，在重建品質相近時，共享表示明顯比分開的表示好學生成。<a href="https://arxiv.org/abs/2611.31237">arXiv:2611.31237</a></p>
+
+<h3>Mixture-of-Loops Transformer（ByteDance Seed / 華科）：looped Transformer 每圈之間該傳什麼？</h3>
+<p>MoLT 用 KV 當作跨層、跨圈的記憶來選擇性重用；U-MoLT 把記憶建構和預測讀出分開。400B token 預訓練下勝過 OLMo3 的 700M/1.5B dense 和 3B MoE，在 700M 規模有 1.7 倍的 cross-entropy token 效率；推論延遲與非 looped 的 OLMo3 相當（996.6 vs 1,000.6 ms）。<a href="https://arxiv.org/abs/2611.34923">arXiv:2611.34923</a></p>
+
+<h3>DyLoMo-DiT：把 looping 和 MoE 一起放進 diffusion transformer</h3>
+<p>中間層以共享權重重複執行，加上稀疏 expert，而且依噪聲程度決定跑幾圈，低噪聲步驟多跑幾圈效果更好。ImageNet 256 上相同參數與計算量下，FID 比 DiT 低 11% 到 24%；文生圖 GenEval 0.714，勝過 FLUX.1 的 0.673，啟用參數卻只有 1.05B 對 12B。和上一篇放在一起看，「looping」顯然正在從 LLM 擴散到生成模型。<a href="https://arxiv.org/abs/2611.30844">arXiv:2611.30844</a></p>
+
+<h3>GOLD-SLAM：全景相機加 LiDAR 的 Gaussian splatting SLAM</h3>
+<p>在球面域做 tracking 和 mapping，在 LiDAR 掃不到的區域改用追蹤的視覺特徵輔助位姿估計，並以 DAEP 處理新表面覆蓋不足和漂浮物。和既有全景 baseline 相比，平均 PSNR 高 5.56 到 9.10 dB，Depth-L1 降 71.9% 到 83.9%。另附 UAV 採集的 WHOLE 資料集，也能在 Jetson Orin NX 上線上執行（重建品質會打折）。<a href="https://arxiv.org/abs/2611.32335">arXiv:2611.32335</a></p>
+
+<h3>WorldBridge：從幾乎沒有重疊的零散照片生成一致的 3D 世界</h3>
+<p>把零散參考圖編碼成全域場景 context，用時間與空間 reference attention 指引沿軌跡的生成，再以重投影引導的 test-time optimization 提升對參考圖的忠實度。作者也推出低重疊參考圖的評測組。摘要只說超越既有 SOTA，沒給具體數字。<a href="https://arxiv.org/abs/2611.34079">arXiv:2611.34079</a></p>
+
+<h2>新聞與討論</h2>
+
+<h3>Google：AI agent 從 2027 年 2 月起必須走 Workspace MCP，而 Gmail 的 MCP 不能寄信</h3>
+<p>Google 在 11 月 24 日正式推出八個 Workspace MCP server，並在 API 條款新增附錄：從 2027 年 2 月 1 日起，凡是「由 AI agent 驅動」的工具都必須透過這些 server 存取 Gmail、Drive 等服務，直接打 REST 的 agent 會被限在 Standard 配額。問題是公開版 Gmail server 只能搜尋、讀信、建立草稿，寄信、回覆、轉寄和修改草稿都是「partner-only」；Drive 也不能移動、改名、分享。附錄還規定由 Workspace 資料建出的 embedding、記憶索引最多只能保留 30 天，並禁止拿這些資料訓練或蒸餾。免費額度是每專案每產品每天 5,000 次 MCP 請求，但一次 Gmail 搜尋算 10 次。<a href="https://techstackups.com/articles/google-workspace-ai-agents-mcp/">原文</a>｜<a href="https://news.ycombinator.com/item?id=50653477">HN 討論</a></p>
+<p>HN 上有人指出，MCP 本來就有 elicitation 機制可以在送出前要求使用者確認，所以把寄信設成 partner-only 看起來更像商業決定，而不是安全考量。</p>
+
+<h3>紐約時報要求攝影師不要用 Photoshop 2027，因為 AI 功能會在 metadata 留下標記</h3>
+<p>NYT 寄給特約攝影師的信要求，為紐時工作時不得使用 Photoshop 2027（28.0.0 以後的版本），因為新版以「使用者未必察覺的方式」使用 AI，可能讓照片的 metadata 被標成 AI 生成。Adobe 從八月開始在各 app 支援 C2PA metadata，而現在連一些舊的自動選取工具都可能被算進 AI 功能。對一個只允許最低限度調色的新聞編輯台，這種標記會直接傷害讀者信任。<a href="https://www.theverge.com/ai-artificial-intelligence/1041227/the-new-york-times-warns-photographers-not-to-update-photoshop-over-ai-features">The Verge</a>｜<a href="https://news.ycombinator.com/item?id=50647673">HN 討論</a></p>
+<p>一位在創作工具業工作的留言者說，這是目前最大的問題之一：只看最終圖片，根本分不出「整張 AI 生成」和「用 AI 去背或調色」，而 provenance 標記把兩者混為一談。</p>
+
+<h3>NP_ℝ ≠ PAR_ℝ：接著 VP ≠ VNP 之後，又一組由 AI 推出並以 Lean 形式化的複雜度分離</h3>
+<p>Samuel Everett 和 Deven Mithal 公開一個 repo：在 Blum–Shub–Smale 實數計算模型中，實數 permanent 的圖形屬於平行多項式時間 PAR_ℝ，但不在 NP_ℝ、coNP_ℝ、Σ₂ 和 Boolean 訊息的互動證明 BIP_ℝ 裡。證明是 Claude Fable 5.2 在與作者對話中找到的，起點來自 ChatGPT Astra 6.2 先證出的一個結果。Lean 4 形式化約 36,000 行，沒有 sorry，但所有分離都以 Anthropic「VP ≠ VNP」稿件中的 permanent 下界作為明確的假設，論文也還沒經過同儕審查。<a href="https://github.com/samueleverett01/bss-permanent-separations">GitHub</a>｜<a href="https://news.ycombinator.com/item?id=50657059">HN 討論</a></p>
+<p>HN 討論的焦點反而是「功勞算誰的」：有人說自己只是一直叫模型「繼續」，有人戲稱這是「證明的執行製作人」。</p>
+
+<h3>NVIDIA 的 45°C 冷卻液入口溫度，可能讓新資料中心不再需要冰水主機</h3>
+<p>The Register 報導 SC26 的觀察：過去液冷系統大多在 30 到 35°C，NVIDIA 把零件允許的入水溫度拉到 45°C 後，屋頂的乾式冷卻器在多數氣候下就夠了，昂貴又耗電的 chiller 可以拿掉。文章引用的估算是冷卻能耗降 50% 到 70%，總電力降 10% 到 20%，用水降 80% 到 95%；一家冷卻廠商說入水溫度每提高 1°C，冷卻能耗成本降 3% 到 4%。AMD、Intel、Arm 目前還沒有公開跟進。<a href="https://www.theregister.com/hpc/2026/11/26/45c-inlets-just-killed-the-chiller-most-people-havent-noticed-yet/5311831">The Register</a>｜<a href="https://news.ycombinator.com/item?id=50655278">HN 討論</a></p>
+<p>留言提醒，元件溫度每高 10°C 老化速度約加倍的經驗法則，代表壽命問題還沒有答案。</p>
+
+<h3>「OpenAI 可能進入成本控制模式」：GPT-6.2 的推理 token 明顯變少</h3>
+<p>一個以實際工作任務做模型對戰的排行榜作者分析，Astra 6.2 和 Sol 6.2 與前代相比，每個任務的輸出 token 和推理 token 都顯著下降（Sol 的推理 token 下降 p 值為 0.00013），成了「想太少」的離群值，這或許能解釋新版口碑不佳的原因。這是單一資料來源的分析，看看就好。<a href="https://micjm.com/blog/openai-is-in-cost-control-mode/">原文</a>｜<a href="https://news.ycombinator.com/item?id=50652527">HN 討論</a></p>
+
+<h3>AMD 顯卡跑 llama.cpp：一組可重複套用的 RDNA 補丁</h3>
+<p>作者抱怨最近冒出很多專用推論引擎，為了 tokens/s 開始改模型的行為，例如 Strata 會偏好已在 VRAM 裡的 expert，即使正常 routing 應該選別的。他改用 llama-cpp-rdna-boosts：一小組持續 rebase 到 llama.cpp 新版的 AMD 補丁，在 R9700 上跑 27B 模型時，生成速度從 35 升到 55 tokens/s，prefill 從 700 升到 1300 tokens/s。<a href="https://devnull.land/amd-specific-llama-cpp">原文</a>｜<a href="https://news.ycombinator.com/item?id=50657265">HN 討論</a></p>
+
+<h3>輕鬆一下：Lions' Commentary on Unix 被偷偷影印了 20 年</h3>
+<p>一篇漫畫講 John Lions 1976 年在新南威爾斯大學為 Unix V6 原始碼寫的講義：AT&amp;T 在 1979 年改了授權、禁止在課堂上討論原始碼後，學生靠盜印本讀了將近二十年，直到 1996 年才正式出版。MIT 的 xv6 教學系統就是延續這個傳統。<a href="https://fosscomics.com/posts/17.%20Lions%27%20Commentary%20on%20Unix/">原文</a>｜<a href="https://news.ycombinator.com/item?id=50651719">HN 討論</a></p>
+
+<h3>輕鬆一下：Karpathy 把美國畫成文明帝國風格的地圖</h3>
+<p>usaciv 把真實的美國經濟畫成 4X 策略遊戲的六角格地圖，城市有產出、有資源和 lens 圖層，資料全部來自 Census ACS、BEA、NOAA、USGS、EIA 等公開來源。這是互動網頁，適合之後在電腦上打開玩。<a href="https://karpathy.ai/usaciv/">usaciv</a>｜<a href="https://news.ycombinator.com/item?id=50658997">HN 討論</a></p>
+</article>
+</body>
+</html>
