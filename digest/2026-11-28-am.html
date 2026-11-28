@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 早報｜2026-11-28（週六）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 早報｜2026-11-28（週六）</h1>
+<p><b>今日導讀</b>：arXiv 今天沒有新列表（頁面還是 11/26 週四那一批，應是美國感恩節假期），所以這期從那批裡挑出前兩期沒談的論文，再加上 HF 上仍在被按讚的幾篇。主題剛好串成一條線：怎麼讓「3D 幾何」和「學到的先驗」互相撐住，不管是 NVIDIA 用 mesh 加點雲把長影片釘住，Oxford 把 metric depth 塞進 initialization-free BA，還是 BAAI 把 VLM、video model 和 action model 綁成一個系統。新聞則有不少和「驗證」有關的故事：proof checker 的 soundness bug、一篇有條件的離散對數演算法，以及 Michael Nielsen 撤下他的神經網路教科書。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. VivaWorld：用「重建的點雲＋生成的 mesh」把 1,000 幀長影片釘在 3D 裡</h3>
+<p><a href="https://arxiv.org/abs/2611.33591">arXiv:2611.33591</a>｜cs.CV｜NVIDIA（Ying Jiang、Donglai Xiang、Anita Hu、Masha Shugrina）</p>
+<p><b>問題</b>：從一張圖生成長影片的 camera-controlled world model，短片段都很好看，拉長之後就會出現 camera drift、物體變形、數量變錯。作者認為原因有二：現有的 3D 記憶（點雲、3DGS）只覆蓋輸入視角看得到的區域，看不到的地方沒有幾何約束；而 Plücker ray 這類相機嵌入都定義在全域座標，誤差會一路累積。</p>
+<p><b>方法</b>：先建一個「組合式」3D 表示。背景用 Pi3 預測的 metric depth 加 ViPE 估的位姿反投影成點雲；前景物體用 SAM 3 切出來，丟給 3D 生成器（RecGen 或 GPT-6 Astra）產生完整 mesh，再用帶各軸縮放的 ICP 對齊到觀測點。多個 chunk 的點雲合併後會有浮在半空的碎片，所以他們做了一個 mesh-seeded connected-region filter：把點雲和 mesh 體素化，從 mesh 佔據的體素開始 flood-fill，沒被走到的連通塊全部刪掉。相機方面，除了以場景中心為原點的全域 Plücker ray，每個物體再加一組以物體中心為原點的 moment（只多加 moment，方向共用），讓模型直接看到「相機相對物體怎麼動」。這些 RGB-D 渲染、mask 和相機嵌入，經由建在 VACE 上的 control adapter 注入凍結的 Wan 2.1 T2V-14B；只訓練 3.05B 的 adapter 和相機 encoder，資料是 DL3DV-10K，以 chunk 自回歸生成，每段新生成的幀再回頭更新點雲。</p>
+<p><b>結果</b>：在 DL3DV 和 Tanks and Temples 上和 AnyRecon、Gen3C、Voyager、Lyra 2.0、VerseCrafter、NeoVerse 比較。1,000 幀長影片的 PSNR/SSIM/LPIPS 是 13.92 / 0.376 / 0.529，最強基線 Lyra 2 是 12.85 / 0.343 / 0.582；長影片的相機分數 79.51 對 65.09。長影片 RotErr 6.908、TransErr 0.060，Lyra 2 是 9.022 和 0.098。拿生成的影片做 3DGS 重建，長影片 LPIPS 0.598，也是最好。消融顯示「點雲＋mesh＋hybrid embedding」比只用點雲（長影片 PSNR 12.41）或點雲加 Gaussian proxy（13.60）都好，達到 14.30。</p>
+<p><b>限制與疑問</b>：作者自己承認長時間生成仍有色彩漂移。效率也不算輕：單張 A100 生成 1,000 幀要 166 分鐘。整條 pipeline 依賴 SAM 3、Pi3、ViPE、3D 生成器、ICP 一連串外部模組，前景必須是能被切出來、能生成 mesh 的物體，對大片可形變或動態物體的場景未必適用。短片段的 style 和相機分數其實輸給 NeoVerse 和 Lyra 2，優勢集中在長時間。</p>
+<p><b>為什麼值得看</b>：「重建只負責看得到的、生成負責看不到的」這個分工很乾淨，object-anchored Plücker 也是很容易搬到其他 camera-control 模型上的小技巧。對做 3D world model 或用生成影片當機器人訓練資料的人（論文也示範了 humanoid 走路、坐下的應用），值得想想能不能把 mesh 換成可動的 articulated asset，或把 color drift 用 3DGS 外觀約束拉回來。</p>
+
+<h3>2. InitFree-SfM：從隨機初始化做 bundle adjustment，關鍵不是 surrogate objective，而是幾何約束</h3>
+<p><a href="https://arxiv.org/abs/2611.31516">arXiv:2611.31516</a>｜cs.CV｜University of Oxford、TU Munich／MCML、Hanyang University、Lund University（Simon Weber、Daniel Cremers、Ronald Clark 等）</p>
+<p><b>問題</b>：Initialization-free BA 想直接從隨機的相機位姿和 3D 點開始，同時解出整個場景，不需要 COLMAP 那種增量註冊或 GLOMAP 的 rotation averaging。既有做法（pOSE、expOSE、pOSE+rot）優化一個 Object Space Error 的替代目標，再做 reprojection refinement 和 metric upgrade。問題是目標值很低，重建卻常常是錯的。</p>
+<p><b>方法</b>：一條完整的 SfM pipeline。每張圖用 MoGe-2 預測 metric depth 和內參；用 LoMa（或 RoMa v2）找對應點，對每一對影像先用 depth 反投影後 RANSAC 估 similarity transform，再和 essential matrix 估出的旋轉交叉比對，旋轉不一致就整對丟掉。核心是 dOSE：OSE 只約束點落在觀測射線的「方向」上，dOSE 加一項 Huber 加權的相對深度殘差，約束點沿射線的「位置」。這個目標保留了可分離結構，可以用 variable projection 把 landmark 消掉，而且能直接在 SE(3) 上優化，省掉不穩定的 metric upgrade。最後是 joint metric refinement：同時用影像殘差、深度殘差（每張圖一個深度尺度）和 pairwise 相對位姿約束，以 Levenberg-Marquardt 解。</p>
+<p><b>結果</b>：最有意思的發現在 ETH3D 的拆解實驗：原本的 OSE pipeline 幾乎失敗，但只要換上他們的 joint metric refinement，「完全不做 OSE、直接從隨機初始化 refine」就已經能得到準確的重建，dOSE 再往上推一點。和既有方法比，InitFree-SfM 在 ETH3D 的 AUC@1°/5°/20° 是 44.40 / 72.63 / 85.81，LaMAR 是 20.23 / 59.61 / 80.99，AUC@20° 在兩個資料集都最高；同樣用 LoMa 的 GLOMAP 在 ETH3D 是 64.50 / 73.48 / 77.18，舊的 pOSE 只有 9.10 / 11.43 / 13.91。低重疊的 ETH3D 子集上，24 個比較裡有 23 個拿第二，第一名 MP-SfM 但 MP-SfM 慢很多。</p>
+<p><b>限制與疑問</b>：最嚴格的 AUC@1° 仍明顯輸給 GLOMAP 和 COLMAP，代表精度上限還在傳統管線那邊。SMERF 低重疊資料上和 MP-SfM 差距較大，作者歸因於 depth 檢查後的相對位姿圖比較碎（54% 對 ETH3D 的 68%）。方法吃已知內參（雖然 MoGe-2 可以補），規模也只測到每場景數十張圖。</p>
+<p><b>為什麼值得看</b>：這篇的訊息其實有點「反論文」：過去幾年 InitFree BA 的研究都在設計更好的 surrogate objective，這篇說真正起作用的是有沒有足夠的幾何約束，而 monocular metric depth 剛好提供了以前沒有的那一維。對 feed-forward 重建（VGGT、DA3）的使用者，它提供一條「用 foundation model 給約束，但最後仍做真正優化」的中間路線，AUC@20° 也確實贏過 VGGT 和 DA3。一個自然的延伸是把 dOSE 接到 VGGT 類模型的輸出當 refinement 後端。</p>
+
+<h3>3. Innata-0（BAAI）：把 VLM、video world model 和 action model 綁成一個「原生」的具身系統</h3>
+<p><a href="https://arxiv.org/abs/2611.30254">arXiv:2611.30254</a>｜cs.RO｜北京智源人工智慧研究院 BAAI（Innata Team，41 位作者）</p>
+<p><b>問題</b>：單一的 VLA 或 world-action model 撐不住長流程任務，需要外層 agent 做規劃、驗證和恢復；但隨便把 agent 接上模型，規劃和底層控制常常講不同的語言。BAAI 主張 model 和 agent 應該一起設計。</p>
+<p><b>方法</b>：模型 Innata-0-WAM 是三塔 Mixture-of-Transformers。理解塔從 Qwen3-VL-8B 初始化；預測塔用 Cosmos 3 Nano 的 8B backbone（36 層、寬 4096），以 flow matching 在 video latent 上預測未來，給了動作序列時就做 action-conditioned 預測；動作與觸覺塔是約 1B 的獨立 Transformer，同樣 36 層但寬度縮到 1280，注意力頭的維度和大塔相容，所以三塔能在每層互相 attend，生成 token 之間雙向注意力，影片、動作、觸覺各自有自己的 noise level。不同機器人的控制空間用 domain-aware 的仿射投影接進共享 Transformer（共 64 個投影槽，EEF、靈巧手、egocentric 人手各有一組）。Agent 端有任務、物理狀態、因果互動三層記憶，負責監控、用工具驗證並恢復，還會把失敗經驗整理成可版本化的 verify／recover skill，驗證過才升級使用；部分成功 rollout 回流成 WAM 的訓練資料。</p>
+<p><b>結果</b>：理解塔在 18 個基準裡 9 個第一、14 個前二，相對 Qwen3-VL-8B 初始化 SPARBench +29.79、RoboAfford +22.30。WorldArena 2.0 Track 1 的 EWM 67.63，高於 BWM（66.15）、FlowWAM（65.86）、ABot-PhysWorld（61.19），但 Background Consistency 和 Instruction Following 不是最好。RoboCasa365 上單靠 WAM 是 60.2%，加上 agent 變 65.4%，提升主要在 Composite-Unseen（32.4% → 43.6%）。RoboDojo-Sim 的成功率從 15.98% 到 24.17%。觸覺部分 UniVTAC 平均 86.1%，Bench2Dex 子集 53.82 分。</p>
+<p><b>限制與疑問</b>：報告裡的閉環操作數字幾乎都在模擬器上，作者也說還需要更多真實世界驗證。Atomic-Seen 88.4% 和 Composite-Unseen 32.4% 的落差很大，agent 補回來的 11 個百分點雖然實在，離可靠還遠。和 GR00T 2 的比較因為執行設定不同，作者只列為參考。這是一份技術報告，很多設計選擇沒有獨立的消融。</p>
+<p><b>為什麼值得看</b>：這是目前把「VLM＋影片預測＋動作生成＋觸覺」做成單一 MoT 的最完整公開報告之一，三塔寬度不同但注意力維度對齊的設計，以及 64 個 domain projection 處理異質機器人的做法都很具體，可以直接借用。agent 把失敗歸納成 verify／recover skill 並版本化的流程，也很適合拿去搭配自己的 VLA 做實驗。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>Boundary-Aware Policy Learning：agent 什麼時候該把控制權交給 policy？</h3>
+<p>agent 編排的機器人系統常在「交接」那一刻失敗，因為 visuomotor policy 只在一小塊起始狀態裡可靠。作者先用多樣起始位姿的接觸片段微調 policy，把這個 handoff boundary 撐寬並能用簡單協定告訴 agent，再用成功的系統 rollout 自我改進，讓交接更早發生。RoboTwin 2.0 隨機場景達 98.4% 成功率，比最強基線高 26 個百分點以上，API 成本和執行時間各降 41.3% 和 37.5%。目前 HF 上 7 讚。<a href="https://arxiv.org/abs/2611.32238">arXiv:2611.32238</a></p>
+
+<h3>Loop4D：用 4D VAE 和 looped DiT 同時預測操作的 RGB 與幾何</h3>
+<p>把 RGB 和 pointmap 序列一起壓成時空 latent，RGB VAE 加幾何監督和預測式重建，減少壓縮吃掉細微機械手臂動作的問題；幾何 VAE 則用輕量 adapter 借用預訓練的 RGB 表示。生成端是雙流的 looped diffusion transformer，重複使用同一組 block 增加有效深度而不增加參數。目前只在模擬操作任務上驗證。<a href="https://arxiv.org/abs/2611.34199">arXiv:2611.34199</a></p>
+
+<h3>AnyCam（Ming-Hsuan Yang 等）：用場景裡的一個物體來代表相機</h3>
+<p>單目影片的相機參數有尺度歧義，warp 點雲在大視角變化時又會崩。AnyCam 把場景中一個 anchor 物體重建成 3D，沿目標軌跡渲染出來當相機訊號，對物體來說尺度正確、視角完整，也很好指定「繞著它轉」。H-Concat 讓來源和目標幀在時間上對齊，因此能蒸餾成串流、少步數的 AnyCam-AR。和今天的 VivaWorld 一樣，都在用物體當相機的參照。<a href="https://arxiv.org/abs/2611.34944">arXiv:2611.34944</a></p>
+
+<h3>DeltaRAE：用「導數」做影片 tokenization，一分鐘影片少用 18.8 倍 token</h3>
+<p>週期性的 anchor frame 完整編碼，其餘幀只用少數 token 記錄變化；encoder 和 decoder 都是 causal，並讀取凍結的預訓練影像 encoder。在 UCF-101 和 Kinetics-600 上與最先進的 video tokenizer 相當，16 幀的 tokenizer GFLOPs 減半，可以端到端訓練一分鐘影片。同樣 token 預算但不用預訓練 encoder 的版本，生成器多數影片在 15 秒內就崩潰。<a href="https://arxiv.org/abs/2611.33886">arXiv:2611.33886</a></p>
+
+<h3>NWM 的動作輸入根本給錯了：修正後預測誤差降 42%</h3>
+<p>作者稽核 Navigation World Models 的程式碼，發現訓練和 rollout 在準備動作輸入時有三處互相影響的差異；不重新訓練、只修輸入，RECON 上 DreamSim 誤差就降了 42%，checkpoint 排名也跟著改變。只修 normalization offset 反而變差，所以必須一起檢查。他們釋出 ActRosetta 工具檢查動作編碼是否與訓練一致。給所有在比 world model rollout error 的人一個很實際的提醒。<a href="https://arxiv.org/abs/2611.34739">arXiv:2611.34739</a></p>
+
+<h3>DataForgeVLA：完全合成的示範能把 GR00T 微調到 80%</h3>
+<p>用 LoRA 微調的 Cosmos-3 生成操作影片，再用 RoboHaMeR 從 RGB 還原機器人軌跡，不需要額外遙操作，340 條裡篩出 300 條。只用這些合成資料微調 GR00T N1.6，真實 Oreo 包裝 pick-and-place 20 次成功 16 次，用 105 條真實遙操作資料則是 18 次。作者自己強調只有一個物體、每組 20 次，是初步證據。資料集已放在 HF。<a href="https://arxiv.org/abs/2611.34287">arXiv:2611.34287</a></p>
+
+<h3>LiveRelight（Dor Verbin、Bernhard Kerbl 等）：Gaussian 室內場景的次秒級全域光照編輯</h3>
+<p>關鍵是預先計算幾何上的光交換，而不是光照結果，所以改光源發光或表面反射率時只需要一個便宜的 transport solve。直接光照在 2D Gaussians 上算，間接漫反射在三角形 proxy 上用 sparse radiosity 傳遞，再用 alpha compositing 擬合的稀疏投影傳回重建。在八種光照條件的合成測試上，比既有 path-traced 編輯平均高 5 dB PSNR，延遲最多降三個數量級。<a href="https://arxiv.org/abs/2611.34226">arXiv:2611.34226</a></p>
+
+<h2>新聞與討論</h2>
+
+<h3>浙大團隊：一個有條件的、確定性的次指數離散對數演算法</h3>
+<p>這篇 ePrint 論文宣稱，在假設 OpenAI 十月提出的 Cauchy–Hermite Boolean tensor contraction 構造成立的前提下，存在一個確定性的 Turing machine，能在 2^O(b/√(log log b)) 時間內解 F_p* 和質數階橢圓曲線上的離散對數，不用隨機位元，也不依賴 GRH 或 smoothness 假設。背景是十月 ETH（Exponential Time Hypothesis）被推翻後，已有人做出 Las Vegas 版本的次指數 ECDLP 演算法，確定性版本一直是開放問題。<a href="https://eprint.iacr.org/2026/3020">論文</a>｜<a href="https://news.ycombinator.com/item?id=50665968">HN 討論</a></p>
+<p>HN 上最有用的一則留言指出：實務上破 ECDLP 最好的仍是 baby-step giant-step，成本約 2^(b/2)，而 log log b 成長極慢，這個新界只有在極大的金鑰長度下才會贏，所以這比較是複雜度理論結果，不是馬上的資安危機。</p>
+
+<h3>djb 整理了一份「computer-checked proof 也會錯」的清單</h3>
+<p>D. J. Bernstein 列出 HOL Light、Metamath、Isabelle、Lean、HOL4、Coq/Rocq 等 proof checker 被回報過的 soundness bug，很多已被證明可利用。他的建議是縮小 trusted computing base（HOL Light kernel 只有約 400 行）、用多個獨立 checker 交叉檢查（但有時 bug 是共用的），並且更信任「被證明正確的 checker」，例如 2022 年在 HOL4 中被證明正確的 HOL Light clone Candle。在 AI 大量產出 Lean 證明的此刻，這份清單特別應景。<a href="https://cr.yp.to/proofs/falseccp.html">原文</a>｜<a href="https://news.ycombinator.com/item?id=50667989">HN 討論</a></p>
+<p>HN 上有人反駁：這些系統幾十年來的 soundness bug 加起來也不多，而且要騙過數學家，得同時在多個 checker 都找到漏洞，輸入還要看起來合理。另一則留言點出更常見的問題：agent 證明了實作正確，但它證明的是自己對需求的錯誤理解。</p>
+
+<h3>Michael Nielsen 撤下了《Neural Networks and Deep Learning》</h3>
+<p>這本 2011 到 2015 年寫成、很多人入門深度學習讀的線上書，網站現在只剩一篇聲明。Nielsen 說他當年以為 AGI 還要幾十年，現在認為前沿實驗室的行為極度魯莽，他低估了資本投入的速度約 1,000 倍，因此不想再（即使只是一點點）幫忙培養人投入這項工作。他也主張核心風險不是「失控的 AI」，而是 ASI 會讓大量容易製造、難以防禦的破壞性技術同時出現，技術對齊只解決次要問題，並點名批評 Anthropic 和 OpenAI 的安全承諾。<a href="https://neuralnetworksanddeeplearning.com">聲明</a>｜<a href="https://news.ycombinator.com/item?id=50670757">HN 討論</a></p>
+<p>HN 留言很快貼出了 Wayback Machine 的備份；也有人說，書已經在模型權重裡了，撤下只是讓人更依賴模型。</p>
+
+<h3>黑色星期五前，購物網站被植入走 WebRTC 的盜刷腳本</h3>
+<p>InfoHawk 在 Lascana、Samsonite、American Tourister、Revolve、FWRD 的線上商店發現盜卡腳本，通報後都在 11/24 或 25 移除。腳本在店家驗證付款之前就把卡號、效期、安全碼和姓名地址送出，所以就算訂單被拒，卡號也已經外流。特別之處在於：載入腳本和傳出資料都走 WebRTC data channel，經 Cloudflare 的 TURN relay 中繼，CSP 的 connect-src 擋不到；而且只在手機的結帳頁面啟用，桌機檢查和首頁掃描都看不到。<a href="https://www.infohawk.com/news/2026-11-27-black-friday-webrtc-skimmer">原文</a>｜<a href="https://news.ycombinator.com/item?id=50668145">HN 討論</a></p>
+<p>HN 上有人提醒，這跟 WebRTC 本身的能力無關，只是這個通道較少被監控；只要網站嵌入第三方腳本，就一直有這個風險。</p>
+
+<h3>GPT-6.2 Astra 在 22 分鐘內找出一本 1808 年匿名素描簿的作者</h3>
+<p>一位研究北美毛皮貿易的歷史學者，請試用中的 GPT-6.2 Astra 辨認耶魯 Beinecke 圖書館一本匿名素描簿的畫者。模型先用幾張有日期的畫排除了作者提示的兩位人選，再從一位 Montreal 毛皮商的社交日記裡找到 Chabot 這個名字，推測他的日記若找得到就能證明。作者向法國的家族檔案和 Cleveland State University 調出日記後，字跡相同、行程與日期吻合，1808 年 6 月 18 日那天還寫著「I took a sketch」，描述的正是素描簿裡的 Fort St. Joseph。附帶的文件本身也是新發現。<a href="https://generativehistory.substack.com/p/gpt-62-astra-solves-a-historical">原文</a>｜<a href="https://news.ycombinator.com/item?id=50643158">HN 討論</a></p>
+<p>值得注意的是最後一步仍靠人去調檔案、比對字跡；模型做的是在大量文獻中提出一個可被檢驗的假設。</p>
+
+<h3>Hera 傳回 DART 撞擊後的第一批影像：Dimorphos 被撞得翻滾</h3>
+<p>ESA 的 Hera 抵達 Didymos 雙小行星系統，看到 2022 年 DART 撞出的坑大到像一座體育場，幾乎和約 151 公尺寬的 Dimorphos 本身一樣大，等於同時造坑又改變了整顆小行星的形狀。Dimorphos 現在在軌道上劇烈翻滾。接下來半年 Hera 會靠近觀測，並放出兩顆小衛星嘗試降落，量測組成、內部結構和質量，用來校準未來偏轉任務的模型。<a href="https://arstechnica.com/space/2026/11/europes-hera-mission-returns-to-the-chaotic-scene-of-a-cosmic-smashup/">原文</a>｜<a href="https://news.ycombinator.com/item?id=50657392">HN 討論</a></p>
+
+<h3>Convex 的 coding agent skill 會把你的 app 構想上傳到他們的伺服器</h3>
+<p>有人在 GitHub issue 回報，Convex 的 backend skill 會在使用者不知情的情況下，把描述 app 構想的 prompt 送到遠端。Convex CEO 在 HN 回應：這是「quickstart」功能，用 prompt 一次產生整個新專案，決定好環境後 30 秒內就丟棄 prompt；他說會檢查這段程式碼是否足夠透明，但這是設計如此，不是遙測。對常裝第三方 agent skill 的人，這是個好提醒：skill 本質上就是可執行的程式，要像審查依賴套件一樣看它做了什麼。<a href="https://github.com/convex/convex-backend-skill/issues/64">Issue</a>｜<a href="https://news.ycombinator.com/item?id=50669765">HN 討論</a></p>
+
+<h3>輕鬆一下：把遊戲開發技巧畫成一張 16 世紀風格的 3D 奇幻地圖</h3>
+<p>Sprite Fusion 的作者把各種遊戲開發技巧做成一張地圖，每座城鎮是一個技巧的家，例如「Procedural Legs」鎮上有一棟會爬的房子。地形直接拿真實島嶼 Kerguelen 的高程資料，靈感來自他收藏的拿破崙戰爭版畫，程式用 C 和 Kaigen engine，網頁用 Svelte。文章談的大多是美術方向：先花大量時間看參考資料，以及刻意加上不完美。<a href="https://www.spritefusion.com/blog/making-a-fantasy-map-like-a-16th-century-atlas">原文</a>｜<a href="https://news.ycombinator.com/item?id=50667062">HN 討論</a></p>
+</article>
+</body>
+</html>

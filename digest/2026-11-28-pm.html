@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 晚報｜2026-11-28（週六）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 晚報｜2026-11-28（週六）</h1>
+<p><b>今日導讀</b>：週末 arXiv 沒有新列表，今晚改從 HF 熱門與前幾天留下的好論文裡挑。主題是「通用模型離能用還有多遠」：一份把 GPT-6-Astra 推到 12 個具身 benchmark 極限的大型報告、一篇拆解 looped 3D 重建「該在哪一步偷工」的分析，以及用物理控制器搭配影片生成器處理多材質碰撞的 world model。新聞則有 Knuth 被 LLM 勘誤淹沒、Google 的 DeepCrossAttention 部落格，以及兩州控告 SpaceX/xAI。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. Has GPT-6-Astra Achieved Embodied Intelligence?：會做，但還不實用</h3>
+<p><a href="https://arxiv.org/abs/2610.22471">arXiv:2610.22471</a>｜cs.RO｜署名 Joint Research Team，主頁在 sensenova.ai｜HF trending 132 upvotes</p>
+<p><b>問題</b>：GPT-6-Astra 出來後，大家都在問：一個通用模型直接控機器人，是否已經打敗專門訓練的 VLA 和 WAM？這份報告想把它推到上限，再看剩下的問題在哪。</p>
+<p><b>方法</b>：統一協定有兩條規則。第一，允許 in-context learning：模型先讀 benchmark 的訓練示範，自己整理出一個凍結的「knowledge package」，內容包括任務說明、從示範抽出的軌跡與抓取姿態、參考畫面、可執行的 Python helper（FK/IK、取參考動作）、完成檢查與 recovery 程序。這個結構不是作者規定的，是模型在各 benchmark 上自己反覆長出來的。第二，把步數上限放寬到官方的 10 倍，因為模型常會發現失敗、改策略、再試一次。評測涵蓋 12 個設定：RoboDojo、RoboLab、LIBERO 系列、Bench2Dex、DexJoCo、SIMPLE（人形）、BEHAVIOR 和三個 VLN。另外還研究 harness，也就是 GPT-6-Astra 當 System 2、π0.5 當 System 1 時怎麼合作，並在 8 種真實機器人上測試。</p>
+<p><b>結果</b>：LIBERO-PRO 在標準步數下 786/800（98.25%），比之前最強的 GPT-6-Astra agentic baseline 高 5.62 點。LIBERO-Ultra-Long 達 82.2%，比 LiLo-VLA 高 38.2 點。DexJoCo 從已發表的 40.3% 提高到 78.2%，放寬步數後到 87.3%。Bench2Dex 在標準步數下 25.6%，與 baseline 的 25.5% 打平，放寬後到 61.5%，可見步數限制低估了它。在 SIMPLE 上，ICL 讓成功率從 70.8% 升到 90.8%。代價很重：LIBERO-Long++ 每個 episode 約一百萬 token、將近一小時；Ultra-Long 約九百萬 token、近兩小時；RoboDojo 放寬步數後，一個 episode 平均超過三小時。Harness 方面，讓 System 2 在執行前審查並修正 VLA 提出的動作最有效，但 token 成本高；直接輸出 joint angle 比輸出 end-effector 指令差。</p>
+<p><b>真實機器人上的觀察</b>：在單臂、雙臂、靈巧手、輪式移動機械臂和人形共 8 種平台上，它做桌面抓取表現不錯，但可變形物體、精確接觸和長流程任務仍然困難。有兩個意外的發現：第一，它會主動移動相機，去拿到下一步需要的視角，展現出 active vision；第二，一個慢速的 System 2 可以直接和高頻的「System 0」行走控制器合作，完成人形機器人的操作。作者也強調，真實世界的成功率很取決於鏡頭擺位：插花任務中，夾爪從上方垂直夾住花莖，wrist camera 根本看不到瓶口，決定成敗的區域在畫面外。導航方面，VLN-CE 放寬步數後 R2R 從 80% 升到 88%、RxR 從 82% 升到 90%；但長程的 LHPR-VLN 只從 21.05% 升到 28.95%，因為一個子目標失敗就會讓整段序列不可逆地往下走。</p>
+<p><b>限制與疑問</b>：作者自己列了六項：ICL 很難遷移到示範以外的任務（RoboLab 沒有訓練集，標準步數下 57.1%，只算中等）；不會驗證物理上是否真的成功，例如鏡頭裡把手和掛勾重疊就以為杯子掛上了；無法從不可逆的失誤恢復（液體灑了、零件掉到地上就停手）；長流程會遺失進度。真實世界更難：在 G1 上約 90% 的時間在思考，一次操作超過一小時，而真實環境不會因為模型在思考就暫停。</p>
+<p>另一個值得追問的地方是比較是否公平：ICL package 由模型自己讀完整個訓練集整理而成，加上 10 倍步數，和只用標準步數、從示範訓練出來的小型 policy 比，其實是兩種不同的資訊與運算條件。作者有把標準步數下的結果另外列出，但閱讀 Fig. 1 時仍要分清楚是哪一種條件。</p>
+<p><b>為什麼值得看</b>：這份報告把「通用模型 + harness」做到接近飽和，因此真正的瓶頸變得很清楚：physical-state verification、可逆性推理、延遲。對做 VLA 的人來說，作者提出的下一代 benchmark 原則很值得參考：任務從人的需求出發、不給 in-domain 示範、世界時鐘在模型思考時照樣走。這些都是現有模擬 benchmark 沒量到的。</p>
+
+<h3>2. Where to Approximate：looped 3D 重建，該在第幾圈偷工？</h3>
+<p><a href="https://arxiv.org/abs/2611.33948">arXiv:2611.33948</a>｜cs.CV｜上海海洋大學、Virginia Tech、同濟大學等</p>
+<p><b>問題</b>：Déjà View 把 VGGT 那種堆疊 transformer 換成一個重複套用的共享 block，原本只能靠少跑幾圈來省時間。作者想讓每一圈本身變便宜，但需要知道某一圈的近似誤差會怎麼傳到最後的相機與幾何。</p>
+<p><b>方法</b>：做 paired intervention：同一輸入跑一次精確、一次只在某一步做近似，追蹤兩者之後的差距。首先發現 loop 的每一步可以互換：Déjà View 任意跳過一步，AUC@3° 中位數只掉 0.18 點；VGGT、π³、DA3 最關鍵的那一層拿掉則掉 48.8 到 82.2 點。從 27% 的進度開始，global attention pattern 幾乎不再變動。其次，後面的步驟會吸收誤差：在第 7 步做 coarse-grid，下一步損失 21.9 點，到輸出時只剩 2.5 點；在第 12 步做，輸出時仍損失 10.3 點。作者把原因追到 channel gate 會縮小承載近似誤差的通道。第三，attention 輸出的 reuse 誤差會累積：連續 5 次 reuse，最後一次的局部誤差是單獨做的 11.1 倍。由此設計出 Déjà Vite：前面幾步用半解析度，接著做 KV pooling，然後是完整步驟，最後完整步驟與 attention-output reuse 交替。再用 9 組 rank-16 LoRA anchor 做 self-distillation，一份權重就能支援三種速度設定。</p>
+<p>作者還用 tied 與 untied 權重的對照實驗確認這是權重共享造成的：同樣資料、同樣訓練，untied 的八步模型會讓最後一層特化，拿掉它就掉 18 到 19 點，整體準確度也較低（AUC@3° 46.2、47.7，tied 是 53.2）。換句話說，「每一步可以互換」不是巧合，而是 loop 架構本身帶來的性質，所以這套排程規則有機會套用到其他 looped 模型。值得注意的是，近似誤差和同樣大小的隨機擾動並不等價：把最終殘差縮放到相同 norm 再解碼，近似誤差對旋轉預測的影響是隨機誤差的 1.55 倍。所以只看 feature 變化量來決定要不要 cache（diffusion caching 常見的做法），在這裡並不夠。</p>
+<p><b>結果</b>：在 DTU、ETH3D、7-Scenes、ScanNet++、nuScenes 共 153 個場景上，balanced 設定比官方 16 步 Déjà View 快 1.63 倍，平均 AUC@3° 只少 1.86 點。在相同延遲下，比「完整 block、少跑幾圈」的訓練 baseline 高 4.73 點。運算元與訓練固定時，這種排程比均勻放置高 2.62 點。在 300 張圖的 ScanNet++ 上，三種設定分別省 31.8%、52.7%、75.3% 的 FLOPs。</p>
+<p><b>限制與疑問</b>：損失集中在少數場景：對 16 步模型是 41 勝、13 平、99 負，ETH3D 13 個場景輸了 12 個，低 covisibility 的場景也掉得較多。peak memory 從 9.2 GiB 升到 10.75 GiB。單一資料集上仍可能輸 VGGT，例如 DTU 96.48 對 83.42。</p>
+<p><b>為什麼值得看</b>：最近 looped Transformer 很熱（前兩天才介紹過 Mixture-of-Loops），這篇給了一套可以照著做的分析方法：不要靠「這一層負責什麼」來決定在哪裡近似，而是量測誤差沿軌跡怎麼傳播。這套想法可以直接套到 looped VLM、looped diffusion，或 SLAM 裡的 recurrent update。</p>
+
+<h3>3. WorldInteract：把碰撞交給物理，把材質行為交給影片模型</h3>
+<p><a href="https://arxiv.org/abs/2611.34730">arXiv:2611.34730</a>｜cs.CV｜UBC、Georgia Tech、ETH Zurich（Bernd Bickel、Peter Yichen Chen 等）</p>
+<p><b>問題</b>：同樣一推，球會滾、箱子會滑、沙會散開。要讓影片 world model 處理跨材質碰撞，若直接從碰撞影片學，材質配對和接觸組合會爆炸，資料怎麼收都不夠。</p>
+<p><b>方法</b>：關鍵觀察是使用者的「推」和碰撞時的衝量都只是改變物體速度，所以用一個共享的 velocity-increment（Δv = J/m）介面把兩件事分開。影片生成器只負責「某種材質被給了 Δv 之後怎麼動」，用 30k 支「沒有物體互碰」的模擬影片學，涵蓋 22 種材質，基底是 Wan2.2-TI2V-5B。物理控制器則負責碰撞：用 Qwen2.5-VL-3B 估計質量和恢復係數，用 Depth-Anything-3、SAM2 和 CoTracker3 追蹤物體位置和速度，預測接觸，再用無摩擦中心碰撞公式算出 Δv，寫進 physics map 交給生成器執行。訓練分三階段：full attention 學材質行為；改成 block-causal 並加入 scene memory；最後是 Material-Aware RL，用位移、Δv 遵循、成對材質的相對行為、事件時機四種可驗證的 reward 做 Diffusion-DPO。最後用 DMD 蒸餾成 4 步模型，單張 H100 可跑 8 fps。</p>
+<p><b>結果</b>：在 Physics-IQ（solid mechanics）的 verified 協定上得 63.0，Goal Force 是 48.0，StreamForce 是 30.8。spatiotemporal IoU 是 0.701 對 0.280，代表不只動對了地方，也動對了時間。在 200 張只換材質的真實圖片上，push success 從 StreamForce 的 67% 提高到 90%，方向誤差從 10.1° 降到 5.2°。Ablation 顯示，拿掉 causal 階段時 P-IQ 掉到 52.4；物理控制器貢獻 4.0 點。</p>
+<p>質性比較裡，baseline 有三種典型錯誤：Force Prompting 和 StreamForce 常常幾乎推不動物體，所以描述中的碰撞根本沒有發生；Goal Force 會把物體推動，卻違反剛體行為，石頭碎裂、面紙盒裡的面紙灑出、雪堆炸開；Wan2.2 只靠文字描述推力，常常「加戲」，例如畫一隻手伸進來，所以 SA 高、PC 低。在串流中途再推的情境裡，RealWonder 會把物體扭曲，FlashMotion 讓物體停著不動，StreamForce 則逐漸丟失場景細節。</p>
+<p><b>限制與疑問</b>：碰撞模型是無摩擦的中心碰撞，幾何也是近似的，作者自己承認這點。質量和恢復係數靠 3B VLM 估計，誤差會直接傳成錯誤的 Δv。real-image 的 SA/PC 由 GPT-4o 打分。目前主要處理推和碰，旋轉、摩擦主導的接觸還沒處理。</p>
+<p><b>為什麼值得看</b>：這是「分析物理 + 學習外觀」的乾淨分工，介面只有一個 Δv map，很容易換成別的控制器，例如機器人末端的接觸力。對機器人 world model 來說，這種做法比讓影片模型自己學會動量守恆更省資料，也更好除錯。</p>
+
+<h2>快速瀏覽</h2>
+<ul>
+<li><b>WAtcher：world-action model 執行前先「看一眼」後果</b>（<a href="https://arxiv.org/abs/2611.34124">2611.34124</a>）。只用兩步 denoising 想像候選 action chunk 的結果，再由外掛的 Safe-Guard 判斷風險，必要時後退。Safe-Guard 用約 25,000 個自動標註的危險窗口訓練，把危險試驗從 27.0% 降到 10.8%，成功率沒有下降；真實五個任務 74.0%，π0.5 是 59.5%。</li>
+<li><b>ProxyGenBench（Tencent）：用 3D blockout 引導影片生成</b>（<a href="https://arxiv.org/abs/2611.34457">2611.34457</a>）。312 個案例、60 個場景，檢查模型能否保留 proxy 的結構、補上缺少的細節並修正 proxy 的瑕疵，以及把文字、圖片、音訊條件綁到正確的物體上。發現 proxy 越細緻，補完反而可能越差，結構跟得好也不代表 binding 正確。</li>
+<li><b>Why Does Sensor Depth Fail Learned Manipulation Policies?</b>（<a href="https://arxiv.org/abs/2611.33352">2611.33352</a>）。用真實 wrist stereo 相機校準感測模型後發現，完整的深度約帶來 10 個百分點提升，雜訊放大 20 倍仍保留大部分效益；但約六分之一畫面出現空洞，效益就消失。結論是：挑深度相機時，覆蓋率比精度重要。</li>
+<li><b>Plausible Is Not Proven：單目深度的失敗原因標籤大多沒通過檢驗</b>（<a href="https://arxiv.org/abs/2611.34393">2611.34393</a>）。對八個模型做 audit，只有 occluding boundary 標籤和標註相符（NYU 上 AUROC 0.85），但單一 depth-edge 線索也做得到。和五位盲評者的一致性只有 κ = 0.05，作者自己先前版本的結論也沒能重現。</li>
+<li><b>WorldPhy：機器人 world model 的細粒度物理合理性評測</b>（<a href="https://arxiv.org/abs/2611.34130">2611.34130</a>）。300 個任務，每個任務是一張初始畫面加一條指令，收集超過 12K 筆人工標註，訓練出 WorldPhyReward，在六個物理維度加上指令遵循上打分。評測 13 個開源與閉源 world model，結論是目前沒有一個能在各種機器人場景下一致維持細粒度的物理合理性。可以和上面的 WorldInteract 對照著讀。</li>
+<li><b>FOCI（ETH leggedrobotics）：直接在 Gaussian Splats 上做軌跡最佳化</b>（<a href="https://arxiv.org/abs/2611.33380">2611.33380</a>）。把機器人本身也表示成 Gaussian，用 Gaussian 之間的 overlap integral 當碰撞項，能做方向感知的規劃，穿過很窄的縫隙。場景有數十萬個 Gaussian 時，四足、無人機、機械臂的軌跡仍能在幾秒內算出，程式碼已開源。</li>
+<li><b>RevFlow：把生成當成「反向編碼」</b>（<a href="https://arxiv.org/abs/2611.34782">2611.34782</a>）。以凍結 encoder 的各層表示當逐級生成目標，先生成深層語意，再生成淺層細節，最後解碼成像素，所有階段共用一個 DiT。ImageNet 256 上訓練 5 個 epoch，1.55B 模型就達 FID 1.74；每個階段只取樣一步時 FID 2.85。</li>
+<li><b>Embodied-VGGT：長序列重建只修正 chunk 之間，保留 chunk 內的幾何</b>（<a href="https://arxiv.org/abs/2611.33964">2611.33964</a>）。利用地面幾何提供的尺度參考和跨窗口一致性，對每組 chunk 施加一個共享的 Sim(3) 修正。KITTI Odometry 的 ATE 7.30 m、Chamfer 2.67 m，比 baseline 分別降低 46.8% 和 23.3%。</li>
+</ul>
+
+<h2>新聞與討論</h2>
+<ul>
+<li><b>Knuth 暫停受理勘誤：LLM 讓讀者「生產力」太高了</b>。<a href="https://www-cs-faculty.stanford.edu/~knuth/moratorium.html">Knuth 的公告</a>說，LLM 普及後勘誤寄來的速度遠超過他能讀的速度，而抽樣顯示最近的回報大多是別人已經回報過的重複問題。因此 11 月 25 日之後寄來的回報，要等他更新該書的已知勘誤表後才會看；目前沒有任何一本書在受理名單上。這也代表那張著名的 2.56 美元支票暫時拿不到了。<a href="https://news.ycombinator.com/item?id=50674452">HN 討論</a>的情緒多半是惋惜，有人說：「Knuth 自己花十分鐘把書丟給 LLM 不就好了？」</li>
+<li><b>Google 部落格：DeepCrossAttention 在深度方向做 attention 取代 residual</b>。<a href="https://research.google/blog/supercharging-transformer-residual-connections/">文章</a>介紹 ICML 2025 的 DCA：每個 token 用學到的權重動態組合前面所有層的輸出，並在層與層之間做 Q/K/V 分開的 cross-attention。增加的參數不到 0.2%；在 C4、LM1B 上最多少用 5 倍步數就達到相同品質，LM1B perplexity &lt;14 需要的層數從 42 層降到 30 層。文中也提到 Moonshot 的 attention residuals 和 hyper-connections，並說 Thinking Machines 的 Inkling 2 採用了這類設計。<a href="https://news.ycombinator.com/item?id=50672565">HN</a> 首則留言提醒，論文其實是 2025 年的，並認為 looped layer 流行之後，這種跨深度的動態 routing 可能更有用。</li>
+<li><b>維吉尼亞州與奧勒岡州控告 SpaceX（X、xAI、Grok 的母公司）</b>。<a href="https://www.oag.state.va.us/media-center/news-releases/jay-jones/3162-attorneys-general-jones-and-rayfield-file-suit-against-spacex-parent-company-of-x-xai-and-grok-over-creation-and-promotion-of-child-exploitation-and-non-consensual-images-on-platform">維州檢察長新聞稿</a>指控，Grok 只要一張照片就能生成非自願的裸露或性影像，包括涉及兒童的內容；公司明知如此，仍以「spicy mode」作賣點，同時對外宣稱平台安全。兩州分別提告。新聞稿也提到 xAI 現已改名為「SpaceX Super Intelligence」。對做生成模型的人來說，這是州政府以消費者保護與欺騙性宣傳為由，直接追究模型安全機制的案例。<a href="https://news.ycombinator.com/item?id=50670855">HN 討論</a></li>
+<li><b>Tabernetes：節點全是瀏覽器分頁的 Kubernetes</b>。<a href="https://tabernet.es/">網站</a>上，打開頁面你的手機就成為一個 node，scheduler 派來的 pod 在分頁裡開機的 Linux 上執行（kernel 編譯成 WebAssembly，即之前介紹過的 unkernel）。關掉分頁，Kubernetes 就把 pod 移到別人的分頁上。加入需要下載約 5 MB，示範是 64 個 tile 的 Mandelbrot，每塊由某台裝置上的 awk 算出來。<a href="https://news.ycombinator.com/item?id=50672521">HN</a> 上有人在 shell 裡用一行指令搭起了聊天室。</li>
+<li><b>Cornell 的 Kneadix：一台織機同時能織、編、做出類針織結構</b>。<a href="https://news.cornell.edu/stories/2026/11/loom-seamlessly-combines-weaving-knitting-and-braiding">Cornell Chronicle</a> 報導，團隊把三種技法都看成紗線扭轉的程序，用編織機的 horn gear 取代綜框，讓任一條紗在織物中途切換經緯角色，搭配可收回的筘和有感測器的張力器。論文獲 UIST 2026 Best Paper。目前要用 Python 手動追蹤每條紗，下一步是自動化。想像中的應用是一隻手套同時有針織關節、梭織掌心和編織袖口。<a href="https://news.ycombinator.com/item?id=50632052">HN 討論</a></li>
+<li><b>HN Predictions：HN 自 2008 年以來的預測，準了多少？</b>。<a href="https://hnpredictions.com/">這個網站</a>整理了 666 個預測討論串，抽出 13,947 條可評分的預測，其中 5,770 條已到期並對照公開資料評分，乾淨命中的只有 40.9%。網站也把預測歸成 668 個反覆出現的主題（自駕車採用是熱門之一），並把近期事件連回當年的預測。<a href="https://news.ycombinator.com/item?id=50633531">HN 討論</a></li>
+</ul>
+</article>
+</body>
+</html>

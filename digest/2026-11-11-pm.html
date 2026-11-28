@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 晚報｜2026-11-11（週三）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 晚報｜2026-11-11（週三）</h1>
+<p><b>今日導讀</b>：今晚的主題是「技能該放在哪裡」。一篇論文把機器人的操作技能從權重搬進可讀的文字 context，靠模擬器排練就打敗用 50 條 demo 訓練的 VLA；另一篇證明不少 memory-augmented VLA 其實只是在看時鐘；還有一篇把 RGB、depth、camera pose 塞進同一個影片生成模型，讓「重建」和「生成」變成同一種查詢。新聞面有 Apple 的本地推論 app Harbor、Anthropic 漏洞回報的實際成效統計，以及 LLM 玩 TIS-100。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. World In-Context Learning：在模擬器裡排練，把學到的東西寫成文字記憶</h3>
+<p><a href="https://arxiv.org/abs/2611.12885">arXiv 2611.12885</a>｜cs.CV / cs.RO｜華中科技大學（白翔組）、ArcheOne AI｜HF 27 upvotes</p>
+<p><b>問題</b>：VLA 和 world action model 把技能寫進權重，所以被訓練分佈綁死。作者引用的例子很刺眼：FastWAM 在 RoboTwin 2.0 乾淨場景有 77.8%，換成 domain randomization 只剩 1.9%。另一方面，把一條 demo 丟進 frontier model 的 prompt 做 in-context learning，又因為 demo 來自別的場景、拿不到當下世界的回饋而做不好。</p>
+<p><b>方法</b>：作者提出 World In-Context Learning（WICL）：凍結的 foundation model 從一條 demo 出發，在「世界」（這裡是 RoboTwin 2.0 模擬器）裡排練，把回饋寫進 context 而非權重。實作系統叫 RoboScript，流程像 coding agent，只是 terminal 換成了模擬器。感知是 geometry-first：從 depth 的 height map 做 connected-component 提案，再用 Set-of-Mark、grounding model、VLM 三方投票決定物體身分。動作透過三層 API，每個動作回傳一張「receipt」（指令姿態、實際姿態、夾爪開口、是否抓著東西），全部由 proprioception 和 motion planner 算出，真機上也拿得到。學到的知識存成 Markdown 格式的 Task Memory：物體角色、各階段 workflow、以物體部位描述的 GraspSpec/PlaceSpec（例如「從左邊接近把手、抓中點」），以及 lessons。一個 memory linter 會拒絕任何座標、ground-truth 用語和 seed ID，確保記憶只有語意知識。排練分兩段：S1 在 demo 場景模仿到穩定成功；S2 換新的訓練場景，只算第一次嘗試，失敗時 reviewer 拿到 ground-truth 診斷修改記憶，而且修改要讓該場景成功才合併，修改預算隨經驗遞減。部署後還有 reflection agent 讀評測紀錄、為下一批「從未看過的」場景寫 guidance。</p>
+<p><b>結果</b>：RoboTwin 2.0 全部 50 個任務，每任務一條 demo、零梯度更新，GPT-6.1-Sol 版本平均 83.4%（clean 83.6、randomized 83.2）。最強的訓練式 policy 4D-WAM 用每任務 50 條 demo，clean 81.5 但 randomized 只有 41.8，平均 61.7；π0.5 是 70.7 / 46.0。三個 foundation model 在 randomized 下都保留 95.2% 到 100.8% 的 clean 成功率，訓練式 policy 最多 65.1%。換成便宜的 DeepSeek-V4.1-Flash 也有 78.1%。真機部分，把在模擬 ALOHA 上學到的記憶用一個輕量 adapter 改寫到雙臂 PiPER，四個任務各 10 次：按鈴 10/10、抓滾筒 7/10、移撲克牌 7/10、疊碗 6/10。</p>
+<p><b>限制與疑問</b>：每個評測 episode 平均 54.7 次模型呼叫、2.33M tokens，GPT-6.1-Sol 中位數 6.4 分鐘一個 episode；學 50 個任務加評 1,000 個 episode 要 1,911 美元。API 服務品質會讓成功率在不同時段差好幾個點。真機實驗是離線規劃整段動作、沒有線上重規劃，任務也只有四個。更根本的疑問是：RoboTwin 的任務多半是剛體 pick-and-place，「語意知識可遷移」這個假設在接觸豐富或可變形物體的任務上能撐多遠？</p>
+<p><b>為什麼值得看</b>：這是 agentic manipulation 目前最乾淨的一組對照：同樣的 benchmark、同樣的官方評測伺服器，把「domain randomization 下崩潰」這件事量化得很清楚。對做 3D perception 的人，值得注意的是它其實非常依賴 depth + 幾何提案，而不是端到端視覺；一個自然的後續是把模擬器換成 learned world model 或 3DGS 重建的場景，看 WICL 的三個條件（忠於任務語意、可重置、排練與評測分開）是否還成立。</p>
+
+<h3>2. Is Your Robot's Memory Just a Clock?：memory-augmented VLA 的時間捷徑</h3>
+<p><a href="https://arxiv.org/abs/2611.14488">arXiv 2611.14488</a>｜cs.RO｜Nanyang Technological University（Chubin Zhang、Bo An）</p>
+<p><b>問題</b>：需要記憶的任務（例如「拿起來放下 X 次」）常用的設計是 FrameSamp：在整個 episode 均勻取 32 幀、每幀標上時間戳。作者的論點是這種記憶分不清「在等」和「在做」。示範資料的節奏很穩定，所以「過了多久」本身就能預測進度，policy 便學成看時鐘。作者把時間流逝但任務狀態沒變的區段稱為 null event，失敗模式稱為 phantom progress。</p>
+<p><b>方法（診斷）</b>：在 RoboMME 上用公開的 FrameSamp-Modul policy，50 個成對 episode。插入兩次 5 秒停頓，PickXtimes 成功數從 47 掉到 16，SwingXtimes 從 44 掉到 10；手腕小幅亂動效果類似，而失敗幾乎全是太早按下按鈕。把同樣的物理事件從記憶裡藏起來、時間戳也不前進，成功率就回來，所以問題在記憶。示範資料裡，光看經過時間就能預測已完成次數：PickXtimes 89%、SwingXtimes 80%。最乾淨的實驗是不加任何事件、只把時間戳乘 1.5，成功數從 47 掉到 18，全部是提早按；乘 0.5 則多做好幾次。</p>
+<p><b>結果</b>：跨設計比較很有說服力。以時間索引的三種 FrameSamp 全部崩（例如 47→16、44→14、33→11），以像素變化選幀的 TokenDrop 對停頓較穩（39→30）但怕亂動，以 sub-goal 為索引的 MemER 風格與文字 sub-goal 幾乎不受影響（38→39、46→48）。獨立的 LTM-π 在停頓下從 50 掉到 7。作者的修正是 event indexing：只有世界改變時記憶才前進，機器人回到先前姿態且沒有外部變化的區段被合併；不用重新訓練，在所有三種 null event 下成功率至少翻倍，SwingXtimes 的空抓情境從 13 拉到 43。重新用加了停頓的資料訓練反而沒用，還傷了計數能力。</p>
+<p><b>限制與疑問</b>：全在模擬、null event 是腳本插入的；事件偵測器用了模擬器訊號（機器人輪廓、夾爪寬度、外力），不是可部署的偵測器。拿掉時間編碼的 NoClock 版本仍會被停頓弄壞（21、14/50），作者推測是無事發生的幀佔掉記憶格子，但沒有確認 policy 讀的是哪個特徵。</p>
+<p><b>為什麼值得看</b>：這篇的實驗設計（成對 episode、隱藏條件、時鐘縮放、預先登記的預測）可以直接拿來檢查自己的 long-horizon policy。和上面 WICL 一起讀很有意思：一邊說記憶該按「事件」前進，一邊把記憶寫成語意 workflow，兩者都在說 progress 應該由世界狀態定義，而不是由時間或像素定義。可部署的事件偵測（用 VLM 或觸覺判斷「世界有沒有變」）是很明顯的後續題目。</p>
+
+<h3>3. UGG：一個影片生成模型同時做 novel view、depth 和 camera pose</h3>
+<p><a href="https://arxiv.org/abs/2611.14440">arXiv 2611.14440</a>｜cs.CV｜MIT、UC San Diego、University of Cambridge、Harvard（Ayush Tewari、Yilun Du 等）</p>
+<p><b>問題</b>：feed-forward 幾何模型（DUSt3R 系列）是確定性預測，遇到稀疏或分佈外輸入就不穩；影片生成模型畫得出合理畫面，卻缺乏 3D grounding。UGG 想把兩者當成同一個場景模型上的不同條件查詢。</p>
+<p><b>方法</b>：從 Wan2.2-TI2V-5B 初始化，凍結 video VAE 和 umT5 text encoder，只 finetune diffusion transformer。RGB、depth、camera 視為空間對齊的三種模態；camera 用 dense 6D Plücker ray map 表示並直接打包進 latent（不過 VAE），depth 複製成三通道後走同一個 VAE，用類 disparity 映射壓到約 [−1, 1]。backbone 是 Mixture-of-Transformers：每個模態有自己的投影、FFN 和輸出頭，共享 self-attention。任務由 Diffusion Forcing 指定：已知的 token 是乾淨 context，缺的就是加噪的目標，因此「第一幀→幾何」、「首尾幀＋ray→相機控制生成」都是同一個模型。loss 是各模態 MSE 平均的 conditional flow matching，缺少的模態直接 mask 掉，所以能混用 14 個資料集（TartanAir、RealEstate10K、DL3DV、BEDLAM 等，RE10K 和 DL3DV 沒有 depth）。訓練規模是 128 張 H200 約兩週。推論時還可以做 test-time search：取 16 個候選，用 RAFT 對應點的重投影誤差挑 depth 和 pose。</p>
+<p><b>結果</b>：dense camera pose 的 ATE 在 ScanNet++ 是 0.087，Geo4D 為 0.190；sparse（只給首尾幀）的 tAE 在 RE10K 是 8.260，Geo4D 117.079、Gen3R 44.004，加上 test-time search 降到 3.475。dense depth 在 ScanNet++ 是 Abs Rel 0.073（Geo4D 0.106），KITTI 0.064（Geo4D 0.097），但在 7-Scenes、Sintel、Bonn 輸給 Geo4D。2-view novel view synthesis 在 RE10K 的 PSNR 25.73，略勝 SEVA 的 25.25，DL3DV 則輸 SEVA。消融很有資訊量：拿掉 RGB 生成，KITTI depth 誤差從 0.152 變成 0.322；拿掉 pose 監督，PSNR 掉 6.92 dB；加入沒有 depth 的 RE10K 反而讓 Bonn depth 變好。</p>
+<p><b>限制與疑問</b>：作者自己承認它不是每項都最強，專門的 NVS 模型像素指標更好，專門幾何模型在幾個室內 depth 指標更強。解析度只有 288×384、50 幀，一段 clip 推論約 20 秒。test-time search 的 oracle（用 GT 從同樣 16 個候選挑）還能把 tAE 壓到 1.550，表示挑選準則還有很大空間。</p>
+<p><b>為什麼值得看</b>：這是「生成即重建」路線目前很完整的一個實證，尤其是「生成 RGB 能幫 depth」和「沒 depth 的資料也有用」兩個消融。對做 3DGS 或 feed-forward 重建的人，可以把它當成稀疏視角下的 pose/depth 初始化器；test-time search 的 oracle 差距也暗示可以訓練一個 learned verifier 來挑候選。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>DexForesight：讓靈巧手 policy 隱式學會「預見」</h3>
+<p><a href="https://arxiv.org/abs/2611.11166">arXiv 2611.11166</a>｜HF 23 upvotes。先用離線的場景 depth、手部運動學和示範訓練一個 action-conditioned spatial world model，預測 3D 手部點（包含被遮住的手指）和視覺特徵的變化，再凍結它、讓 policy 的 query 對齊它的預測 query。部署時只跑 policy，只吃 RGB、語言和機器人狀態。11 個 DexJoCo 任務從 49.4% 升到 60.5%，三個真機任務 58.3%，最強 baseline 50.0%。</p>
+
+<h3>How Much of Your VLA Is kNN?</h3>
+<p><a href="https://arxiv.org/abs/2611.13160">arXiv 2611.13160</a>｜CoRL 2026 workshop。完全不訓練 policy，只檢索最近的示範並重用其 action chunk，在 LIBERO 就有 91.7%，而且在 LIBERO-Plus 擾動下掉最少。作者分析九個公開 VLA，認為 fine-tuning 主要是把 VLM backbone 變成更好的檢索 key，輸出的動作仍貼近示範；並提出離線指標 Local Action Consistency（LAC）。和今天第二篇深度閱讀是同一種「拆穿 benchmark」的精神。</p>
+
+<h3>One Policy for 100 Household Tasks：2026 BEHAVIOR Challenge 解法</h3>
+<p><a href="https://arxiv.org/abs/2611.14432">arXiv 2611.14432</a>。去年第一名的 π0.5 系解法今年排第 9，是前十名唯一的獨立團隊。他們認為去年模型訓練不足，今年跑了 200k step、約一遍 211M 幀；在與去年共用的 50 個任務上 Q 分數從 0.260 升到 0.371。有 14 個任務改交給 GPT-6 Astra coding agent 透過觀測與運動工具操作，平均 Q 0.639，而學習式 policy 只有 0.108。再一次印證 WICL 那篇的方向。</p>
+
+<h3>OnlyAct：從 V-JEPA 2 抽出跨場景的 action representation</h3>
+<p><a href="https://arxiv.org/abs/2611.14420">arXiv 2611.14420</a>｜Torr、Vedaldi、Jakab 等。video world model 缺動作標註，常見解法是自己學 latent action。這篇改從 V-JEPA 2 出發，用無標註的對比式適應：同樣動作、不同場景的幀對拉近，同場景、不同動作的推遠。在機器人操作、相機導航、遊戲、駕駛上評估，摘要稱比其他無標註 latent-action 方法表達力明顯更強、場景不變性相當，摘要沒有給具體數字。</p>
+
+<h3>dNaViT：離散 code 也能當通用視覺表徵</h3>
+<p><a href="https://arxiv.org/abs/2611.12426">arXiv 2611.12426</a>｜美團 LongCat｜HF 29 upvotes。在凍結的預訓練 encoder 上加輕量 residual modulation 和雙分支目標，讓語意特徵帶有重建資訊，再用 grouped product quantization 增加離散容量而不拉長序列。作者稱這個 native-resolution 的離散 tokenizer 在 12 個理解、4 個生成和 1 個編輯 benchmark 上達到或超過專用 baseline，是統一多模態模型 tokenizer 的又一個候選。</p>
+
+<h3>Camera3R：讓 3R 模型吃魚眼和其他非透視相機</h3>
+<p><a href="https://arxiv.org/abs/2611.13453">arXiv 2611.13453</a>｜Duan、Tombari、Alex Wong 等。用 low-rank adaptation 把以透視影像預訓練的 3R 網路擴展到其他相機模型，只多 0.5% 參數、訓練不到一天，而且不損失原本在透視輸入上的表現。對機器人常見的魚眼、全景相機很實用。</p>
+
+<h3>Few-Step Streaming Video Generation via Condition Shifting</h3>
+<p><a href="https://arxiv.org/abs/2611.14033">arXiv 2611.14033</a>｜清華（朱軍、陳鍵飛等）。把 APEX 擴展到串流影片生成：condition shifting 在 generator 內部估計生成分佈的 velocity field，省掉 DMD 需要的 fake-score 網路。在 180 秒影片上和 S2-Avatar 比，人類偏好在指令遵循上淨 +30%，motion quality 則是 S2-Avatar 較好；訓練上比 DMD 省 4.4% 峰值記憶體、每 iteration 快 9.2%。</p>
+
+<h2>新聞與討論</h2>
+
+<h3>Apple 準備推出本地 AI 推論 app「Harbor」</h3>
+<p><a href="https://9to5mac.com/2026/11/10/apple-has-new-mac-app-coming-to-make-running-local-ai-models-easy/">9to5Mac</a> 根據爆料者 Aaron Perris 的貼文報導，Harbor 會把 Mac 變成私有的推論伺服器，在 Apple silicon 上跑 open-weight 模型，可在 app 內瀏覽、下載、載入模型。最有趣的是會自動偵測透過 Thunderbolt 5 相連的 Mac 組成 cluster，合併 unified memory 跑更大的模型或服務更多請求。目前在 Claris 品牌下私測。<a href="https://news.ycombinator.com/item?id=50446520">HN 討論</a>中有人指出 Claris（前 FileMaker）品牌暗示目標是小企業、可能是訂閱制；也有人用 128GB Mac 跑 27B MLX 模型，認為長期比雲端便宜。</p>
+
+<h3>Anthropic 找到的漏洞，七個月後的實際成效</h3>
+<p><a href="https://www.vulncheck.com/blog/anthropic-glasswing-november-update">VulnCheck</a> 追蹤 Project Glasswing 相關的 CVE：七個月共 442 個歸屬 Anthropic，約佔今年 93,450 個 CVE 的 0.5%，只有 2 個進 KEV（已被利用）清單。Anthropic 自己的 ledger 有 37,966 個 findings，但只有 217 個已修復；自 9 月 8 日以來 findings 增加 11,813 個，修復只增加 15 個。curl 收到的 45 份報告中，已公開的 34 份有 19 份不是漏洞。作者的結論是 AI 找漏洞有價值，但 triage 負擔轉嫁給了開源維護者。<a href="https://news.ycombinator.com/item?id=50447074">HN 討論</a>中 Fil-C 維護者則說他收到的九份報告全部是真 bug、測試案例也很好，和文章的懷疑論調不同。</p>
+
+<h3>「AI 讓 codebase 變脆弱」</h3>
+<p>剛從 Meta 被裁的工程師 <a href="https://evanxmerz.com/post/ai-usage-generates-a-fragile-codebase/">Evan X. Merz</a> 列出四個機制：AI 寫的測試很淺（只測 getter/setter、只走既有路徑），程式過度拆 helper、過度 DRY，團隊對資料結構的理解退化，PR 多到 review 跟不上。警訊包括事故隨時間增加、恢復變慢。這篇在 <a href="https://news.ycombinator.com/item?id=50438318">HN</a> 有 520 則留言；有人認為 AI 只是放大了「商業壓力壓過品質」的老問題，也有人回報 agent 為一次性需求寫出 400 行警報程式。</p>
+
+<h3>16 個 LLM 挑戰 TIS-100</h3>
+<p><a href="https://tis-100.wincon.dev/">TIS-100 Bench</a> 讓 16 個模型寫 Zachtronics 那款「多個小處理器節點互傳數值」的組語遊戲，以 cycles、nodes、instructions 三個分數的 Pareto frontier 計分，不給社群排行榜。Opus 5.5 和 GPT-6 Astra 都解完 55 題，各在 11 題上找到新的 frontier 點；全體共找到 133 個新點，其中 3 個是 cycle 紀錄。「會解」和「會最佳化」是兩回事：Gemini 3.8 Flash 解了 53 題，只找到 1 個新點。給更豐富的回饋（目標分數、診斷、edge case）時，30 組中有 28 組進步。<a href="https://news.ycombinator.com/item?id=50448340">HN 討論</a></p>
+
+<h3>破解 Meta Ray-Ban 智慧眼鏡</h3>
+<p><a href="https://p0pcycle.com/2026/11/06/hacking-the-meta-ray-ban-smartglasses/">這篇文章</a>不拆機，而是用 Frida hook Meta AI app 抓到 OTA 下載網址，強制要完整韌體映像。韌體 126 以前不驗證 Device Access Toolkit APK 的簽章，所以換成自簽 APK 就能在眼鏡上執行程式，透過 Wi-Fi Direct 拿到 app 權限的 shell（不是 root）。沒有螢幕怎麼除錯？用 ToneGenerator 的嗶聲序列標記執行到哪一步。韌體 127 加了簽章驗證，但開關放在手機傳過來、只檢查格式的設定檔裡，改一個 byte 就關掉了。已透過 bug bounty 回報。<a href="https://news.ycombinator.com/item?id=50406224">HN 討論</a></p>
+
+<h3>Chips and Cheese 拆解 AMD Zen 6 的記憶體子系統</h3>
+<p><a href="https://chipsandcheese.com/p/amds-zen-6-family-feeding-the-beast">Chips and Cheese</a> 量測：Zen 6 CCD 12 核、Zen 6c CCD 32 核，都是每核 4 MB L3（Zen 6c 一個 CCD 128 MB）。L3 延遲從 Zen 5 約 47 cycles 增加到 55（Zen 6c 66），但時脈更高，換算成時間幾乎沒變。Zen 5 的 L2 讀取頻寬在大部分容量上只有約 42 bytes/cycle，Zen 6 穩定做到 64；256-bit load 增加到每 cycle 4 個。Zen 6c 的 ROB 從 576 加到 640 項。對在 EPYC 上跑大量資料前處理的人，大 L3 的效果值得一看。<a href="https://news.ycombinator.com/item?id=50443090">HN 討論</a></p>
+
+<h3>陶哲軒的新書《Six Math Essentials》</h3>
+<p>陶哲軒的<a href="https://teorth.github.io/tao-web/six-math-essentials.html">新書</a>在 11 月 10 日由 Quanta Books 出版，128 頁，把數學分成六個理解世界的工具：數（量化思考的起點）、代數（抽象）、幾何（計算看不到的東西）、機率（嚴謹地推理不確定性）、分析（處理極大與極小）、動力系統（變化的數學）。英國版兩週前已由 Pelican 出版。適合推薦給想重新建立數學直覺的學生。<a href="https://news.ycombinator.com/item?id=50446246">HN 討論</a></p>
+</article>
+</body>
+</html>

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 早報｜2026-11-04（週三）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 早報｜2026-11-04（週三）</h1>
+<p><b>今日導讀</b>：今天的主題是「指標會騙人」。三篇深度閱讀各拆一個大家習慣拿來當證據的數字：world model 的 prediction error 不等於「物理驚訝」，VLM 在 3D benchmark 上的分數不等於會用看到的東西，而 imitation learning 的 validation loss 也幾乎預測不了真機成功率。新聞那邊，Astra「讀寫權重」的爭議又多了兩個新角度。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. When Does Latent Prediction Error Support Physical Surprise Claims in Video World Models?</h3>
+<p><a href="https://arxiv.org/abs/2611.01815">arXiv:2611.01815</a>｜cs.CV, cs.LG｜Technology School Electronic Systems (TUES)、Baba Tonka High School of Mathematics（保加利亞）</p>
+<p><b>問題</b>：V-JEPA 一類的 video world model 常被拿來做「intuitive physics」：看到不可能的事件時 latent prediction error 變大，就說模型「感到驚訝」。但 error 變大也可能只是畫面外觀改變、靜止畫面、運動量不同，或單純比較難預測。這篇問的是：這個推論什麼時候站得住？</p>
+<p><b>方法</b>：作者設計一套評估框架，分六項檢查：linear probe readout、latent geometry（各層 appearance shift 的大小、方向一致性、和物理變化的 subspace overlap）、action sensitivity、外觀與靜止畫面的對照、physical validity，以及固定 threshold 能不能遷移（calibration）。每個模型用自己的 encoder 和原生距離，所以只在同一模型內比大小。模型包括 V-JEPA2-G/L、VideoMAE2-G、低階像素統計 baseline，以及 action-conditioned 的 LeWorldModel、DINO-WM、JEPA-WM；資料集有 IntPhys2、Physion++ Mass、Kubric（自建的 256 組設定、3,072 段影片）、TwoRoom 和 PushT。統計上用 bootstrap 信賴區間加 Bonferroni 校正。</p>
+<p><b>結果</b>：在 IntPhys2 上，linear probe 判斷事件是否可能，V-JEPA2-G 只有 57.9%（VideoMAE2-G 49.2%、像素統計 50.0%），但判斷外觀高達 97.7%。也就是說物理資訊有，但很薄。最致命的是 Kubric 的交叉實驗：「停住」本身就比「掉落」error 高，所以在實心支撐上，不可能事件的 error 反而比可能事件低。用 calibration 場景擬合的單一 threshold，balanced accuracy 只有 53.9%，在實心支撐上只有 27.1%，約 69% 的合法影片被誤判成不可能。Physion++ 上，把單一 frame 重複（完全靜止）error 反而比原片高，整段改色調則讓 error 下降。Action-conditioned 模型對錯誤 action 確實會提高 error，但 DINO-WM 在 60° hue shift 下的 error 增量（0.0498）比錯誤 action 的增量（0.0031）大了一個數量級以上。</p>
+<p><b>限制與疑問</b>：Kubric 只有一個程序化場景家族，鏡頭、顏色、光線都受限，沒有測質量、摩擦等材質線索；幾個模型架構和預訓練都不同，所以無法單獨歸因到 JEPA objective。不過論文本來就是在說「這個推論不夠格」，而不是要提出更好的 surprise 指標。</p>
+<p><b>為什麼值得看</b>：如果你在做 world model 的 anomaly detection、或把 prediction error 當 planning cost，這篇等於一份檢查清單：至少要做靜止畫面、改色、跨場景 threshold 這三個對照。後續可以想的是：error 有沒有辦法在 appearance subspace 之外計算（論文顯示深層的 appearance shift 方向很一致，可以投影掉），以及用像 Kubric 這樣「可能/不可能」交叉配對的資料當作標準 sanity check。</p>
+
+<h3>2. Where Do Vision Language Models Fail at 3D Reasoning?（BedBench）</h3>
+<p><a href="https://arxiv.org/abs/2610.39639">arXiv:2610.39639</a>｜cs.CV, cs.AI｜作者含 Silvio Savarese、Ran Xu、Mona Diab 等（HF 頁標 Stanford）</p>
+<p><b>問題</b>：VLM 在單一 3D 問題上可能答對，但當答案需要「每個量都對、而且彼此對得上」時就崩了。作者區分三件事：individual judgment（例如有幾種顏色）、exact answer（每種顏色各幾塊都要對）、consistent use（相關問題的答案是否互相一致）。</p>
+<p><b>方法</b>：BedBench 有 13 個程序化生成的任務，大多是 10 到 15 個 unit cube 組成的 voxel 物體，從相反的兩個視角渲染，並過濾掉兩張 silhouette 會有歧義的物體，因此 ground truth 是精確的。有顏色/無顏色、有座標軸/無座標軸的對照版本。測了 12 個 open-weight（Qwen3.5、Gemma4、GLM-4.6V-Flash、Kimi-VL）和 4 個 frontier 模型（GPT-5、Grok-4.20、Gemini-3-Flash/3.1-Pro），另有 30 位人類受試者。</p>
+<p><b>結果</b>：per-color counting 是最大弱點：人類 93.3%，最好的模型 7.2%。平均下來人類 70.0%，最強的 Gemini-3-Flash 51.5%，永遠猜同一個答案的 baseline 是 36.7%。open-weight 模型的 per-color MAE 是 0.80 塊，比「每色都猜平均值」的 0.69 還差。同樣的方塊改用 2D tile 呈現，Qwen3.5-27B 的 exact match 從 3.0% 跳到 52.4%，問題確實在 3D。對 Qwen3.5-27B 做 LoRA（只訓 LLM、凍結 vision encoder），T5 從 3.0% 升到 68.6%，但問「哪個顏色最多」時，從圖片答只有 35.0%，把它自己數出來的 count 用文字餵回去就有 74.2%。Probing 更有意思：attention probe 從 connector 輸出能還原 65.0% 的精確 count，模型自己卻只答對 3.0%。資訊已經送進 LLM，是 LLM 沒用上。另外，拿掉圖片後有些分數還在，例如 Gemma4-31B 在 T1 靠永遠選第三個選項拿到 100%。</p>
+<p><b>限制與疑問</b>：場景全是合成 voxel，沒有真實材質、光線和雜亂；人類樣本只有 30 人；深入的 probing 和 fine-tuning 主要只做了 Qwen3.5-27B。</p>
+<p><b>為什麼值得看</b>：對做 spatial VLM 或拿 VLM 當機器人 planner 的人，「encoder 看得到，LLM 用不上」是很具體的診斷，也暗示改 connector 或加中間結構化輸出（先數再答）可能比加 3D 資料更有效。image-removal control 也該成為所有 3D VQA benchmark 的標配。</p>
+
+<h3>3. Does Validation Loss Predict Real-Robot Success?</h3>
+<p><a href="https://arxiv.org/abs/2611.00283">arXiv:2611.00283</a>｜cs.RO｜Simon Cowling，fysical.ai（丹麥）</p>
+<p><b>問題</b>：大家用 held-out validation loss 選 checkpoint、比較模型，但 imitation learning 有兩個問題：closed-loop 下小誤差會累積，而 demonstration 永遠是「任務已經開始」的樣子，有些失敗模式根本不會出現在 validation set 裡。</p>
+<p><b>方法</b>：一台低成本 SO-101 手臂，在兩顆紅球干擾下撿綠球丟進籃子。四種 policy：ACT、Diffusion Policy（未裁切與裁掉開頭靜止段的兩個版本）、SmolVLA、π0.5（只訓 action expert）。225 條示範中固定 25 條當 hold-out，訓練用 12/25/50/100/200 條的巢狀子集。共 82 個 checkpoint 對上 930 次真機 rollout，另外對 70 次訓練的 700 個中間 checkpoint 算 offline 指標。真機測試的光線比錄製時暗。指標包括各 policy 自己的 loss，以及統一的 action MAE，用 Spearman 相關加 permutation test。</p>
+<p><b>結果</b>：同一模型內，hold-out error 和成功率的相關從 −0.23 到 −0.88，但光用「示範數量」就能得到差不多的相關；固定資料量後相關接近零甚至為正（ACT +0.28）。跨模型更糟：200 條示範時 hold-out error 和成功率的相關是 +0.90，方向完全相反；未裁切的 DP 有全研究最低的 hold-out error，110 次只成功 3 次。最常見的失敗是手臂根本沒離開起始姿勢：未裁切 DP 96%、SmolVLA 47%，ACT 和 π0.5 都是 0。一旦手臂動起來，validation 就有用：SmolVLA 在「有啟動」的 rollout 中相關達 −0.81，SmolVLA 和 π0.5 的 hold-out error 幾乎一樣（4.98 vs 5.11），啟動後成功率也接近（71% vs 73%），整體差距（38% vs 73%）幾乎全來自啟動。EMA 讓 validation 變化不到 1.5%，卻讓 DP 啟動次數從 2/20 變 12/20；裁掉開頭靜止段讓成功從 2/40 變 34/70。另一個重點：DP 和 SmolVLA 的 hold-out denoising loss 在訓練中上升 2 到 5 倍，但 action error 反而下降最多 29%，用 loss 做 early stopping 會在約 10% 進度時就停掉。</p>
+<p><b>限制與疑問</b>：單一任務、單一手臂、單一實驗室；多數 checkpoint 只有 10 次 rollout（約 ±15 個百分點）；不同 policy 的 action horizon 不同（ACT 100、DP 24），跨模型 action error 不完全可比。</p>
+<p><b>為什麼值得看</b>：作者建議把「啟動失敗」獨立報告、改用 action error 而非 generative loss，並提出一個還沒實作的 offline initiation probe：把示範開頭幾幀丟進去，看預測動作會不會在一秒內讓手臂動。這是很容易做的 follow-up。對任何訓練 diffusion/flow-matching policy 的人，「loss 上升但 policy 變好」這點也值得記住。</p>
+
+<h2>快速瀏覽</h2>
+<ul>
+<li><b>Roz: A Taste Test for World Model Latents</b>（<a href="https://arxiv.org/abs/2611.00612">2611.00612</a>）：和第一篇互相呼應。作者發現熱門的 latent world model 在能化約成影像相似度的任務上表現好，但會丟掉質量、形變、摩擦、彈性等物理性質。Roz 有 10 個對比任務和 3 個連續任務，共 1,734 個場景，只需要能抽 latent 和一個距離函數，一次 forward 就能跑完。</li>
+<li><b>Auriga：Task-Agnostic Agent Harness for Zero-Shot Manipulation</b>（<a href="https://arxiv.org/abs/2611.01112">2611.01112</a>）：在 RoboDojo 上，拿掉手臂執行後 GPT-6 Astra 的成功率從 22.5% 升到 76.2%，可見瓶頸在執行。Auriga 讓模型透過 tool call 或 Python 程式行動，提供校正過的 3D 量測、雙臂控制、執行前的軌跡預覽和執行中的偏離監控，拿下 RoboDojo 第一（57.7% 成功率），RoboCasa365 73.2%。</li>
+<li><b>WorldSketch: Sketching World Models for Zero-Shot Mobile Manipulation</b>（<a href="https://arxiv.org/abs/2611.00513">2611.00513</a>）：不讓 VLM 直接出動作，而是讓它畫一個只含任務相關物體、接觸幾何和可能運動的極簡 kinematic world model，再交給 geometric planner 最佳化。Zero-shot 成功率 RoboCasa 91%、LIBERO-PRO 97%，在 RoboCasa 上比次佳 agent 高 58 個百分點，VLM input token 少 10 倍。</li>
+<li><b>Gaussifier: Fast 2D Gaussian Decomposition</b>（<a href="https://arxiv.org/abs/2611.00032">2611.00032</a>）：feedforward 地把圖片分解成 2D Gaussian：先學 Gaussian 中心的 density map，用 equal-mass Voronoi cell 放置，再迭代 refine 幾輪。Kodak-24 上 40.73 dB、DIV2K 38.61 dB，超過 60 FPS，同 Gaussian 數下比 feedforward baseline 高 3.0 到 15.6 dB，有 WebGPU demo。</li>
+<li><b>Advances in Agentic Computer Graphics</b>（<a href="https://arxiv.org/abs/2611.01860">2611.01860</a>）：Guibas、Jiajun Wu、Agrawala、Pavlakos、Shangzhe Wu 等人合寫的 survey（HF 89 upvotes）。提出跨圖學任務的 agentic system 統一分類，並附一個幫研究者大規模分析論文的 agentic 文獻系統，討論多 agent/工具協調、人機協作介面、長程規劃與互動系統的評估。</li>
+<li><b>Lab2Sim</b>（<a href="https://arxiv.org/abs/2611.02928">2611.02928</a>）：把真實的科學實驗影片轉成可互動的虛擬實驗。Benchmark 有 218 部影片、11,881 個 rubric 項目；EduVideo2Code 先分層抽取流程、編成 state machine 引導程式生成，再用執行驗證修正，apparatus fidelity 提升 24.15 分。現有多模態模型能輕易生成可執行的網頁，但器材重建很差。</li>
+<li><b>CUA-Master</b>（<a href="https://arxiv.org/abs/2611.03126">2611.03126</a>）：今天 HF 第二高（90）的 computer-use agent。雙層 flywheel：外層依模型弱點引入開放世界資料，內層從教學影片挖 workflow 當種子任務、合成可驗證任務，並用 snapshot-rollback 重試收集軌跡。27B 模型在 OSWorld Verified 拿到 80.2、OSWorld 2.0 36.9。</li>
+</ul>
+
+<h2>新聞與討論</h2>
+<ul>
+<li><b>Astra「讀權重」爭議的兩個新角度</b>：昨天的早報和晚報介紹過原文和第一篇反駁，之後又多了兩篇。Simon Willison 在筆電上用 Qwen 3.8 27B（Q4 量化、約 17GB）跑論文裡「不准用工具、只看原始權重猜是哪個遊戲」的實驗，Pong 和 Breakout 都猜對，Pac-Man 部分正確，Freeway 失敗，每題要 46 分鐘到一小時多（<a href="https://simonwillison.net/2026/Nov/3/qwen-can-interpret-model-weights/">文章</a>，<a href="https://news.ycombinator.com/item?id=50355251">HN 討論</a>）。他認為這些網路只有幾萬個權重，一個有經驗的人拿紙筆也可能做到。spaCy 作者 Matthew Honnibal 則指出原文摘要誤導：真正「不用工具看權重」的只有實驗 1、2、4，而 Qwen 那個結果其實用了 Python 並實際跑模型；寫遊戲 policy 的實驗從零權重開始，也只在 Breakout 贏過 PPO（<a href="https://honnibal.dev/blog/astra-read-write-misleading">文章</a>，<a href="https://news.ycombinator.com/item?id=50351111">HN 討論</a>）。</li>
+<li><b>Stringman：800 美元的開源天花板纜繩機器人</b>：四顆馬達拉著固定在天花板四角的纜繩，下面吊一個二指加旋轉手腕的夾爪，幾乎能到房間任何一點，載重約 1.9 kg、速度 0.4 m/s，靠控制演算法消除擺盪（<a href="https://neufangled.com">官網</a>，<a href="https://news.ycombinator.com/item?id=50354358">HN 討論</a>）。CAD、PCB、軟體全開源（OSHWA 認證），支援 LeRobot、有 Python API 和 MCP server，官方說像 DiT 的模型 50 個 episode 就能學會一個行為。HN 留言討論了三條纜繩只能覆蓋三角形區域、有人扯纜繩的安全問題，以及這類設計可能更適合自動化工作室而非一般家庭。</li>
+<li><b>Carlini：現代西洋棋引擎在 1996 年的 Pentium 上能贏 Kasparov 嗎？</b>：Nicholas Carlini 在真的 200 MHz Pentium Pro（64MB RAM）上，用自製的軟碟開機 OS 跑引擎（<a href="https://nicholas.carlini.com/writing/2026/algorithmic-improvements-chess.html">文章</a>，<a href="https://news.ycombinator.com/item?id=50349276">HN 討論</a>）。重新調校過的 Stockfish 17 移植版每步 30 秒約 3180 Elo，外推到正式時限約 3300，遠高於 Kasparov 的近 2800；在 Pentium Pro 上它對跑在現代硬體上的 1996 年 Crafty 取得 78 勝 17 和 5 敗。他估計 1996 到今天約 +1335 Elo 中有 +720 來自軟體，並把這當作「演算法進步可能比算力更重要」的例證。HN 有強棋手反駁：算力不足時現代引擎會有可利用的弱點，而且 NNUE 和 Fishtest 本身就是靠大量算力開發出來的。</li>
+<li><b>Herculaneum 卷軸 PHerc. 306B 兩千年來首次讀出文字</b>：卷軸在 ESRF 做 micro-CT，Vesuvius Challenge 團隊虛擬攤開深處的一層紙莎草，再把兩個 ink detection 模型（TRACE v3B 和由 Youssef Nader 的模型微調而來的 A-hn）的輸出相乘，兩者都同意才算墨跡（<a href="https://scrollprize.substack.com/p/writing-seen-in-pherc-306b-for-the">文章</a>，<a href="https://news.ycombinator.com/item?id=50342119">HN 討論</a>）。讀出的片段支持「τὸ δι᾽ αὑτὸ αἱρετόν」（本身即值得追求者），Liam Warner 和 Nicola Bodill 拿下 5 萬美元獎金。下一步是讓 ink detection 在更便宜的 8 到 9 µm 掃描上也可靠。</li>
+<li><b>Postman 被指自動安裝 AI coding agent plugin</b>：一位使用者發現 Postman 桌面版 12.33.4 在既有用戶的 Mac 上自動替 Codex 和 Claude Code 裝了 Postman plugin，還自己寫入了 SessionStart hook 的信任紀錄，hook 會注入指令讓 agent 在「任何非 trivial 的 API 任務」都載入 Postman skill（<a href="https://github.com/postmanlabs/postman-app-support/issues/14370">GitHub issue</a>，<a href="https://news.ycombinator.com/item?id=50354960">HN 討論</a>）。issue 本身沒有證明資料外洩，HN 標題說的「分享所有 API 資料」比 issue 內容強烈；Postman 尚未在 issue 中回應。對所有在本機跑 agent 的人，這是檢查 hook 和 plugin 清單的好理由。</li>
+<li><b>為了調車上的時鐘而 root 導航系統</b>：作者的 2014 Renault Latitude 在夏令時間切換後時鐘差一小時，但設定選單沒有調時間的選項，原來那個選單定義在有 DRM 的導航 SD 卡上（<a href="https://blog.nns.ee/2026/11/02/renault-hack/">文章</a>，<a href="https://news.ycombinator.com/item?id=50339288">HN 討論</a>）。他用 QEMU 和自製 CAN 模擬器建了測試環境，利用 SD 卡腳本中一個有 path traversal 的 log 指令寫入 kernel 的 <b>core_pattern</b>，再故意讓程式 crash 取得 root，最後把時區偏移從 180 分鐘改成 120。一篇很完整的嵌入式 reverse engineering 教學。</li>
+<li><b>OpenAI 被指悄悄重新開啟 Codex 對話的訓練設定</b>：HN 上一位使用者說公司為了避免 IP 外洩，團隊都關掉了 Codex 的資料分享，卻發現設定被重新打開（<a href="https://news.ycombinator.com/item?id=50352757">HN 討論</a>）。留言中有人遇到相同情況、也有人設定一直是關的，原因眾說紛紜（bug、安全過濾觸發保留、dark pattern）。目前討論串裡沒有 OpenAI 的正式回應，屬於未證實的使用者回報，但值得檢查自己的設定。</li>
+</ul>
+</article>
+</body>
+</html>

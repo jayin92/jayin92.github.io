@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 早報｜2026-11-21（週六）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 早報｜2026-11-21（週六）</h1>
+<p><b>今日導讀</b>：週五數學界炸開了：Levent Alpöge 宣稱和 AI 一起證出廣義黎曼猜想，交出一份只有 Lean 的證明。同一天還有一份人類寫的 GRH 證明草稿，以及兩篇流體力學 blow-up 的結果。arXiv 週末不更新，論文這邊改看 Hugging Face 上新熱門的幾篇，有一條共同主線：該交給「顯式結構」（3D 代理、SDF 體素、全身控制器）的就交給它，剩下的再讓生成模型去補。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. Coda-DaVinci：影片生成要不要先在 Blender 裡搭一個場景？要搭，但只搭一部分</h3>
+<p><a href="https://arxiv.org/abs/2611.26595">arXiv 2611.26595</a>｜cs.CV｜KlingAI Research、南京大學、北京大學、清華大學等</p>
+<p><b>問題</b>：「Code2Video」這條路（VideoCoCo、Code Video Model）讓 coding agent 先寫程式在 3D 引擎裡搭一個代理場景、渲染成 proxy 影片，再讓影片模型照著它生成最終畫面。好處是場景狀態可控，鏡頭轉開再轉回來，東西還在原處。但代理要做多細、要不要跑物理模擬、prompt 怎麼寫，一直沒有人系統性地比較過。做太細，僵硬的動畫會直接傳到最終影片裡。</p>
+<p><b>方法</b>：作者先做控制實驗，把三個因素拆開：代理粒度 G0/G1/G2（粗、中、細）、是否用 Blender 內建物理（P0/P1）、prompt 處理方式（PE0 不改寫、PE1 外部模型擴寫、PE2 由 coding agent 依照代理寫出主體與顏色的對應）。每支影片由專家在盲測下用 0 到 3 分評四個面向：一致性、指令遵循、物理合理性、自然度。結論是看任務而定：動作多的任務用粗代理比較自然，需要物理時中等粒度的一致性最好，agent 自己寫的 prompt 也勝過外部擴寫。框架就照這些結論設計，把分析結果寫成 agent 的 skill：先判斷走 3D 建模還是直接生成，環境與物件用中等粒度，人用粗粒度（手指等細節交給影片模型），能模擬的物理就用 Blender 模擬。Agent 會先看過渲染出的代理再寫 prompt，另有一個獨立的驗收 agent 對照原始需求挑錯，退回修改。</p>
+<p><b>結果</b>：所有方法都用 Seedance 2.5 合成，agent 用 GPT-6-Astra。VTR 上 WER 從直接生成的 59.21% 降到 11.08%，checklist 91.42，是全表最高。R2M 的 Scene ID 正規化記憶比 1.011（Claude + Blender 0.950、直接生成 0.347）。在 World Models' Last Exam（物理）拿 60.77，高於直接生成的 47.16，但輸給 Claude + Blender 的 65.52。T2AV-Compass 的真實感 70.26，在 Code2Video 方法中最高，但仍略低於直接生成的 71.38。換成 Three.js 品質略降，token 用量約省一半。定性例子很好懂：指令要求鏡頭從掃落葉的人身上移開、再轉回台階，Seedance 直接生成時鏡頭幾乎沒離開，台階上還留著大片落葉；兩個 Code2Video 方法都完成了離開再回來，而且回來時台階已經掃乾淨，代表「看不到的時間裡事件仍在進行」被正確保留。另一個揉麵團的特寫裡，Codex + Blender 的手幾乎定格，Coda-DaVinci 只建模麵團，把手腕和手指的動作留給影片模型，看起來自然得多。</p>
+<p><b>限制與疑問</b>：主要指標是人評或 VLM 評分，消融只在 33 個任務上做。長影片實驗中，段落之間的轉場穩定度和場景設定遵循反而輸給直接生成。整個系統依賴閉源的 agent 與影片模型，成本以 token 計，不便宜。</p>
+<p><b>為什麼值得看</b>：這篇給「顯式 3D 結構 + 生成式外觀」的分工提供了實證數據：結構和狀態交給程式，細微動作和外觀交給影片模型。對做 world model 或機器人模擬資料的人來說，「哪些實體需要建模、要建到多細」這個問題可以直接借用。可以延伸的方向有：把 proxy 換成 3DGS 場景，或用重建出的真實場景當代理。</p>
+
+<h3>2. WAM-Policy：把手臂用的 world action model 搬到「用前腳操作」的四足機器人上</h3>
+<p><a href="https://arxiv.org/abs/2611.24011">arXiv 2611.24011</a>｜cs.RO｜Maincode</p>
+<p><b>問題</b>：沒有手臂的四足機器人可以三腳站立、用一隻前腳推門、按按鈕，但目前沒有能聽語言指令的策略可以做這件事，也沒有帶語言標註的示範資料。另一方面，world action model（WAM，同時預測未來畫面和動作）已經是很好的語言條件操作策略，但它們都是為手臂預訓練的，而且多步取樣很慢。四足機器人在取樣期間身體還會漂移，算出來的動作套到取樣後的狀態上就不準了。</p>
+<p><b>方法</b>：底座是 LingBot-VA。第一階段只換掉視覺和動作介面：頭部與手腕相機換成機身上的 ego 視角和俯視視角，30 維雙臂指令換成 RAMBO 全身控制器的 9 維指令（底盤速度、偏航、操作腳的目標位置與接觸力），其餘權重保留。接著用 on-policy self-distillation（OPSD）：同一個網路以高步數（影片 25、動作 50）當 teacher，從同一個噪聲出發，把 1/2 步（影片 1 步、動作 2 步）的 student 回歸到 teacher 的結果。訓練用的 context 一半來自 teacher 事先跑的軌跡，一半來自 student 自己的 rollout，只訓練 LoRA。第二階段針對推箱子、開門兩個難任務，各用 DiffusionNFT 的 window 版本做 RL，得到專家 teacher，再用依任務路由的多 teacher on-policy distillation（M-OPD）合併回一個少步數 student。資料是 QLM-Bench：MuJoCo 裡 10 個任務，由多模態模型起草參考軌跡、人工審過後重定向到隨機場景執行，共 1,000 條示範，不需要遙操作。</p>
+<p><b>結果</b>：轉移後的 teacher 成功率 77.0%（逐任務的點雲方法 Leg-Manip 為 61.7%）。直接把步數降到 1/2 會掉到 69.3%，OPSD 把它救回 76.7%，每個 chunk 的取樣時間從 2.226 秒降到 0.156 秒，快 14 倍（一個 chunk 對應 0.32 秒的機器人時間）。M-OPD 之後推箱子 90%、開門 87%（OPSD student 分別是 50% 和 37%），十項平均 85.0%，而且單一 student 取代了兩個各需約 2.7 秒的專家 teacher。另一個有趣的消融：不蒸餾、只把步數減到 2/4 時成功率是 78.0%，和 25/50 步幾乎一樣，掉點只發生在最後一次減半，OPSD 正好補上這一段。換成 distribution matching 蒸餾只有 59/100，比不蒸餾還差。加入本體感測反而從 77 掉到 67。</p>
+<p><b>限制與疑問</b>：實機 Unitree Go2 Air 只測三個任務，30 次試驗成功 7 次。加上觀測編碼，閉迴路要 0.66 秒，超過 chunk 長度，機器人只能在 chunk 之間維持上一個指令。RL 只做了兩個任務，掃方塊仍是 0%。</p>
+<p><b>為什麼值得看</b>：「用同一個網路的高步數版本當 teacher、在自己的分佈上蒸餾」做法簡單，而且附錄也把它用在手臂 WAM 上，可以直接拿去加速自己的 diffusion/flow policy。這篇也展示了跨形態轉移（arm → 用腿操作）只換介面層就能成立。Sim-to-real 的落差和延遲是接下來要解決的地方。</p>
+
+<h3>3. Direct3D-V3：拿掉 VAE，直接在 1536³ 的 SDF 體素上做 diffusion</h3>
+<p><a href="https://arxiv.org/abs/2611.26511">arXiv 2611.26511</a>｜cs.CV｜南京大學等</p>
+<p><b>問題</b>：從 vecset、triplane 到 sparse voxel（TRELLIS、Direct3D-S2），原生 3D 生成都是先用 VAE 把幾何壓進 latent 再做 diffusion。作者認為這有兩個問題：VAE 重建時已經丟掉了細節，diffusion 再強也救不回來；VAE 為重建而訓練，diffusion 為分佈匹配而訓練，兩邊的目標不一致。影像領域已經有 JiT、PixelDiT 回到像素空間，3D 能不能也這樣做？</p>
+<p><b>方法</b>：直接對截斷 SDF 體素做 flow matching，採用 JiT 式的 x-prediction（預測乾淨的 SDF）。為了控制 token 數量，只在表面附近的 patch 上計算：patch 的位置由第一階段模型提供（他們訓練了一個 Hunyuan3D 2.1 式的 vecset DiT 來產生粗 mesh）。架構是雙粒度：17 層、hidden 1536 的 patch-level DiT 負責全域結構（以 DINOv2-L 影像 token 做 cross-attention），輕量的 voxel-level DiT 在 patch 內逐體素補細節。少了 VAE decoder 提供的流形先驗，Marching Cubes 抽出的 mesh 會有很多破洞，所以加了 implicit manifold regularization：相鄰體素的 SDF 差值超過一個體素長度就懲罰（他們發現 Eikonal loss 會讓訓練崩掉）。因為輸出就是 SDF，可以直接用可微的 sparse Marching Cubes 加 nvdiffrast 渲染法線圖監督，另外加一個相機參數預測分支。訓練資料是 Objaverse-XL 的 32 萬個 mesh，在 16 張 A800 上從 256³ 漸進訓練到 1536³。</p>
+<p><b>結果</b>：102 張真實、網路與 AI 生成圖片上，Uni3D 0.4198、ULIP-2 0.4535，略高於 Direct3D-S2（0.4190/0.4485）、UltraShape、TRELLIS2（0.4172/0.4405）。GSO 單視角生成式重建：CD 0.0131、F1@0.99 0.6043，都是最好；Volume IoU 0.3815，略低於 TRELLIS2 的 0.3884。消融方面，加入 voxel-level DiT 讓 Normal-FID 從 92.96 降到 75.80，加上法線監督後到 68.97；1024³ 下 IMR 把平均邊界邊數從 25,353 降到 898。</p>
+<p><b>生成式重建</b>：因為模型同時預測相機，又直接輸出 SDF，單張圖重建時可以這樣做：先用 Lotus-2 預測輸入圖的法線，在 diffusion 取樣過程中（t &lt; 0.8 時）穿插 100 步的 SDF 最佳化，讓在預測相機下渲染出的 mesh 法線對齊輸入圖的法線，同時保留生成先驗補出看不到的部分。換成多視角輸入也只需要把各視角的 DINOv2 token 串接起來、微調 2 萬步，就能在 Tanks and Temples 場景上運作。</p>
+<p><b>限制與疑問</b>：Uni3D/ULIP 的差距其實非常小，主要說服力來自定性比較。表面 patch 完全依賴第一階段，位置錯了，測試時的法線最佳化會把細結構扭壞。剩下的小洞仍需要後處理補。</p>
+<p><b>為什麼值得看</b>：這是「latent-free」趨勢從 2D 延伸到 3D 的一個清楚案例，也顯示 SDF 直接輸出讓渲染監督和測試時最佳化都變得便宜。做重建的人可以思考：如果 generator 直接輸出幾何，多視角約束、深度先驗甚至 3DGS 的初始化都可以直接接上去。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>Posterior Matching Distillation：保留多樣性的 4 步 diffusion 蒸餾</h3>
+<p>NVIDIA 等團隊提出 PMD：不用偏向主要 mode 的 reverse-KL，改讓 student 在固定噪聲狀態下的樣本，經指數重加權後的平均去匹配 teacher 的 posterior mean。作者證明匹配這族 tilted mean 就能唯一決定整個 posterior，所以不需要額外的 student score 網路，也支援任意步數取樣。在 SDXL 和 FLUX.2 [klein] 4B 上都是 4 步方法裡 FID 最好的。<a href="https://arxiv.org/abs/2611.26629">arXiv 2611.26629</a></p>
+
+<h3>RL Post-Training in DiT Is Activation Steering：RL 學到的大多只是一個常數偏移</h3>
+<p>在凍結的 SD3.5-M 每個 block 輸出上加一組固定的 steering vector（0.29M 參數，RL LoRA 是 18.8M），只去擬合公開 RL checkpoint 的速度預測，不用任何 reward。這組向量對所有 prompt 都相同，卻能拿回六個影像模型 90.0% 到 96.3% 的 reward 增益。直接用 online RL 訓練這組向量，在 OCR 和 PickScore 上甚至超過權重 RL。這對「RL 到底教會了什麼」是個有力的反駁。<a href="https://arxiv.org/abs/2611.26627">arXiv 2611.26627</a></p>
+
+<h3>One Prior, Two Dynamics：用同一個影片 DiT 初始化逆、正向動力學</h3>
+<p>O²LaF 從同一個預訓練影片 DiT 分出兩個模型：一個是帶 action query 的 transition encoder（逆動力學），一個是因果、以動作為條件的影片生成器（正動力學）。兩者透過一個精簡的瓶頸端到端訓練，從無標註影片學出 latent action，在導航和機器人操作的 few-shot action probing 上達到 SOTA，換成 V-JEPA2 當先驗也有競爭力。<a href="https://arxiv.org/abs/2611.26617">arXiv 2611.26617</a></p>
+
+<h3>TuringSpace：用 125 個互動式 CAPTCHA 測 MLLM 的空間能力</h3>
+<p>Meta 等團隊做了一個需要點擊、拖曳才能過關的合成網頁環境，涵蓋五種空間能力。人類過關率 94.1%；最強的 GPT-6 Astra 仍有 25.9% 失敗，開源最強的 Kimi K3 失敗 68.0%。失敗大多來自看錯截圖，而模型的推理很少修正錯誤的信念，反而會捏造證據替它辯護。用這個 gym 微調 Qwen3.5-9B，成功率從 1.6% 升到 33.1%，VSI-Bench 也提升 9.9 分。<a href="https://arxiv.org/abs/2611.25387">arXiv 2611.25387</a></p>
+
+<h3>ZeroVLN：不對 VLM 做導航 SFT 的 slow-fast VLN</h3>
+<p>不教 VLM「大腦」預測幾何目標，而是讓它用自然語言的 tool call 告訴 action expert 要怎麼移動，再用閉迴路 agentic RL 同時優化兩者。Action expert 先被調整成能執行這些移動請求，之後兩者在同樣的導航 episode 上一起訓練。在 VLN-CE 上明顯勝過 SFT 式的階層方法，VLM 權重只有小幅改變，通用能力大致保留。<a href="https://arxiv.org/abs/2611.26414">arXiv 2611.26414</a></p>
+
+<h3>VSpark：給自迴歸 VLA 用的無損 speculative decoding</h3>
+<p>機器人動作裡很多不同 token 代表幾乎相同的動作，所以「差一點」的 draft 也會被拒絕，加速有限。VSpark 用三招處理：以校準過的動作噪聲收集 rollout、讓 draft 對齊 VLA 的 hidden feature，以及重用被拒絕 draft 上已算好的預測。在四個 VLA、四個操作 benchmark 上加速 1.28 到 2.10 倍，解碼保持無損。<a href="https://arxiv.org/abs/2611.22666">arXiv 2611.22666</a></p>
+
+<h3>Accord：單相機 + IMU 的線上稠密公制地圖</h3>
+<p>VIO 濾波器提供公制位姿，以位姿為條件的深度基礎模型預測短關鍵幀視窗的深度，用三角化的公制點當錨點，再用共視影像之間雙向的稠密深度一致性修正每張圖的尺度誤差，最後用因子圖融合子地圖。同一組設定跑五個公開資料集和自建的手機/GoPro 資料，5 cm F-score 都是第一或第二，程式碼開源。<a href="https://arxiv.org/abs/2611.25279">arXiv 2611.25279</a></p>
+
+<h3>AURA：Kyutai 的即時串流語音驅動頭像</h3>
+<p>以 rolling KV cache 逐段生成，只需要當前段落的音訊就能開始，不必像雙向模型那樣預看好幾秒。1.3B 版在單張 GPU 上以 20.7 fps 即時串流 576p，比自己的 teacher 快 23 倍；5B 版 720p 跑 9.7 fps，品質與 TalkVerse teacher 相當。權重和 3 萬支合成影片的 teacher 軌跡一併釋出。<a href="https://arxiv.org/abs/2611.26540">arXiv 2611.26540</a></p>
+
+<h2>新聞與討論</h2>
+
+<h3>Levent Alpöge 宣稱和 Claude 一起證明了廣義黎曼猜想，只提供 Lean</h3>
+<p>Alpöge 在一份兩頁的說明中寫道，他與 Claude 合作找到了黎曼猜想的證明，方法可以直接延伸到 GRH，並且已經在「沒有額外假設」的情況下完成形式化。他刻意只公開 Lean 程式碼（分 14 個壓縮檔），因為完整的人類可讀版本會是一份「巨大、無法閱讀」的文件（他提到自己試過，超過 25 萬頁）。他說關鍵是由他引導到一個類比的玩具設定，之後由模型提出一連串構造，例如以串接的 theta lift 模擬 Stepanov 論證中的「重數」。Terence Tao 指出，這份證明初步看來動用了 Langlands 綱領和算術幾何的完整火力，驗證討論集中在 Lean Zulip。Scott Aaronson 提醒 Lean kernel 過去有過可證出 0=1 的 bug，但他押注證明會成立；他說形式化有約 1,740 萬行。<a href="https://alpo.ge/remark.pdf">說明 PDF</a>｜<a href="https://terrytao.wordpress.com/2026/11/20/unforced-euler-singularity-unforced-navier-stokes-singularity-and-the-generalized-riemann-hypothesis/">Tao 的整理</a>｜<a href="https://scottaaronson.blog/?p=10344">Aaronson</a>｜<a href="https://news.ycombinator.com/item?id=50574968">HN 討論</a></p>
+<p>HN 上多數人看作者的名聲而傾向相信，也有人擔心：一個沒有人讀得懂的證明，要多久才能被數學家消化。</p>
+
+<h3>同一天，另一份「純人類」的 GRH 證明草稿</h3>
+<p>Stanford 的 Ravi Vakil 在美國數學學會（AMS）的會議空檔趕著發文：Alessandro Masullo 有一份 GRH 的證明草稿，Brian Conrad 已經仔細審了好幾個月，目前看來不錯，而且「完全由人完成，沒有用 AI」。原本計畫讓他到 Stanford 待一年打磨後再公布，現在決定先釋出現有草稿，希望大家盡快檢查和形式化。<a href="https://math216.wordpress.com/2026/11/20/hurried-announcement-alessandro-masullo-grh/">Vakil 的公告</a>｜<a href="https://news.ycombinator.com/item?id=50579568">HN 討論</a></p>
+
+<h3>三維不可壓縮 Navier–Stokes 的有限時間 blow-up，附 Lean 形式化</h3>
+<p>Alpöge 與 Tristan Buckmaster 在大量使用 AI 的情況下，給出無外力三維 Navier–Stokes 有限時間奇異性的證明（論文 79 頁）。策略是先用數值建構一個近似的離散自相似解，再用嚴格的擾動理論把它轉成精確解。Lean 套件約 2,270 個檔案、60 萬行，只允許三個標準公理；但數值證書本身和 128 位元的區間運算驗證不在形式化範圍內，README 也坦白說 11/20 的修補版本還沒重新 build。Tao 另外提到，同一組人加上 Matei Coiculescu，已經有一份可讀性更高的 Euler 方程 blow-up 證明。<a href="https://github.com/tristanbuckmaster/navier-stokes/">GitHub</a>｜<a href="https://news.ycombinator.com/item?id=50576232">HN 討論</a>｜<a href="https://news.ycombinator.com/item?id=50578358">Tao 文章的 HN 討論</a></p>
+
+<h3>Thinking Machines 發布 Inkling 2 Mini：可以在筆電上跑的 looped transformer</h3>
+<p>MoE 架構，總參數 26.4B、active 3.4B，中間層每個 token 跑三次，所以每個 token 實際啟用 5.4B 權重。大部分權重以 NVFP4 訓練和部署，總記憶體約 20GB。官方說在 100B 以下的開源權重模型中，DeepSWE v1.1（48.2%）和 Vals Index（46.5%）都是第一。他們也坦白，looping 提升的是推理，不是知識，事實類 benchmark 不會因為多跑幾圈而變好。另外釋出一個可變 loop 數的研究版本：不寫 CoT 的 time horizon 從 1 圈的 16 秒增加到 3 圈的 37 秒，CoT 變短但仍可讀。<a href="https://thinkingmachines.ai/news/inkling-2-mini/">官方文章</a>｜<a href="https://news.ycombinator.com/item?id=50581260">HN 討論</a></p>
+<p>HN 上研究者對可變 loop 的版本最感興趣，說目前幾乎沒有其他可用的開源模型能做這種實驗。</p>
+
+<h3>Language Models Can Rewrite Their Own Weights：不用梯度，模型自己改自己的權重</h3>
+<p>一個開源的 27B 模型拿到自己的權重、被評分過的答案和執行自己的能力，自行診斷錯誤並改寫權重，在沒看過的題目上準確率提升 6.6 分，連續八輪只升不降。它還能在不讀原始權重的情況下，把一個被破壞的自己修回原本準確率的八成以上。同一家族中只有最大的模型做得到。<a href="https://arxiv.org/abs/2611.21885">arXiv 2611.21885</a>｜<a href="https://news.ycombinator.com/item?id=50577265">HN 討論</a></p>
+<p>HN 上有人追問「準確率的提升從哪裡來」，也有人指出全文沒有提到 alignment。</p>
+
+<h3>Frostbite：AI 從 ISA 一路做到 GDS 的新 CPU 架構</h3>
+<p>Architect Labs 讓 agent 群自動迭代編譯器、ISA、微架構、RTL、驗證到最終版圖，做出基於 interaction net 的 CPU：每步重寫都是局部的、每個值只有一個擁有者，平行性直接來自程式，不需要快取一致性協定。7nm 合成，最終 GDS 跑 500 MHz，一個 quad 加 L3 為 0.792 mm²，對照面積相近的雙發射 in-order 核心。25 個工作負載的 perf/W 幾何平均為 4.59 倍，其中從未調過的 15 個 held-out 為 3.83 倍。功耗仍是 pre-silicon 的估計值。<a href="https://architectlabs.com/blog/frostbite">官方文章</a>｜<a href="https://news.ycombinator.com/item?id=50572503">HN 討論</a></p>
+<p>HN 的老手提醒，這類東西讓人想到 Transputer，問題在於軟體生態，不在晶片本身。</p>
+
+<h3>Vibecoding an inference chip：$10,000 的 token，讓 FPGA 跑 LLM 到 213 tok/s</h3>
+<p>作者從沒寫過 Verilog，在 AWS F2 FPGA（16GB HBM）上讓 coding agent 跑了好幾天，把一個 ternary 權重的模型做到 bit-exact，再從 6.43 tok/s 一路優化到 213 tok/s（33 倍）。過程包括 burst attention、權重打包，以及用 host CPU 上的小模型做 speculative decoding。他的 prompt 大多是「再快兩倍，你可以的」；唯一真正有分量的人類建議，是 DeepGrove 創辦人轉來的一段 FPGA 設計心得，agent 在 70 秒內把它分成 10 個採納、5 個不採納的點子。<a href="https://ankitg.me/blog/vibecoding-inference-chip/">原文</a>｜<a href="https://news.ycombinator.com/item?id=50579297">HN 討論</a></p>
+<p>HN 上有人從 trace 推測跑的是 20B 的 Maple；也有人說，實作 transformer 已經成了 AI 輔助寫程式的新「hello world」。</p>
+
+<h3>OpenAI：如何防止對手蒸餾推理過程</h3>
+<p>OpenAI 認為未經授權的蒸餾是安全問題：學生模型能學到能力，卻不繼承防護。他們的內部實驗中，用確切的 reasoning trace 訓練的學生，在資安任務上多半勝過只用推理摘要訓練的學生。在自動紅隊測試下，從 GPT-6.2 Astra 撈出受保護推理的攻擊成功率從 54.0% 降到 0.2%。對研究者來說，這也代表閉源模型的完整 CoT 會越來越難拿到。<a href="https://openai.com/index/combatting-adversarial-distillation/">官方文章</a>｜<a href="https://news.ycombinator.com/item?id=50581242">HN 討論</a></p>
+</article>
+</body>
+</html>

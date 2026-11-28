@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 晚報｜2026-11-21（週六）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 晚報｜2026-11-21（週六）</h1>
+<p><b>今日導讀</b>：週末 arXiv 不更新，晚報改從週五的 cs.CV / cs.RO 清單裡挑早報沒碰到的幾篇。三篇深讀剛好是同一件事的三個角度：影片模型被拿來當「模擬器」用。WEVO 讓人形機器人的 VLA 在 video world model 裡做 RL，Physical Laws without Physics Loss 用地震搖晃的吊燈檢查影片模型到底學到哪一階的物理，SceneAnything 則反過來，把一段影片交給一組 agent 寫成可編輯的 Blender 場景。新聞這邊有一個意外的副主題：AI 正在讓答案變得一樣，從生活建議到論文審查都是。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. WEVO：人形機器人的 VLA 不在模擬器裡做 RL，改在 video world model 裡做</h3>
+<p><a href="https://arxiv.org/abs/2611.25251">arXiv:2611.25251</a>｜cs.RO｜Amazon、Stanford（Mac Schwager）、UT Austin（Roberto Martín-Martín）</p>
+<p><b>問題</b>：RL 能讓 VLA 超越模仿學習，但人形機器人在真實世界亂探索很危險，而在模擬器裡做 RL，policy 又會去鑽殘留的 sim-to-real 差距。過去用影片 world model 做 RL 的工作（VLAW、WMPO 等）都停在固定底座的桌面操作，而且仍要用人類遙操作資料。</p>
+<p><b>方法</b>：整條管線不用遙操作。先用 LEGS 模擬器（3DGS 重建場景加 SAM 3D 還原的物件、MuJoCo 接觸、SONIC 全身控制器）產生合成示範，微調 GR00T N1.7 當初始 VLA。World model 用 NVIDIA 的 DreamDojo（以 Cosmos 為底、以 43 維關節狀態為條件），分兩段訓練：先用模擬器的「play data」做 mid-training，其中 manipulation play 隨機抓放、刻意保留失手與碰撞，locomotion play 則是走路轉彎，讓模型見過大幅度的第一人稱視角變化；再用合成示範加上每個任務 20 條真機自主 rollout（成功失敗各半）做任務微調。RL 時三者串成閉環：VLA 出 task-space 指令，SONIC 加 MuJoCo 算出實際關節狀態，WM 依此生成下一段畫面。一個細節：WM 以「達成的狀態」而非「指令」為條件，並且調整取樣 stride，讓相鄰畫面間的關節位移跟訓練時一致，否則生成畫面幾乎不動。Reward 用 SARM 進度模型（DINOv3 特徵加 transformer）的增量，當作 dense reward。RL 演算法比了 DICE-RL、ReinFlow、AWR。</p>
+<p><b>結果</b>：在 Unitree G1 上做三個真機任務（抓放瓶子、抓瓶後轉身放進地上的籃子、雙手搬籃子）。BC 平均成功率 23.3%，DICE-RL 在 WM 裡訓練後到 75.0%（85/75/65%）。用同一批 20 條真機資料直接做 Real RL 是 48.3%，Sim RL 反而把三個任務都拉低（30/0/0%）。VLAW 只模仿成功的 rollout，平均約 33%；WMPO 用稀疏獎勵，約 40%。消融實驗中，拿掉 play data 降到約 63%，改成稀疏獎勵降到 45%，rollout 不隨 policy 更新、改成離線降到約 58%。Play data 也讓 WM 在手與物件區域的 iPSNR 提升幅度大於全圖 PSNR。</p>
+<p><b>限制與疑問</b>：每個任務各自做 policy 與 WM 微調，而且綁定 G1 的介面。WM 裡的成功由進度模型判定，可能被生成畫面騙。每個策略只在 20 次真機試驗上評估，信賴區間不小。另外，「模擬器 RL 變差」被歸因於視覺 sim-to-real gap，但論文沒有直接把這個因素隔離出來驗證。</p>
+<p><b>為什麼值得看</b>：這篇把分工講得很清楚：模擬器負責初始化和物理覆蓋，少量真機 rollout 用來對齊 WM，WM 則負責 policy improvement。它也再次說明 dense reward 加上 on-policy 重收資料是 WM-RL 的關鍵。可以接著做的方向：跨 embodiment 的 WM、policy 與 WM 交替更新，或者把同樣的 play-data 思路用在手部靈巧操作上。另一個值得注意的工程細節是：WM 只負責「視覺場景怎麼變」，機器人本體的狀態演化交給 WBC 加 MuJoCo，這種分工讓 WM 不必學平衡與步態，可能是它能處理全身動作的關鍵。如果你手上有 3DGS 重建的場景，LEGS 加 DreamDojo 這條組合幾乎可以直接複製。</p>
+
+<h3>2. Physical Laws without Physics Loss?：用地震中的吊燈，逐階檢查影片模型學到的物理</h3>
+<p><a href="https://arxiv.org/abs/2611.25626">arXiv:2611.25626</a>｜cs.CV｜哈爾濱工業大學（左旺孟等）</p>
+<p><b>問題</b>：影片模型只用生成 loss 訓練，到底學到了物理定律，還是只學到動作看起來的樣子？整體的動作分數或外觀分數無法回答，因為小角度的線性擺動佔了位移的絕大部分，會把高階錯誤蓋掉。</p>
+<p><b>方法</b>：作者建了一個「強迫振動實驗室」：天花板隨真實地震下的樓板反應搖晃，帶動一盞吊燈。畫面是正交側視、黑底，每個像素 20.4 mm，可以量到毫米。訓練資料 5,206 支影片，來自 91 筆地震紀錄、15 棟建築；測試有 400 個沒見過的案例，分別換新地震、新建築、新擺長，或換成鳥籠之類的其他物體。六個 I2V backbone（Wan2.2、HunyuanVideo-1.5、Helios、Cosmos3-Nano、Kandinsky、SANA-Video）共用同一個介面：一路是遮住物體的「支撐影片」，另一路把 120 Hz 激振取樣經 MLP 轉成每個 latent frame 一個 token。訓練只有 LoRA 加 flow matching，沒有任何物理 loss，以每段 2 秒自迴歸延伸到 12 秒。檢驗按 Taylor 階數分三層：Tier 1 是線性共振（transmissibility），Tier 2 是剛性桿的圓弧約束（垂直位移必須與擺動鎖相），Tier 3 是非線性軟化（擺幅越大週期越長，10° 到 60° 長 7.1%）。</p>
+<p><b>結果</b>：訓練前沒有任何模型能產生正常擺動。訓練後，六個都重現了共振（共振處誤差 0.1–6%），五個通過圓弧約束，給 2 秒真實歷史時五個都重現了軟化。而軟化項在訓練資料裡只佔擺動平方位移的 0.74%。Wan 的水平誤差 18.7 mm，不到一個像素；但 Cosmos 和 Hunyuan 的 LPIPS 比 Wan 好，動作誤差卻更大。最有意思的是「定律需要狀態」：從單張靜止畫面在 60° 放手，Hunyuan 和 Helios 的燈完全不動，只有 Wan 能擺，並且延長週期，阻尼比 0.0053，真值是 0.005。週期是從影像推出來的，不是讀數值輸入：故意給錯擺長，Wan 的擬合擺長仍跟著真值走；放進一張真實吊燈照片，擺動時序也符合運動方程。兩個從零訓練的基線擬合誤差更小，但一離開訓練分布（單張畫面、多物體場景）就崩了。</p>
+<p><b>限制與疑問</b>：實驗設定刻意簡化（側視、黑底、單一物體），離真實影片還很遠。搖擺塊撞擊時的角速度驟降只重現了真值的 0.31，短暫事件仍然學不好。另外，自迴歸時狀態只能透過解碼後的 RGB 傳遞，誤差隨視窗數近乎線性累積。</p>
+<p><b>為什麼值得看</b>：這是少見的「把影片模型當數值積分器來檢查」的論文，而且給出可以直接用的建議：確定性動力學用 2 步取樣、guidance scale 1、學習率退火；rollout 的 stride 就像積分器的時間步長，會改變阻尼，要在不同 stride 下檢查；訓練時應該餵模型自己生成的歷史。對做 world model 評估或 robot WM 的人，這套逐階 probe 很值得借用。它也回應了 WEVO 那類工作的隱憂：拿影片模型當 RL 環境時，低 PSNR 誤差不代表動力學對，高誤差也不代表定律錯，最好針對任務關心的物理量設計專門的檢查。論文最後一句說得好：影片錯了不一定是沒學到定律，可能只是狀態錯了。</p>
+
+<h3>3. SceneAnything：一組 agent 把單支影片寫成可編輯的 Blender 場景</h3>
+<p><a href="https://arxiv.org/abs/2611.25340">arXiv:2611.25340</a>｜cs.CV｜NVIDIA、UCSD（Ravi Ramamoorthi）、曼徹斯特大學</p>
+<p><b>問題</b>：從影片重建出「可編輯」的 3D 場景（獨立的 mesh、材質、光源、動畫），需要在符合可見結構的同時合理補完看不到的面。直接叫前沿 agent 讀影片寫 Blender，雖然能認出內容，但版面、尺度、光照都會錯，有時還會把畫面貼在代理平面上作弊。</p>
+<p><b>方法</b>：一個 harness 協調 agent、視覺模型和圖學工具。Lyra 2 提供相機、深度和初始 Gaussian，Mask2Former、SAM 3.1、SAM 2.1 負責分割與追蹤；OpenCV 診斷工具檢查重投影誤差和重力方向，並用兩個獨立的尺寸參照估計尺度。分工上，scene-owner agent（預設 Claude Opus 5.5）規劃元件並給 author agent 寫 brief，author 交出參數化的 Blender 生成程式。Level-of-detail 規則依可見度和 silhouette IoU 決定每個元素怎麼建：L0 用區域統計程序化生成，L1 擬合單一實例，L2 逐部件建模，看不到的部分標記為 inferred。每次修訂先過程式檢查（穿插、支撐、非光源材質發光等），再交給不知道候選身分的獨立 judge agent，以兩種顯示順序比較渲染圖，用 sign test 決定是否接受，並加入相同圖片的對照組來壓制 judge 偏誤。接受的程式和經驗會存進函式庫，供之後的場景重用。</p>
+<p><b>結果</b>：在 100 個場景上評估。與直接讓 agent 重建相比（30 個場景），LPIPS 0.51 對 0.66/0.69（Claude Opus 5.5 / GPT-6 Astra），DINOv3 相似度 0.76 對 0.55/0.52。在 10 個所有方法都能對齊的場景上，原視角 LPIPS 0.50（Pi3-X 0.56），新視角 DINOv3 0.53，對手最多 0.38。LoD 消融中，花圃的 LPIPS 從 0.64–0.70 降到 0.55–0.58。火車、船、纜車等移動物件的追蹤 mask IoU 中位數 0.89–0.98。每個場景的輸出 token 中位數 240 萬，約 47 美元。</p>
+<p><b>限制與疑問</b>：最佳結果仰賴商用模型，換成 DeepSeek 或 Nemotron 當 author，品質明顯下降。新視角的 DINOv3 只衡量內容相似，不是幾何正確性。每次只處理一個連續鏡頭，人體和非剛性運動（水面除外）不處理。用 LLM judge 評估 LLM 的成果，即使有雙順序和對照組，仍讓人想看人類評估。</p>
+<p><b>為什麼值得看</b>：這是「重建等於寫程式」路線目前最完整的系統之一，輸出的是可重新打光、可移動物件的資產，而不是一團 Gaussian。對做 sim 資產、機器人 digital twin 的人很實用；搭配影片生成，也等於一條 text-to-scene 的路。judge 協議的設計（雙順序、相同圖片對照、sign test）本身就值得借鏡：作者實測發現 judge 即使面對兩張相同的圖也會選邊，而且偏好背景比較豐富的那張，這對所有用 VLM 當評審的研究都是提醒。另一個可以延伸的方向是把 inferred 標記當成不確定性，讓下游的機器人規劃知道哪些幾何是猜的。</p>
+
+<h2>快速瀏覽</h2>
+<ul>
+<li><b>VideoRNG：從影片生成模型得到可重新打光的 Neural Gaussians</b>：同一個 NVIDIA 團隊的另一篇。先微調影片 diffusion 生成已知光照的 RGBA 轉台影片，再用同樣從影片 backbone 初始化的 feed-forward 重建模型，直接把 VAE latent 映射成數百萬個帶神經外觀特徵的 Gaussian，配合 ray tracer 做重新打光。能做毛皮、羽毛、蜘蛛網這類 mesh 加 PBR 很難表達的資產。和 SceneAnything 一起看，等於同一組人同時押注「程式化 mesh」與「神經 Gaussian」兩種資產表示。<a href="https://arxiv.org/abs/2611.25338">arXiv:2611.25338</a></li>
+<li><b>SGAR：用幾何引導的稀疏 attention 做 feed-forward 3D 重建</b>：從 SfM 的觀點出發，認為大多數跨視角的 dense attention 是多餘的。每個 patch 只 attend 一小組由輕量 key selection 模組預測為「3D 上相近」的 token，可以微調套到既有模型上。在 1,000 個視角時比 dense attention 快最多 12 倍，pose 精度保持穩定，而既有的稀疏方法在這個規模會失敗。對想把 VGGT 類模型用在大場景的人，這是很直接的加速選項。<a href="https://arxiv.org/abs/2611.26493">arXiv:2611.26493</a></li>
+<li><b>HumanCOIN：12,500 小時、以「意圖」為核心的第一人稱操作資料集</b>：分三層代理訊號：L1 由頭戴相機推估視線（10,000 小時），L2 加上手臂表面 EMG（2,000 小時），L3 再加頭皮 EEG（500 小時），涵蓋 38 類場景，附多視角 RGB、深度、頭與手腕 6-DoF 和步驟標註。想研究「動作之前發生什麼」的人可以看看，例如用視線預測下一個抓取目標，或用 EMG 預估接觸力，再當作 VLA 的輔助監督。<a href="https://arxiv.org/abs/2611.26434">arXiv:2611.26434</a></li>
+<li><b>ECHO：in-context 的人形機器人全身控制 behavior foundation model</b>：把通用行為能力和特定動力學的執行分開。先預訓練一個行為先驗，再從互動歷史學動力學表徵，對凍結的先驗做殘差修正，測試時不更新參數。在 Unitree G1 上展示極限特技遙操作和負重適應。核心想法類似 RMA 的 adaptation module，但放在大規模動作模仿的 foundation model 上。<a href="https://arxiv.org/abs/2611.25778">arXiv:2611.25778</a></li>
+<li><b>Old-School Planners Drive (Sometimes) Better Than Learned Ones</b>：單一作者實作 16 個教科書規劃器（A*、hybrid A*、RRT* 搭配 Frenet lattice、非線性最佳化等）。在 HUGSIM 上只換掉 UniAD 的 planner、沿用它凍結的感知，有 9 個勝過 UniAD 自己學到的 planner，最好的把 HD-Score 從 32.0 提到 41.8。UniAD 撞車的 182 次中，有 31 次換 planner 就能完成路線，可見這些是 planner 的錯，不是感知的錯。不過面對朝自車轉向的車輛時，規則式 planner 沒有任何優勢，這也提醒 end-to-end 的 benchmark 結論要分情境看。<a href="https://arxiv.org/abs/2611.25138">arXiv:2611.25138</a></li>
+<li><b>LoopedWAM：權重共享迴圈的小型 world action model</b>：每個 expert 重複套用一個共享的 6-block 核心，等效 30 層但只存 12 個 block，policy 僅 0.58B 參數，也沒有機器人預訓練。LIBERO 96.1%、RoboTwin 2.0 91.9%，峰值顯存是 Fast-WAM 的 1/7.4，單一 elastic checkpoint 就能選不同的延遲與精度（LIBERO 上 27.6 ms 時 96.0%）。真機 PiPER 手臂四個任務 80 次試驗成功 71.3%。<a href="https://arxiv.org/abs/2611.25595">arXiv:2611.25595</a></li>
+<li><b>Twice-Told Critiques：LLM 時代審稿意見的同質化</b>：量測同一篇論文不同審稿意見的重疊程度。ICLR 從 2026 年的 12.0% 升到 2027 年的 21.3%；第三份審稿能補充的新問題從 6.12 個降到 5.46 個。被偵測器判為 LLM 生成的兩份審稿，彼此重疊也更高。這篇在 NeurIPS、ICML 和 F1000、PLOS 期刊上也看到逐年上升，正好可以和下面那篇「AI 給大家一樣的建議」一起讀。對審稿人的啟示是：只交 LLM 整理過的意見，等於讓多位審稿人變成同一位。<a href="https://arxiv.org/abs/2611.26286">arXiv:2611.26286</a></li>
+<li><b>WeVisForensics：會自我演化的 AI 生成影片偵測 agent</b>：今天 HF 上票數最高（50）。主調查 agent 決定要檢查哪種偽影、看哪個時間窗、何時下結論，並調度一個會演化的視覺與音訊 inspector 子 agent 庫，用雙時間尺度的 RL（DTPO）同時訓練兩層。平均偵測準確率 95.2%，比最強的既有偵測器高 9.0 個百分點，並附上偽影位置作為證據。<a href="https://arxiv.org/abs/2611.21373">arXiv:2611.21373</a></li>
+</ul>
+
+<h2>新聞與討論</h2>
+
+<h3>Signal 開始阻擋手機作業系統內建的 AI agent 讀取畫面</h3>
+<p><a href="https://signal.org/blog/protecting-your-privacy/">Signal 部落格</a>：Meredith Whittaker 宣布，Signal 會在 iOS 27 上預設禁止截圖，在 Android 上偵測到 AI 助理試圖讀取畫面時加以阻擋，理由是 Gemini Intelligence、Siri 的 Onscreen Awareness 這類 OS 層級 agent 會擷取並儲存對話內容，這和去年對付 Windows Recall 的做法一樣。她也承認這只是部分解法：agent 還可能透過檔案系統、通知或無障礙權限取得資料，macOS 目前則根本做不到。Signal 要求 Apple、Google、Microsoft 提供讓 app 退出 AI 存取的正式機制和文件。HN 上有人希望 Signal 公開這幾個月做的逆向調查結果，讓資源較少的開發者也能用。<a href="https://news.ycombinator.com/item?id=50572348">HN 討論</a></p>
+
+<h3>Anthropic 上市第二天，Nasdaq 抹平今年全部漲幅</h3>
+<p><a href="https://www.theguardian.com/business/2026/nov/20/global-stock-markets-slump-anthropic-ipo-ai-sell-off">The Guardian</a>：接續前天的 IPO 新聞。Anthropic 股價週五跌 9% 到 88.30 美元，接近 83 美元的發行價；第一天曾一度大漲近 40%，收盤漲 17%。Nasdaq 收盤比年初低 5%，Nvidia 跌 14%，Micron 跌 12%。台股當天跌 6.7%，台積電跌約 6%；日經跌 5%，Kospi 跌 5.5%，亞股寫下 2020 年以來最差的一週。有分析師認為，大型 IPO 可能在「抽走市場流動性」。HN 上的留言大多在討論散戶接盤，以及前沿實驗室上市是否代表已經到頂。<a href="https://news.ycombinator.com/item?id=50574383">HN 討論</a></p>
+
+<h3>AI 正在給每個人一樣的建議</h3>
+<p><a href="https://a90.com/experiments/same-advice/">a90.com</a>：作者對 65 個模型每題各問 10 次，不加 system prompt。「推薦一本改變人生的書」有 73% 是《活出意義來》，問該讀什麼科系有 90% 回答資工，問 1 萬美元怎麼投資有 98% 回答指數基金，讓模型隨便編一個人，69% 剛好 34 歲。在同一個對話裡說「再一本」會換答案，但開新對話又回到同一本。開啟推理模式或換語言都沒有幫助；用一句話描述自己，只是被分進另一條「同樣答案」的車道。作者在一個開源模型的訓練過程中觀察到，偏好答案是在 assistant 化（後訓練）那一步出現的。更有趣的是，只用顏色、城市、名字這類無害問題，就有 59% 的模型回答最像同一家公司的另一個模型，等於模型的「口頭禪」可以當指紋。作者的建議是：告訴 AI 具體的個人情況，或請它列十個選項自己挑，叫它「有創意一點」沒有用。HN 上有人反駁說，沒有任何脈絡的問題本來就該得到最大似然的答案。<a href="https://news.ycombinator.com/item?id=50577872">HN 討論</a></p>
+
+<h3>我們把工程師升成了架構師，只是沒通知他們</h3>
+<p><a href="https://manidoraisamy.com/developer-to-architect.html">Mani Doraisamy</a>：一個 vibe coding 寫出來的安裝紀錄功能，用一連串 try/catch 去抓使用者 email 或 ID，每一行背後都是多次 Google API 呼叫，導致歡迎畫面要 15 秒才載入。作者的論點是：AI 會照需求實作、不會反駁，也會為了安全犧牲效能，所以工程師的新工作是先定架構和資料模型，再約束 AI 在框架內寫。HN 反應兩極，熱門留言認為這不是升職，而是變成「PM 加架構師加 QA，但薪水不變」，或者淪為 LLM 決策的「責任承擔者」。<a href="https://news.ycombinator.com/item?id=50579331">HN 討論</a></p>
+
+<h3>Valkey 9.2 用 B+ tree 取代 sorted set 的 skiplist</h3>
+<p><a href="https://valkey.io/blog/from-skiplist-to-b+tree/">Valkey 部落格</a>：大型 sorted set 原本用 skiplist 加 hashtable，每個節點都是獨立配置、靠指標串接，cache miss 很多。新的 fbtree 是 61-way 的 B+ tree，節點大小對齊 jemalloc 的配置級距，score 和 member 打包存放；inner node 存 4-byte 的「feature」，用 SIMD 平行比較，常常在讀取子節點之前就能決定走哪一支，葉節點則雙向串接以加速 ZRANGE。插入 500 萬個 member，每個 member 的額外開銷從 50.3B 降到 28.5B（循序插入）或 32.0B（隨機插入）。指令行為不變，只有 OBJECT ENCODING 從 skiplist 變成 btree。HN 有人推薦那支 PR 的描述寫法：附閱讀順序、設計決策和範圍界線，很適合審查者。<a href="https://news.ycombinator.com/item?id=50534387">HN 討論</a></p>
+
+<h3>Hany Farid：我已經不相信影像紀錄了，但總有一天會再相信</h3>
+<p><a href="https://spectrum.ieee.org/fighting-back-against-deep-fakes">IEEE Spectrum</a>：做了三十年數位鑑識的 Farid，以今年 3 月一支戰斧飛彈擊中學校的影片為例：他對齊畫面確認軌跡近乎直線，從像素大小估出距離約 100 公尺，又用 0.3 秒的聲音延遲交叉驗證，才判定影片為真。但他坦言自己已經從「預設為真」變成「預設為假」。他主張 C2PA 憑證、SynthID 浮水印和 iPhone 感測器端簽章這類來源訊號的目的，不是抓壞人，而是讓好人能證明自己。HN 的質疑集中在簽章金鑰可能被提取或被國家力量取得，以及舊手機要很多年才會汰換完。和上面的 WeVisForensics 一起讀，剛好是「偵測」和「證明來源」兩條路線。<a href="https://news.ycombinator.com/item?id=50584429">HN 討論</a></p>
+
+<h3>And yet, it moves：一位科普作者對「AI 證明黎曼猜想」的複雜心情</h3>
+<p><a href="https://signoregalilei.com/2026/11/20/and-yet-it-moves/">Signore Galilei</a>：早報整理過這週的 GRH 證明風波，這篇是另一個角度的反應。作者從剛看完的百老匯音樂劇《Galileo》談起，說他一直想像黎曼猜想被證明的那天會像火星車著陸、發現希格斯玻色子那樣舉世歡騰，結果氣氛卻近乎哀悼，因為證明來自「難以理解的矽基心智」，像是直接翻到書後面看答案。他借伽利略的「Eppur si muove」收尾：不管喜不喜歡，世界就是這樣在動。留言區裡 Jeremy Kun 提醒，已有一份醞釀 12 年的純人類證明草稿在同一天公開，人類也許還沒完全出局。<a href="https://news.ycombinator.com/item?id=50581177">HN 討論</a></p>
+</article>
+</body>
+</html>

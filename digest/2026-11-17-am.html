@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 早報｜2026-11-17（週二）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 早報｜2026-11-17（週二）</h1>
+<p><b>今日導讀</b>：今天的主題是「讓大模型當指揮，而不是當手」。一篇百人點讚的 position paper 試圖替 agentic robotics 下定義、畫架構、訂評測；另一篇則示範最務實的做法：VLM 只寫 MPC 的 cost program，真正出力的是物理模擬。3D 這邊則有一篇把 VGGT 系列 global attention 拆成三種 regime、免訓練加速兩倍的分析。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. Envisioning Agentic Robotics：從「每個任務練一個 policy」到「一個 agent 調度技能」</h3>
+<p><a href="https://arxiv.org/abs/2611.18359">arXiv:2611.18359</a>｜cs.RO｜Grid Robotics｜HF Daily Papers 今日第一（107 票）</p>
+<p><b>問題</b>：作者觀察到 robotics 正從 policy-centric（每個任務族訓練一個 policy）轉向 agentic：由通用 foundation model 在執行期理解意圖、決定做法、呼叫技能與工具，並驗證物理結果。但這個方向缺三樣東西：共同定義、可靠評測、研究路線圖。最明顯的症狀是同一個模型 GPT-6 Astra 在 RoboDojo 42 個任務上的報告成功率，依 harness 與 protocol 不同，從 22% 到 85% 都有。</p>
+<p><b>方法</b>：這是 position／survey 型論文，核心是一套參考架構。S2 負責理解意圖、推理、調度與驗證，由 foundation model 加上「embodied harness」組成；S1 是可呼叫的技能（VLA、perception、motion planning）；S0 是身體介面與即時控制（whole-body tracking、關節控制）。旁邊還有一個 real-time event monitor，可以打斷 S2、在 S0 觸發保護停止。Harness 有五個核心元件：context manager、tool interface、planner、memory、verifier，外加 safety gate、budget control、self-improvement。驗證被拆成四問：請求有沒有被接受、執行有沒有結束、物理效果是否成立、是否符合使用者意圖。評測框架分 model level 與 system level，共 9 個維度、53 個子維度，其中 29 個與 embodiment 有關。</p>
+<p><b>結果</b>：論文整理的數字很有料。窄的模擬套件上，通用模型加 harness 已經有競爭力：RoboMME 上 Astra 拿 92.1%，排行榜最佳是 60.8%；RoboLab-120 直接控制 66.3%、agentic 74.8%，最佳 policy 51.0%。但寬的 benchmark 仍很低：RobotWorld 最佳 19.0%、HumanCLAW 16.8%（找到目標的比例有 64.9%，卻完成不了）。harness 影響巨大：固定模型、只改 verifier、memory、介面，成功率就差 9 到 35 點；只給技能介面讓 GPT-5.6-Sol 從 11% 升到 63%，卻讓 Astra 從 92% 掉到 61%。最刺眼的是延遲：RT-Safe 從暫停模擬改成即時執行，安全成功率從 19.8% 掉到 0.7%，碰撞增加 12.3 倍；Astra 每次決策要數秒到四十秒，比 S1 控制技能慢 40 到 8,000 倍。</p>
+<p><b>限制與疑問</b>：大部分數字是引用而非自己跑的實驗，跨論文比較的 protocol 並不一致（作者自己也承認）。架構本身很像把 LLM agent 的術語搬到機器人，S2/S1/S0 的切分是否會成為共識還很難說。</p>
+<p><b>為什麼值得看</b>：它把「harness 影響可能比模型還大」「paused simulator 掩蓋了延遲問題」講得很清楚，並提出 capped scaling：在固定決策期限內最大化能力，建議報告 success–latency–cost 曲線。如果你在做 VLA 或 embodied agent 的評測，這篇的 checklist 可以直接拿來檢查自己的實驗設計；「live 評測」也是一個明顯還沒人做好的 benchmark 題目。</p>
+
+<h3>2. Objectives as Policies：VLM 只寫 cost program，MPPI 負責接觸</h3>
+<p><a href="https://arxiv.org/abs/2611.18298">arXiv:2611.18298</a>｜cs.RO｜University of Illinois Chicago</p>
+<p><b>問題</b>：contact-implicit MPC 能做即時的靈巧操作，但需要人工設計 reward 和 constraint；端到端 VLA 有語意泛化，卻沒有顯式物理模型。能不能不用任何訓練資料，把兩者接起來？</p>
+<p><b>方法</b>：OaP 讓預訓練 VLM 輸出一個可編輯的「objective program」：分成幾個 stage，每個 stage 有 running cost、terminal cost、權重與完成門檻，全部從一個 12 種參數化 residual 的 cost library 組出來（point_point_distance、axis_parallel、object_held、tool_mediation 等）。running cost 用 √(1+(r/s)²)−1，terminal cost 用 squared hinge。流程是：先用 SAM 3D 從 RGB 加 mask 重建物體 mesh、Any6D 校正尺度與位姿、VLM 估密度與摩擦，做成 digital twin；VLM 寫程式並 self-review（檢查 stage 銜接、目標衝突、抓取可行性）；在 MuJoCo-warp 裡用 MPPI 跑（1000 條 rollout、horizon 600 步×2 ms）；失敗就把六個抽樣的狀態紀錄回饋給 VLM 修改；最後把程式搬到真機，用 FoundationPose 追蹤物體。VLM 是 GPT-5.6-sol，沒有任何權重更新。</p>
+<p><b>結果</b>：四個任務（pick-and-place、杯子翻轉 20°、直接推箱子 60 mm、拿橡皮擦當工具推）在模擬中，有 library 加 self-review、兩輪回饋後達 36/40（90%）。基線方面：L2R 27.5%、ReKep 42.5%、改寫版 CoRAL 77.5%，OpenVLA-OFT 0%、π0.5 25%（兩個 VLA 未做 task-specific fine-tune）。消融顯示拿掉 cost library，零回饋時從 65% 掉到 35%。真機 Flexiv Rizon 4s 上，物體位置擾動下 32/40（80%）。</p>
+<p><b>限制與疑問</b>：程式能表達什麼完全受限於固定的 cost library；stage 是線性、只能前進，沒有失敗回退。真機失敗多來自抓取，原因是 VLM 估的摩擦不準、模擬把物體當剛體。拿未 fine-tune 的 VLA 當基線也偏弱。</p>
+<p><b>為什麼值得看</b>：這是第一篇論文說的「code as policy」路線的一個乾淨實例：大模型的輸出是可讀、可修改的目標函數，物理正確性交給 sampling-based MPC。後續可以想的是讓 VLM 自動擴充 cost library、加入 stage 回退，或把 digital twin 的摩擦估計換成線上 system identification。</p>
+
+<h3>3. RAWATTA：VGGT 的 global attention 其實分三種，按層換算子就能加速兩倍</h3>
+<p><a href="https://arxiv.org/abs/2611.17629">arXiv:2611.17629</a>｜cs.CV｜M. Izzet Sezer（獨立研究者）、Sevval Belkis Dikkaya（CMU）</p>
+<p><b>問題</b>：VGGT-Ω、VGGT-1B、π³ 這類 feed-forward 多視角 transformer，global attention 對影像數量是二次方成本；官方 VGGT-Ω 在 12 GB GPU 上 100 張影像就 OOM。從 LLM 借來的加速法（block-sparse、token merging、丟 key）假設每個 token 只需要少數其他 token，作者認為這個假設在這裡不成立：任何 block 中，最重的那一張 frame 從未拿到超過 0.63 的 attention mass。</p>
+<p><b>方法</b>：逐層分析後發現三種 regime：早期的 diffuse context 層幾乎平均看所有 frame，等於算場景平均；中間的 selective matching 層把注意力集中在跨影像的對應證據上；後期的 reference anchoring 層把每個 query 52–62% 的注意力給 frame 0（輸出以第一張影像為座標系的模型才有，π³ 沒有）。對應三種算子：matching 層用 dense；context 早期用 frame attention（只看自己）；context 與 anchoring 層用 Merge4，把非參考 frame 的 key 以 4×4 平均池化並加 log-count bias，frame 0 保留完整 key。再搭配 INT8 QKᵀ、FP8 PV，少數敏感層保留 16-bit。排程可用一次 dense pass 的門檻法標記（每序列約 4 秒），或用 greedy search 得到 RAWATTA-Fast，並以五個 calibration 資料集的最差掉分作為驗收。</p>
+<p><b>結果</b>：RTX 4070 SUPER、50 張影像，官方 VGGT-Ω 3605 ms；RAWATTA 1734 ms（2.08×），RAWATTA-Fast 1616 ms（2.23×），最差資料集 AUC@3 掉 1.03 與 1.14。注意其中約 1.61× 來自作者自己的 CUDA engine。同條件下 SparseVGGT 只有 1.17×，GPA-VGGT 1.30× 但掉 3.14，FastVGGT 在某個 seed 掉 21.19。200 張影像時 RAWATTA 12.5 秒、峰值 9.7 GiB，而官方實作 90 張就是上限。消融很有說服力：在 anchoring 層把 frame 0 也 merge 掉會損失 2.68 AUC@3；隨機放置算子則損失 35–85。</p>
+<p><b>限制與疑問</b>：每個模型都要重新搜尋，VGGT-Ω 的門檻搬到 VGGT-1B 和 π³ 會掉 7.8 和 8.8；只有 ETH3D、NRGBD 是真正沒看過的資料集。作者也承認在 96 GB Blackwell、500 張影像下 GPA-VGGT 反而更好。</p>
+<p><b>為什麼值得看</b>：比起加速數字，這篇更有價值的是對 VGGT 內部運作的解剖：哪些層在做 matching、哪些層只是在「對齊到 frame 0」。這對設計下一代 streaming 3D 重建（例如只對 matching 層做 KV cache）或做 reference-free 架構都很有參考性。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>ESI：LLM 加 VLA 的自我改進飛輪</h3>
+<p><a href="https://arxiv.org/abs/2611.18176">arXiv:2611.18176</a>｜LLM 搭配 VLA 時，VLA 常偏離 LLM 給的子任務，甚至把已完成的進度弄壞。ESI 用環境互動同時調整 LLM 的 prompt、兩者之間的技能介面與 VLA 參數，把 LLM 的決策與糾正當監督，失敗 episode 中成功的步驟也拿來學。RoboDojo 十個任務平均 Score 62.03、成功率 49.41%，不用 task-specific 控制碼。剛好可以和第一篇的 S2/S1 架構對照看。</p>
+
+<h3>Open-World Scene Deocclusion：免訓練拆出 depth-ordered RGBA 圖層</h3>
+<p><a href="https://arxiv.org/abs/2611.17695">arXiv:2611.17695</a>｜從單張 RGB 影像恢復被遮擋物體的完整 amodal 外觀，並把場景分解成按深度排序的 RGBA 圖層。重點處理過去方法的弱點：被背景表面或未偵測物體遮擋，以及循環遮擋（A 擋 B、B 又擋 A）。對 layered 3D 場景生成或可編輯場景重建是好用的前處理。</p>
+
+<h3>Body-Aligned Virtual Joints：同一份 RL recipe 套到不同人形機器人</h3>
+<p><a href="https://arxiv.org/abs/2611.18003">arXiv:2611.18003</a>｜人形機器人的 reward、架構、超參數很難跨機型重用，因為 policy 輸出的是各機型原生座標的關節角。作者在既有 transmission mapping 前加一層依人體解剖慣例對齊的虛擬關節空間，再用確定性運動學轉回原生目標。同一份未修改的 recipe 在三種腿軸配置不同的機器人上都能穩定訓練；Unitree G1 實機上 heading drift 減少將近六倍。</p>
+
+<h3>MMFlash：VLM 的 speculative decoding，專治「看圖才知道」的 token</h3>
+<p><a href="https://arxiv.org/abs/2611.18482">arXiv:2611.18482</a>｜作者定義 token 的視覺依賴度（有無影像輸入時 next-token 分佈的 KL），發現 drafter 的 acceptance rate 從最低四分位的 46% 掉到最高四分位的 22%。MMFlash 對視覺依賴高、drafter 預測差的 token 加權訓練，長影片再用 sparse attention。無損加速最高 3.58×，比 EAGLE-3 和 DFlash 分別高出最多 195.4% 和 17.1%。</p>
+
+<h3>Disen-Forcing：自回歸影片 diffusion 的「attention sink」其實只在少數 head</h3>
+<p><a href="https://arxiv.org/abs/2611.02822">arXiv:2611.02822</a>｜長影片 rollout 常保留起始 frame 當持續 context，作者發現長程一致性其實只由少數 attention head 維持，大多數 head 負責局部時間動態；讓所有 head 都看起始 frame 會過度條件化，蒸餾時把動作推向低動態。Disen-Forcing 在蒸餾時做 disentangled context routing 加上 motion 正則，改善長程一致性與動態程度。</p>
+
+<h3>X-Nav：人形機器人從辦公室大廳走到隔壁大樓的店</h3>
+<p><a href="https://arxiv.org/abs/2611.17598">arXiv:2611.17598</a>｜宣稱第一個讓雙足人形機器人依語言指令完成室內到室外長程任務的系統。只用機載 RGB 的導航模型 MELIOR（預測動作或預測目標兩版），加上把指令拆成子任務的 agentic workflow；在 Lingxi X2 上完成約 100 公尺任務。用部署場地 digital twin 的資料調適後，模型可以直接在真實場地運作。</p>
+
+<h3>ReDiverse：蒸餾模型多樣性崩塌，是變異數放錯方向</h3>
+<p><a href="https://arxiv.org/abs/2611.18550">arXiv:2611.18550</a>｜James Rehg、Anand Bhattad 等。少步蒸餾的 student 不同 seed 的輸出幾乎一樣；作者發現總激活變異數和 teacher 差不多，但集中在少數方向，而且崩塌只發生在第一步去噪的某個中間 block。提出 adapter 微調版與免訓練版（沿 teacher 主成分方向 steer 激活），在影像與影片蒸餾上恢復多樣性且不犧牲品質。</p>
+
+<h2>新聞與討論</h2>
+
+<h3>TRMNL Frame：31.5 吋彩色電子紙</h3>
+<p><a href="https://trmnl.com/blog/introducing-frame">官方公告</a>｜Kobo 讀者應該會有興趣：Spectra 6 彩色面板、手工木框、10k 到 20k mAh 電池、USB-C、可插 microSD 完全離線運作；「Clock Sync」只在指定時刻刷新以省電。第一批約 470 台，部分 2026 年底出貨。HN 留言補了官方頁沒寫的數字：售價 1,299 美元、全畫面刷新 20–30 秒、約 93 PPI，並和 Samsung EM32DX、InkPoster 等同面板產品比價。<a href="https://news.ycombinator.com/item?id=50519354">HN 討論</a></p>
+
+<h3>Launch HN：Axonnic 用前臂 EMG 袖套錄手指動作與指尖力</h3>
+<p><a href="https://news.ycombinator.com/item?id=50522776">Launch HN</a>｜64 通道表面 EMG 袖套，與手部追蹤同步訓練後，只靠 EMG 就能預測手指關節角並估計指尖力，目標是為靈巧機器人收集人類示範資料。訓練四天後、重新穿戴不重新校正，20 個關節角對 Apple Vision Pro 手部追蹤的平均誤差 6.9°。他們的論點是 EMG 能錄到影片看不到的「出力」，例如持續握持。唯一的留言問到肌肉疲勞造成的 baseline 漂移，這正是做 teleop 資料的人會擔心的事。</p>
+
+<h3>「已經在 Lean 裡驗證過了」該怎麼解讀</h3>
+<p><a href="https://xenaproject.wordpress.com/2026/11/12/and-the-proof-is-checked-in-lean/">Xena Project</a>｜面對 AI 產生的大型 Lean 專案，作者提出四個問題：形式化陳述是否等於原本的定理（例如 ℕ 含 0 讓某版費馬最後定理變成錯的）、能否編譯（Anthropic 那個 1300 萬行的 FLT 專案需要 96 核、500 GB 伺服器）、證明是否偷改定義或加了 axiom（用 <b>lake comparator</b> 檢查）、是否利用 kernel bug（用 --paranoid 跑多個獨立 kernel）。文中也提到 OpenAI 290 篇附 Lean 的論文裡，約 38 篇的 Lean 根本沒陳述主定理。HN 有人指出 Claude 同時參與了 Lean kernel 和另一個 checker 的開發，像「審計師幫公司寫財報」。<a href="https://news.ycombinator.com/item?id=50515058">HN 討論</a></p>
+
+<h3>Harmonic 的 Aristotle 開始驗證 Rust</h3>
+<p><a href="https://www.harmonic.fun/news/aristotle-rust-verification/">Harmonic 公告</a>｜Aristotle 現在可以證明 Rust 程式沒有 undefined behavior（包括 unsafe 區塊）且符合規格，也能證明 C 轉 Rust 的改寫與原版行為一致。案例：開源 order book Manifest 證了 28 個性質並抓到一個已修正的捨入 bug；也和 Solana Foundation 合作。搭配上一則一起讀：形式驗證正在變成 AI 產出程式的品質閘門，但「驗了什麼」本身仍要人看。<a href="https://news.ycombinator.com/item?id=50520270">HN 討論</a></p>
+
+<h3>軟體正在系統性地崩壞？</h3>
+<p><a href="https://www.breck-mckye.com/blog/2026/11/software-is-breaking-down-at-a-systemic-level/">原文</a>｜作者把 2026 年的事件串起來：Microsoft 兩天的全球中斷、PHP 十多年的記憶體漏洞、eMudhra 弱私鑰導致大量 SSL 憑證失效、透過 GitHub Actions 設定錯誤汙染 NPM 套件的 Shai Hulud。他認為 AI 程式碼本身多半「合格」，真正的問題是 decoherence：局部合理的元件組起來互不相容，而工程師越來越無法不靠 AI 解決問題。HN 主要反駁時間線：AWS 已經 20 年、套件管理器更老，Heartbleed、Log4j 也不是新現象；也有人回報 AI 升級失敗率下降，但因為跑得快，總事故數反而上升。<a href="https://news.ycombinator.com/item?id=50520866">HN 討論</a></p>
+
+<h3>Golden Board：用 512 KiB 二進位訊息向外星智慧教西洋棋</h3>
+<p><a href="https://artemlegotin.com/golden-board/">專案頁</a>｜一個 2048×2048 位元的方陣：前 64 列用 32 張 64×64 的圖解教讀法（二進位數字、位元序、XOR、CRC-32C），之後五份文件用圖示、練習與回饋教規則、走法編碼、戰術，最後附 64 盤共 6,890 步的棋譜。作者用 LLM 當「未知接收者」測試，但也誠實指出模型本來就會下棋，答對不能證明是訊息教會的。對做 emergent communication 或 grounding 的人是很有趣的思想實驗。<a href="https://news.ycombinator.com/item?id=50518068">HN 討論</a></p>
+</article>
+</body>
+</html>

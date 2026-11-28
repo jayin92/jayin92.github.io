@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 晚報｜2026-11-15（週日）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 晚報｜2026-11-15（週日）</h1>
+<p><b>今日導讀</b>：週日晚上 arXiv 仍沒有新清單，這期繼續挖週五 cs.CV / cs.RO 裡前幾期沒寫到的論文。主線是「把難的部分交給別的模組」：SALA 用語言描述替人類影片和機器人動作搭橋，Topo-4DGS 讓 Gaussian 在切開、打開的瞬間生出新表面，K2V 則把物理推理從影片擴散模型手中拿走、交給 LLM 先畫關鍵影格。新聞有 Starship 上節首次被發射塔接住、Rust 標準庫的記憶體安全漏洞，以及 DRAM 漲價的反壟斷訴訟。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. SALA：用語言對齊 latent action，讓人類影片真正教得動人形機器人</h3>
+<p><a href="https://arxiv.org/abs/2611.17110">arXiv:2611.17110</a>｜cs.RO｜Sharpa Robotics、上海交大 SJTU-Sharpa 具身智能聯合實驗室、清華大學（朱軍、鄧志杰等）</p>
+<p><b>問題</b>：VLA 需要大量機器人互動資料，遙操作很貴；第一人稱人類影片便宜得多，常見做法是用 latent action model（LAM）從影片學出「隱式動作」當監督。但只靠影片重建學出來的 latent，往往依「場景長相」分群，而不是依「做了什麼動作」分群，於是同一個「抓杯子」在人手和機械手上被編成完全不同的 code，跨 embodiment 對不起來。</p>
+<p><b>方法</b>：核心想法是用語言當橋，不需要成對資料。每段短片附一句原子動作描述（如 grasp the cup），用凍結的文字編碼器（模擬中用 CLIP ViT-B/32，真實世界用 Qwen3-Embedding-4B）算出人類片段與機器人片段之間的語意相似度，在 batch 內做 softmax 得到一個「軟鄰域」，再用 cross-entropy 讓 latent 相似度的分布去逼近它。關鍵是對機器人 latent 加 stop-gradient：只讓人類 latent 往有動作 grounding 的機器人 anchor 靠。tokenizer 把每段片段編成 8 個 latent token、codebook 256，量化器用 SoftVQ 而非 hard VQ，視覺重建目標是未來幀的凍結 DINOv2 特徵，只有機器人片段額外訓練 action decoder。policy 是 π0 風格：Qwen3-VL-4B 加 0.6B 的 flow-matching action expert，用可學習 query 預測 latent token。訓練分三階段：人類影片預訓練（只預測 latent）、遙操作 mid-training、再加任務專屬的人類示範做 post-training。真實資料規模是 2,678 小時人類影片與 888 小時 Sharpa North 遙操作。</p>
+<p><b>結果</b>：RoboTwin 2.0（Aloha-AgileX、50 任務）平均成功率 64.4，高於 π0.5 的 58.7、LingBot-VA 的 57.1、InternVLA-A1.5 的 54.0；FastWAM 與 OpenWAM 在 Clean 場景分數更高（79.4、86.8），但在 domain randomization 下崩到 3.2、3.9，SALA 則有 48.6。真實世界用雙 22-DoF 靈巧手的輪式人形 Sharpa North 做齒輪組裝、雙手倒水、插花、湯匙舀取四個任務，各 20 次：SALA 平均 72.5%，GR00T N1.7 為 41.25%，同架構但不用 latent action 的 vanilla VLA 為 27.5%。拿掉對齊損失，RoboTwin 的 Random 分數從 48.6 掉到 36.8；latent 變異中由動作解釋的比例中位數從 0.41 升到 0.67，由場景解釋的從 0.14 降到 0.04。換成 hard VQ 時，對齊損失幾乎降不下來。</p>
+<p><b>限制與疑問</b>：tokenizer 訓練仍需要原子動作的文字標註，只是 policy 本身不需要；scaling 分析用的是離線驗證誤差、每個設定只跑一次，預訓練預算最多 2,678 小時；post-training 的「53.75% 到 72.5%」也沒交代各比例的對應。另外「語意相同」不等於「運動學可行」，例如人手的捏和 22-DoF 手的捏，語言相似度能否反映力與接觸的差異，值得懷疑。</p>
+<p><b>為什麼值得看</b>：這篇把 LAM 與 world-action model 的取捨講得很清楚：WAM 預測像素，容易學到外觀，換場景就崩；LAM 加上語意對齊，反而在 randomized 場景更穩。對做人類影片轉機器人的人，「凍結文字空間當軟目標 + 單向 stop-gradient」是很便宜就能加進現有 LAM 的模組；後續可以試試用 VLM 自動產生原子動作描述，看標註成本能否歸零。</p>
+
+<h3>2. Topo-4DGS：切開、組裝、打開蓋子，4D Gaussian 終於不會糊成一團</h3>
+<p><a href="https://arxiv.org/abs/2611.16012">arXiv:2611.16012</a>｜cs.CV｜Bocconi University、TUM、Google（Federico Tombari）</p>
+<p><b>問題</b>：從單眼第一人稱影片重建手物互動，是 embodied AI 的基本功。但現有 4DGS 都是「變形一組固定的 Gaussian」，一旦遇到拓撲改變（把麵包切成兩半、把零件組起來、打開盒蓋），新露出的表面根本不存在於初始表示裡，消失的表面也刪不掉，結果就是嚴重的拉絲和鬼影。這類情況過去也沒有專門的 benchmark。</p>
+<p><b>方法</b>：作者先做了 <b>TopoEgo</b>：從 EPIC-KITCHENS 與 Ego4D 各取 12 段，共 24 段、4,618 幀、36 個動態物體、34 個拓撲事件，分 fission、fusion、open、close 四類，標註事件時間、最終碎塊數 K 與事件樹；相機位姿來自 EPIC Fields 或 COLMAP，遮罩來自 SAM 3。方法 <b>Topo-4DGS</b> 有兩部分。<b>Motion Bifurcation</b>：每個最終碎塊有自己的剛體 SE(3) 軌跡，每顆 Gaussian 的中心是各碎塊運動的 softmax 加權混合；路由權重由與時間無關的空間 MLP（用 K-means 暖啟動）和一個帶 sigmoid 事件閘門的時間分支組成，所以事件發生前大家一起動、事件後才分家。<b>Topological Boundary Resolution</b>：Gaussian 有時間啟用窗口，fission/open 時在事件時刻加入新表面，fusion/close 時把被蓋住的表面關掉；新的切面是在兩碎塊互相匹配的接觸點上擬合平面、填滿 2D convex hull 生成，之後再微調啟用時間。損失是 L1 + D-SSIM、silhouette loss 與空間一致性正則，手的像素不參與監督。輸入需要已校正相機、物體與手的遮罩，以及事件規格。</p>
+<p><b>結果</b>：物體區域 PSNR 在八個「事件類型 × 資料來源」組合全部第一，最多比最強 baseline 高 1.26 dB；比較對象包括 EgoGaussian、DeGauss、Def-3DGS、4DGS 及其遮手版本。最能說明問題的是事件之後的幀：Topo-4DGS 為 24.30 dB，比最佳 baseline 高 4.47 dB。沒有拓撲變化的剛體對照組也拿到 27.92 PSNR（EgoGaussian 27.34），表示這套機制不會拖累一般情況。消融從 18.45 一路加到 26.77 dB（事件後 PSNR），光 Motion Bifurcation 就貢獻約 3.98 dB；把事件閘門換成普通 MLP 會掉到 19.41。</p>
+<p><b>限制與疑問</b>：最大的前提是「事件規格要給定」且物體近似分段剛體。補充材料裡的自動拓撲發現只有 72.2% 碎塊數正確、66.7% 事件類型正確，34 個事件只對上 24 個；揉麵團這類強變形物體也不在範圍內。benchmark 只有 24 段，數字的變異可能不小。</p>
+<p><b>為什麼值得看</b>：做 egocentric 重建或從人類影片抽取物體動態的人，遲早會撞上拓撲變化。這篇提供了第一個像樣的評測集，和一個可拆用的思路：把「何時出現新表面」顯式化成事件閘門。下一步很自然：用 VLM 或手物接觸偵測自動產生事件規格，把它接到機器人學切、學組裝的資料管線裡。</p>
+
+<h3>3. K2V：讓 LLM 先畫關鍵影格，影片模型只負責「補中間」</h3>
+<p><a href="https://arxiv.org/abs/2611.17324">arXiv:2611.17324</a>｜cs.CV｜University of Cambridge（Roberto Cipolla、Ayush Tewari）、Toyota Motor Europe</p>
+<p><b>問題</b>：影片擴散模型畫面漂亮，物理卻常常錯：球穿過桌子、積木懸空。作者認為癥結在於所有物理推理都被迫在擴散過程裡「一次同時」完成，而擴散空間並不擅長這種因果推理。</p>
+<p><b>方法</b>：K2V 完全不訓練。規劃器是 Gemini 3.8 Flash：讀入 caption 與輸入圖，推想接下來五秒會發生什麼，把運動切成幾個階段，輸出帶時間戳的關鍵影格與擴寫後的 caption。每張關鍵影格由 Gemini 3.1 Flash Image 對「上一張關鍵影格」做編輯產生；規劃器有 render、view、evaluate、add、finish 等工具，每張影格必須先評估才能確認，全程不用物理模擬器。若兩張相同的影格相隔很遠，就每秒插入一張相同影格，場景靜止後也維持不動，避免影片模型自己腦補多餘運動。生成端用 Wan2.2 I2V-A14B 或 TI2V-5B：原生只吃第一幀，作者把輸入補成灰色幀，再把關鍵影格放到對應時間（對齊每個 4 幀 latent block 的最後一格），不需微調就能運作，作者推測是因為 Wan2.2 預訓練中本來就有插幀任務。最後做色彩對齊。</p>
+<p><b>結果</b>：Physics-IQ Verified（image-to-video）上，K2V+Wan2.2-14B 拿 55.0，K2V+5B 為 50.0；原版 Wan2.2-14B 只有 32.2，表中最強 baseline Cosmos3-Super 為 42.7，等於比 vanilla 高 22.8 分、比先前最佳高 12.3 分。PhyGenBench（text-to-video）平均 0.633，先前最佳 LTX-Video-2B + NEWTON 為 0.560。成本約每段 0.47 美元（Physics-IQ），NEWTON 約 2.93 美元。一個很有說服力的上界實驗：直接給 Wan2.2-5B 1 到 6 張真實關鍵影格，Physics-IQ 從 27.7 升到 67.4。消融中把規劃與編輯換成開源的 Qwen3-VL 與 Qwen-Image-2.1，分數掉 15.8；只給首尾兩張掉 7.5；拿掉 agentic loop 只掉 1.7。</p>
+<p><b>限制與疑問</b>：規劃器會推理錯，例如把明顯不穩的積木堆判成穩定；關鍵影格之間的運動仍由擴散模型決定，滾動的球常走出彎曲路線。Wan2.2-14B 生成一段要約 32 分鐘。另外最大的增益依賴閉源 Gemini，換成開源模型就少了很多，方法的價值有一部分其實是「前沿 VLM 的物理常識」。</p>
+<p><b>為什麼值得看</b>：這和前兩天 PhysLoop、WorldDraft 是同一條線：把物理從生成模型裡拆出去，交給可解釋、可檢查的上游。對 world model 研究者，67.4 這個上界說明「關鍵狀態對了，影片模型其實補得不錯」；對機器人，關鍵影格本身就很像 subgoal image，可以直接拿去當 goal-conditioned policy 的條件，值得一試。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>Split-and-scale：推論時把場景切小塊，同一個 3D tokenizer 就能抓到更多細節</h3>
+<p>潛在 3D 表示的細節受限於 latent 容量，而訓練時加大容量又太吃記憶體。作者把場景表示成 3D 座標的連續函數，於是同一個預訓練 tokenizer 可以在推論時套到任意小的子區域，讓相同容量涵蓋更小的空間；實驗顯示品質可以追上大到單張 GPU 放不下的模型，並據此訓練了一個表現接近 SOTA 的自回歸 3D 生成器。作者包括 Oncel Tuzel、Rick Chang。<a href="https://arxiv.org/abs/2611.16126">arXiv:2611.16126</a></p>
+
+<h3>BrickFlow：從一張照片推出每塊 LEGO 的位姿（Cordelia Schmid）</h3>
+<p>給定零件清單與組好的成品照片，推出每塊零件的 SE(3) 位姿；難在離散的卡榫約束讓問題變成組合式，小誤差就拼不起來。作者先在程序生成的組裝上訓練 set-conditioned SE(3) flow 模型學「零件怎麼接」，再只用 1% 的資料微調加上影像條件，測試時加一個解析的 connectivity-field guidance 把預測拉向相連的組裝，模型越大、有預訓練、有 guidance，組裝品質越好。<a href="https://arxiv.org/abs/2611.17321">arXiv:2611.17321</a></p>
+
+<h3>Sprint3D：image-to-3D 從 133 秒壓到 4 秒，瓶頸其實在 UV 展開</h3>
+<p>剖析公開的 Pixal3D pipeline 後發現，四個 rectified flow 只佔 14% 時間，網格後處理佔 85%，大多是 CPU 上的 UV unwrapping。作者把後處理搬到 GPU、移出關鍵路徑，再把 flow 從 76 次網路評估蒸餾到 8 次，單張 H200 每個資產中位時間從 133 秒降到 4.05 秒（33×）；Toys4K 2,653 個物體上法線指標全面變好，但 silhouette IoU 略低、紋理細節較少。同一套後處理也讓 TRELLIS.2 快 6.7 倍。<a href="https://arxiv.org/abs/2611.16701">arXiv:2611.16701</a></p>
+
+<h3>CGEM：長程操作該記住什麼？記住「改變成功機率」的事件</h3>
+<p>長程任務中，同樣的觀測可能需要不同動作（作者稱 decision aliasing），所以 policy 需要記憶。CGEM 用 critic 估計每個事件造成的成功機率變化，正向變化記為進度、負向記為失敗，子任務完成後丟掉失敗紀錄。在一個能精確計算成功機率的十子任務診斷環境中拿到 88.0%，36 步觀測窗口和運動學事件記憶都是 0.0%；拿掉失敗紀錄只剩 1.7%。<a href="https://arxiv.org/abs/2611.16386">arXiv:2611.16386</a></p>
+
+<h3>A²WM：不重訓 policy，用「動作仿射」world model 做 3.8 ms 的推論期修正</h3>
+<p>模仿學習 policy 小誤差會累積。作者從加了動作擾動的 rollout 離線學一個 world model，預測「名目軌跡 + 對動作修正的線性響應」，並一次預測整個 horizon、避免遞迴誤差；線上只需一次模型評估加一個凸 QP，policy 與模型權重都凍結。四個模擬操作任務成功率最高，每步平均只多 3.8 ms。<a href="https://arxiv.org/abs/2611.15011">arXiv:2611.15011</a></p>
+
+<h3>ReCan-GS：不用遮罩，從 deformation field 自己找出「不該重建」的東西</h3>
+<p>隨手拍的動態影片裡有路人、陰影、煙霧，靜態假設會誤刪主體運動，全部一起建模又會鬼影。ReCan-GS 從學到的變形場算出 Jacobian 形式的 deformation-sensitivity 分數，當作重建歧義的代理，據此把 Gaussian 分成動態 Core 與每視角的 Distractor，或事後修剪；同一準則也能處理逐漸變化的煙霧，不需要遮罩或預訓練分割器。<a href="https://arxiv.org/abs/2611.16259">arXiv:2611.16259</a></p>
+
+<h3>BWM-Forge：coding agent 先在 Blender 搭場景，影片模型再上色</h3>
+<p>給定機器人資產與任務描述，coding agent 生成可編輯的 Blender 場景程式（物體、機器人運動、相機），渲染出的代理影片當結構與運動參考，再交給影片生成模型補細節；多 agent 負責審查與渲染，還有經驗庫重用規則。在 5 種機器人、15 個任務上，各項畫質與一致性、RoboJudge-9B 物理與指令分數都高於 LingBot-World Base Cam，但 dynamic degree 較低。和昨天的 WorldDraft 思路很像，可以對照看。<a href="https://arxiv.org/abs/2611.16221">arXiv:2611.16221</a></p>
+
+<h2>新聞與討論</h2>
+
+<h3>SpaceX 首次用發射塔接住 Starship 上節</h3>
+<p>Flight 15 於 11 月 13 日發射，Ship 42 入軌、釋放 Starlink 衛星後重返，最後被 Starbase 發射塔的「筷子」機械臂接住，這是 Starship 上節第一次塔接。Booster 則沒有回塔，SpaceX 取消了塔接、讓它落入墨西哥灣。HN 上熱議的重點是隔熱瓦：這艘船上裝了飛過一次的隔熱瓦，下一個真正的里程碑是「不整修直接再飛」；也有人估算 V3 實際入軌酬載約 50 噸，離 100 噸目標還遠，但這是留言者推估，不是官方數字。<a href="https://www.cnn.com/2026/11/13/science/live-news/spacex-starship-flight-15-ship-catch">CNN 報導</a>｜<a href="https://news.ycombinator.com/item?id=50500963">HN 討論</a></p>
+
+<h3>Rust 標準庫裡的記憶體安全漏洞，部分由 AI 掃描找到</h3>
+<p>Microsoft FORGE Lab 報告了 std 與 core 中數個 soundness 問題，有些可以從完全 safe 的 Rust 觸發，部分由 AI 漏洞掃描系統 Hyenas 找到。例子包括 <b>MapWindows::clone</b> 在使用者 clone panic 時讀到未初始化記憶體、自訂 Pattern 讓 <b>str::replace</b> 產生非法 UTF-8 的 String、<b>CommandExt::exec</b> 在讀鎖下改寫全域 environ，以及因 BTreeMap 問題而在 Rust 1.100 定下「allocator 不得 unwind」的規則。作者歸納出三種信任假設：不在錯的時機 panic、使用者實作的 trait 是正確的、OS 與 libc 狀態不被改動，其中系統邊界最難用傳統靜態分析找。HN 上有人提醒 Rust 本來就有 178 個開著的 I-unsound issue，也有人認為需要 LLM 才找得到，正說明簡單的記憶體 bug 已經被消滅了。<a href="https://forge-blog.github.io/posts/rust-std-memory-safety/">原文</a>｜<a href="https://news.ycombinator.com/item?id=50478701">HN 討論</a></p>
+
+<h3>DRAM 價格壟斷集體訴訟，法院駁回三大廠的撤案動議</h3>
+<p>加州北區聯邦法院 11 月 14 日裁定，針對 Samsung、SK Hynix、Micron 的集體訴訟可以繼續。原告指控三家（合計超過 91% 營收）自 2022 年底減產、把產能轉向 AI 用的 HBM（每 GB 晶圓面積約為 DDR5 的 3 到 4 倍），一般 DRAM 價格在截至 2025 年第三季的一年內漲約 171.8%，卻沒人擴產；另外還有 Micron 收掉 Crucial 品牌、2026 年 1 月幾乎相同的客戶審查做法等。法官認為單看轉向 HBM 或許不夠，但加上這些「plus factors」與 1998 到 2002 年的前科，足以合理推論有共謀；被告須在 12 月 7 日前答辯。指控尚未經證實，但對買 GPU 伺服器和工作站的研究室來說，這是記憶體漲價背後值得追的一條線。<a href="https://litnews.ai/articles/garciaguirre-samsung-sk-hynix-micron-dram-conspiracy-suit-survives-dismissal">原文</a>｜<a href="https://news.ycombinator.com/item?id=50502988">HN 討論</a></p>
+
+<h3>PyPI 專案頁改版，把套件來源證明（provenance）放到最前面</h3>
+<p>新的 Security 分頁列出每個 release 的 provenance 狀態與每個檔案的 attestation，分成 Trusted Publisher 的發布證明與連到原始 commit 和建置平台的 SLSA Build Provenance。更實用的是四種警告：部分檔案缺證明、檔案來自不同 repo 或建置系統、發布來源換了 repo 或 workflow、以及原本有證明的專案突然不再提供。對常 pip install 一堆研究程式碼的人，「來源突然改變」這個警告正好對準了近年的供應鏈攻擊手法。<a href="https://blog.pypi.org/posts/2026-11-06-ui-updates-complete/">原文</a>｜<a href="https://news.ycombinator.com/item?id=50497892">HN 討論</a></p>
+
+<h3>EFF 與 ACLU 要求上訴法院：查車牌辨識資料庫需要搜索票</h3>
+<p>在 United States v. Sturdivant 一案中，克里夫蘭警方只知道搶匪車輛的廠牌、型號和顏色，就對 Flock 與 ELSAG 兩個車牌辨識（ALPR）資料庫做開放式搜尋，找出被告車輛出現在案發地附近。地方法院認為公開可見的車牌沒有隱私期待；EFF 與 ACLU 在第六巡迴上訴法院的 amicus brief 主張，全國聯網的 ALPR 是能回看任何人行蹤的「時光機」，搜尋它就是第四修正案下的搜索。這題和做大規模視覺辨識系統的人直接相關：技術上「只是看見車牌」，累積起來就是追蹤。<a href="https://www.eff.org/deeplinks/2026/11/were-asking-appeals-court-require-warrant-alpr-searches">原文</a>｜<a href="https://news.ycombinator.com/item?id=50503255">HN 討論</a></p>
+
+<h3>化學如何變成生物：生命起源研究的新共識</h3>
+<p>Quanta 回顧從 1952 年 Miller-Urey 實驗至今的生命起源研究：RNA、脂質、蛋白質、代謝誰先的爭論，正轉向「化學與生物一起演化」的連續觀。Cole Mathis 的說法很妙：問題從「怎麼做出任何東西」變成「怎麼才不會什麼都做出來」。文中提到 2024 年 Phil Donoghue 團隊估計 LUCA 約有 2,600 個蛋白質、譜系約 42 億年前；Klára Hlouchová 發現約 10 種胺基酸就能形成關鍵摺疊；Kate Adamala 團隊用生物零件做出能生長、分裂、複製 DNA 的人工細胞，她自稱是「窮人版的演化」。<a href="https://www.quantamagazine.org/the-evolving-story-of-how-chemistry-became-biology-20261112/">原文</a>｜<a href="https://news.ycombinator.com/item?id=50482222">HN 討論</a></p>
+
+<h3>舊手機比 Raspberry Pi 更適合當嵌入式裝置？</h3>
+<p>作者在做一個需要拍照、控制 LED、遠端連線的藝術裝置，最後選了 root 過的 Redmi 13C 5G 和 Huawei Mate 30 5G。二手手機每支約人民幣 300 到 500 元，Pi 核心零件約 1,483 元、全配約 2,317 元還不含電池；手機內建電池、GPS、行動網路、觸控螢幕和 50MP 相機。缺點是要大量找到電池健康、相機行為一致的同款手機並不容易，Huawei 也難 root。對做低成本機器人感測節點的人，這是個值得認真比較的選項。<a href="https://so.long.thanks.fish/why-pi-when-i-have-an-old-phone/">原文</a>｜<a href="https://news.ycombinator.com/item?id=50440709">HN 討論</a></p>
+</article>
+</body>
+</html>

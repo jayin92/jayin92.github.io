@@ -1,0 +1,898 @@
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Computer Graphics Final Project Report</title>
+
+<style>
+    .title-container {
+        text-align: center;
+    }
+    .main-title {
+        font-size: 35px;
+        font-weight: bold;
+        margin-bottom: 16px;
+    }
+    .sub-title {
+        font-size: 20px;
+        font-weight: bold;
+        margin-bottom: 24px;
+    }
+</style>
+
+<div class="title-container">
+    <div class="main-title">Computer Graphics Final Project Report</div>
+    <div class="sub-title">Wei Wang, Jie-Ying Lee</div>
+</div>
+
+# Final Image
+
+We got inspired by the Seljalandsfoss water fall in Iceland. We create a scene that have a cave with a beautiful waterfall.
+
+We aim to capture the journey from the known to the unknown. The pointing finger symbolizes the direction of exploration, while the intersection of cave and plains further reinforces the theme of 'in between.' The dawn setting carries dual symbolism of darkness and light. The waterfall acts as a natural curtain, with the viewer assuming the role of the protagonist at a pivotal moment of adventure. The misty waterfall, composed of water and fog, provides a seamless transition between these realms.
+
+This scene creates a metaphorical threshold where familiar and unfamiliar worlds meet. The interplay of elements - the cave's mystery, the open plain's possibility, and the waterfall's fluid boundary - invites contemplation about transitions and discoveries. Like the protagonist, we stand at this convergence point, ready to step from what we know into what we have yet to discover.
+
+We use heterogeneous participating media to simulate the clouds (in the top left of the image) and the waterfall. The waterfall is simulated in Blender and then exported as NanoVDB. We created a realistic landscape also using Blender. We downloaded meshes from the internet and combined them in Blender. The Disney BSDF is used in the crystals and minerals embedded in the cave. The image textures further improved the realism of the scene. Finally, we rendered two images, one with a perspective camera and another using the realistic camera model (fisheye). The Intel's Open Image Denoise is used to denoise the image.
+
+scene file: `scenes/project/final_mineral/CG_withMinerals_nolight.xml`
+
+<img src="images/final/CG_withMinerals_nolight_new_denoised.webp" alt="" class="img-responsive">
+
+scene file: `scenes/project/final_mineral/CG_withMinerals_nolight_realistic.xml`
+
+<img src="images/final/CG_withMinerals_nolight_denoised.webp" alt="" class="img-responsive">
+
+
+
+## Reference Assets
+
+We include all the third-party assets that we used in the project. The rest of assets are created by us.
+
+1. Environment map: https://polyhaven.com/a/qwantani_sunset
+2. https://www.texturecan.com/details/574/
+3. https://polyhaven.com/a/namaqualand_boulder_02
+4. https://polyhaven.com/a/rock_face_03
+5. https://polyhaven.com/a/tree_small_02
+6. https://cs-motion-design.gumroad.com/l/MlzOt
+
+
+# Wei Wang
+
+## Feature List
+
+ID      | Short Name                |Points | Features (if required) & Comments
+--------|---------------------------|-------|------------------------------------
+5.3 | Images as Textures | 5 | 
+5.4.1 | Procedural Textures | 5 | perlin noise
+5.7 | Intel's Open Image Denoise integration | 5 | 
+5.19 | Rendering using the Euler Cluster | 5 | 
+10.4 | Stratified Sampling | 10 | 
+15.5 | Disney BSDF | 15 | roughness, metallic, clearcoat, specular, subsurface, (sheen)
+15.8 | Realistic Camera Model | 15 | 
+Total || 60 |
+
+## Images as Textures (5 points)
+
+### Source
+- `src/image_texture.cpp`
+
+### Implementation
+I use the Bitmap class to load the image file and store the pixel values. The color can obtained through nearest-neighbor (default) or bilinear interpolation. There's another scale parameter that allows the user to use only one image or duplicated images for the texture.
+
+### Validation
+
+**Sphere**
+<div class="twentytwenty-container">
+    <img src="images/cbox_wo_image_texture.webp" alt="w/o image texture" class="img-responsive">
+    <img src="images/cbox_image_texture.webp" alt="w/ image texture" class="img-responsive">
+</div>
+
+**Camel head**
+<div class="twentytwenty-container">
+    <img src="images/camel_head_wo_image_texture.webp" alt="w/o image texture" class="img-responsive">
+    <img src="images/camel_head_image_texture.webp" alt="w/ image texture" class="img-responsive">
+</div>
+
+
+## Procedural Textures - Perlin Noise (5 points)
+
+### Source
+- `include/nori/noise.h`
+- `src/noise.cpp`
+- `src/perlin.cpp`
+
+### Implementation
+The 2D Perlin noise function is implemented in noise.cpp, with inspiration from PBRT and Mitsuba 3. The Perlin texture is implemented in perlin.cpp, and I use octave to generate more complex noise pattern. The user can specify the number of octaves, the minimum frequency and the scale.
+Default setting: 
+- numOctave: 3
+- minFreq: 16
+- scale: 0.125
+
+### Validation
+
+- Different scales (left to right: 0.5, 0.25, 0.125), with other parameters as default
+<img src="images/spheres-perlin-scales.webp" alt="" class="img-responsive">
+
+- Different number of octaves (left to right: 1, 3, 5), with other parameters as default
+<img src="images/spheres-perlin-numOctaves.webp" alt="" class="img-responsive">
+
+- Different minimum frequencies (left to right: 8, 16, 32), with other parameters as default
+<img src="images/spheres-perlin-minFreqs.webp" alt="" class="img-responsive">
+
+## Intel's Open Image Denoise integration (5 points)
+
+### Source
+- `include/nori/bitmap.h`
+- `include/nori/render.h`
+- `src/bitmap.cpp`
+- `src/render.cpp`
+
+### Implementation
+To allow the use of Intel's Open Image Denoise (OIDN), I modified the rendering pipeline to output not only the rendered image (beauty file) but the albedo and normal files.
+Note that box filter should be used as the reconstruction filter to allow OIDN.
+
+Using the cbox scene with realistic camera as an example, the following files are generated:
+
+- Beauty file:
+<img src="images/cbox_realistic.webp" alt="beauty" class="img-responsive">
+
+- Albedo file:
+<img src="images/cbox_realistic_albedo.webp" alt="beauty" class="img-responsive">
+
+- Normal file:
+<img src="images/cbox_realistic_normal.webp" alt="beauty" class="img-responsive">
+
+### Validation
+<div class="twentytwenty-container">
+    <img src="images/cbox_realistic.webp" alt="original" class="img-responsive">
+    <img src="images/cbox_realistic_denoised.webp" alt="denoised" class="img-responsive">
+</div>
+
+## Rendering using the Euler Cluster (5 points)
+
+### Source
+- `src/render.cpp` (not on this branch)
+
+### Implementation
+To render using the Euler Cluster, I deleted all libraries and files regarding nanogui and use the headless mode for rendering.
+And to buil Nori on Euler, I loaded the necessary modules using the following commands:
+`module load stack/2024-06  gcc/12.2.0`
+`module load zlib/1.3-mktm5vz`
+`module load cmake/3.27.7`
+`module load boost/1.83.0`
+`module load python/3.10.13`
+`module load git-lfs/3.3.0`
+
+### Validation and Analysis
+
+## Stratified Sampling (10 points)
+
+### Source
+- `src/stratified.cpp`
+
+### Implementation
+I followed the guidance from the PBRT book and Mitsuba 3 to implement the stratified sampling. To allow stratification, the real sample count number will be the nearest square number to the input sample count. The samples are jittered in each strata and shuffled (the padding).
+
+### Validation
+The effect of stratified sampling is more obvious when the smaple count is low and when rendering a high-frequency texture. Here I rendered the checkboard texture with input sample count = 2.
+
+<div class="twentytwenty-container">
+    <img src="images/checkerboard.webp" alt="w/o stratified" class="img-responsive">
+    <img src="images/checkerboard_stratified.webp" alt="w/ stratified" class="img-responsive">
+</div>
+
+### Implementation
+
+
+## Disney BSDF (15 points)
+### Source
+- `include/nori/warp.h`
+- `src/disney.cpp`
+- `src/warp.cpp`
+- `src/warptest.cpp`
+
+### Implementation
+I use the original paper and the implementation in BRDF explorer and Mitsuba 3 as guidance. I implemented the folowing parameters:
+- **roughness**
+- **metallic**
+- **clearcoat**
+- clearcoatGloss    
+- **specular**
+- specularTint
+- **subsurface**
+- sheen
+- sheenTint
+(the bold ones are the ones specified by the TA, as I forgot to specify them in the proposal)
+
+### Validation
+- **Roughness**: left to right: 1 to 0.2
+
+<div class="twentytwenty-container">
+    <img src="images/cbox_roughness_mitsuba.webp" alt="Mitsuba 3" class="img-responsive">
+    <img src="images/cbox_roughness_nori.webp" alt="Mine" class="img-responsive">
+</div>
+
+- **Metallic**: left to right: 1 to 0.2
+
+<div class="twentytwenty-container">
+    <img src="images/cbox_metallic_mitsuba.webp" alt="Mitsuba 3" class="img-responsive">
+    <img src="images/cbox_metallic_nori.webp" alt="Mine" class="img-responsive">
+</div>
+
+- **Clearcoat**: left to right: 1 to 0.2
+
+<div class="twentytwenty-container">
+    <img src="images/cbox_clearcoat_mitsuba.webp" alt="Mitsuba 3" class="img-responsive">
+    <img src="images/cbox_clearcoat_nori.webp" alt="Mine" class="img-responsive">
+</div>
+
+- **Specular**: left to right: 1 to 0.2
+
+<div class="twentytwenty-container">
+    <img src="images/cbox_specular_mitsuba.webp" alt="Mitsuba 3" class="img-responsive">
+    <img src="images/cbox_specular_nori.webp" alt="Mine" class="img-responsive">
+</div>
+
+- **Subsurface**: left to right: 1 to 0.2 (the area light is rotated to show the subsurface scattering more clearly)
+
+<div class="twentytwenty-container">
+    <img src="images/cbox_subsurface_mitsuba.webp" alt="Mitsuba 3" class="img-responsive">
+    <img src="images/cbox_subsurface_nori.webp" alt="Mine" class="img-responsive">
+</div>
+
+Warptests are also implemented to validate the warping functions.
+
+- **GTR1**
+<img src="images/GTR1.webp" alt="Mine" class="img-responsive">
+
+- **GTR2**
+<img src="images/GTR2.webp" alt="Mine" class="img-responsive">
+
+- **Disney BSDF**
+<img src="images/Disney.webp" alt="Mine" class="img-responsive">
+
+## Realistic Camera Model (15 points)
+
+### Source
+- `include/nori/floatfile.h`
+- `src/floatfile.cpp`
+- `src/realistic_camera.cpp`
+
+### Implementation
+
+Most of the implementation is based on the PBRT book. When initialized, the lens file will be read into the camera. When activated, first the lens system will be created based on the lens data, then the lens-to-film distance corresponding to the given focus depth will be computed.
+During ray sampling, first we find the point on the film, and then we trace the ray from the film to the lens system and compute the weight for the ray.
+
+### Validation
+<div class="twentytwenty-container">
+    <img src="images/cbox_path_mis.webp" alt="perspective" class="img-responsive">
+    <img src="images/cbox_realistic_fisheye.webp" alt="realistic camera (fisheye)" class="img-responsive">
+</div>
+
+
+# Jie-Ying Lee
+
+## Feature List
+
+I list all the features that I have implemented in the project.
+
+ID      | Short Name                |Points | Features (if required) & Comments
+--------|---------------------------|-------|------------------------------------
+5.10.2 | Simple Extra Emitters | 5 | directional light, for the sun
+5.16.1 | Anisotropic Phase Function | 5 | Henyey-Greenstein
+5.18.1 | Extra reconstruction filters | 5 | Windowed Sinc
+5.20 | Modeling Meshes | 5 | Use blender to create the scene
+10.6 | Equiangular Sampling of Single Scattering | 10 | For the cloud and fog
+30.1 | Heterogeneous Participating Media  | 30 | Use Heterogeneous Participating Media to simulate the cloud and the fog of waterfall
+15.3 | Environment Map Emitter | 15 | Extra feature, use environment map to simulate the sky
+Total || 60+(15) |
+
+## Simple Extra Emitters - Directional Light (5 points)
+
+### Source
+- `include/nori/emitter.h`
+- `src/directionallight.cpp`
+- `src/path_mis.cpp`
+
+### Implementation
+
+I create a new emitter `directional` which is inherited from `Emitter` class. To deal with distant light, I also create a new function in `Emitter` interface, called `isDistantLight. This function help us to set the world raidus when we sample the distant light. The world radius will be useful for setting the pseudo emitted point.
+
+The implementation is mainly referenced from [Mitsuba 3](https://github.com/mitsuba-renderer/mitsuba3/blob/master/src/emitters/directional.cpp) and [PBRT book](https://pbr-book.org/3ed-2018/Light_Sources/Distant_Lights).
+
+#### `Directional::Directional`
+
+The constructor of this class will initialize the direction and radiance of the directional light. I define the direction that point outward from the light source, following the same convention as the Mitsuba 3 renderer.
+
+#### `Directional::sample`
+
+I set the emitted point to the point that move the reference point a distance of $2r$ where $r$ is the world radius along `direction`. The radiance of the directional light is the same as the radiance of the light source. We also set `isDeltaLight` as true, indicates that directional light is a delta light. The rest of the implementation is same as other emitters.
+
+#### `Directional::eval`
+
+Because the directional light is a delta light, thus this function will return the zero radiance.
+
+#### `Directional::pdf`
+
+Because the directional light is a delta light, thus this function will return the zero.
+
+### `Directional::isDistantLight`
+
+Directional light is a kind of distant light, thus this function will return true.
+
+### Validation
+
+**Single directional light source**
+
+scene file: `scenes/project/cbox/cbox_path_mis_dir_light.xml`
+
+<div class="twentytwenty-container">
+    <img src="images/dirlight/mit3_cbox_path_mis_dir_light.webp" alt="Mitsuba 3" class="img-responsive">
+    <img src="images/dirlight/cbox_path_mis_dir_light.webp" alt="Mine" class="img-responsive">
+</div>
+
+**Multiple directional light sources**
+
+scene file: `scenes/project/cbox/cbox_path_mis_dir_light_double.xml`
+
+
+<div class="twentytwenty-container">
+    <img src="images/dirlight/mit3_cbox_path_mis_dir_light_double.webp" alt="Mitsuba 3" class="img-responsive">
+    <img src="images/dirlight/cbox_path_mis_dir_light_double.webp" alt="Mine" class="img-responsive">
+</div>
+
+**Multiple directional light sources and area light**
+
+scene file: `scenes/project/cbox/cbox_path_mis_dir_light_double_area.xml`
+
+
+<div class="twentytwenty-container">
+    <img src="images/dirlight/mit3_cbox_path_mis_dir_light_double_area.webp" alt="Mitsuba 3" class="img-responsive">
+    <img src="images/dirlight/cbox_path_mis_dir_light_double_area.webp" alt="Mine" class="img-responsive">
+</div>
+
+
+## Anisotropic Phase Function - Henyey-Greenstein (5 points)
+
+### Source
+- `include/nori/phase_function.h`
+- `src/phase_isotropic.cpp`
+- `src/phase_hg.cpp`
+- `src/warptest.cpp`
+- `src/chi2test_phase.cpp`
+
+### Implementation
+
+I create a new phase function `HenyeyGreenstein` which is inherited from `PhaseFunction` class. The implementation is mainly referenced from [PBRT book](https://pbr-book.org/3ed-2018/Light_Transport_II_Volume_Rendering/Sampling_Volume_Scattering#SamplingPhaseFunctions) and [Production Volume Rendering](https://graphics.pixar.com/library/ProductionVolumeRendering/). I will first discuss about the interface of the phase function, and then the implementation of the Henyey-Greenstein phase function.
+
+#### `PhaseFunction` Interface
+
+This class is inherited from `NoriObject` class. It has the following pure virtual functions,
+
+- `virtual Color3f sample(PhaseFunctionQueryRecord &pRec, const Point2f &sample)`: Sample the phase function and return the importance weight (i.e. the value of the phase function divided by the probability density of the sample with respect to solid angles).
+- `virtual Color3f eval(const PhaseFunctionQueryRecord &pRec)`: Evaluate the phase function for a pair of directions and measure specified in `pRec`.
+- `virtual float pdf(const PhaseFunctionQueryRecord &pRec)`: Compute the probability of sampling `pRec.wo` (conditioned on `pRec.wi`).
+- `virtual EClassType getClassType() const override { return EPhaseFunction; }`: Return the type of object.
+
+This interface will share by both isotropic and anisotropic phase functions.
+
+#### `PhaseFunctionQueryRecord`
+
+This struct is used to query the phase function, similar to the `BSDFQueryRecord` for BSDF. It contains the incident and outgoing direction and the measure. Noted that both the incident and outgoing direction are in the world coordinate system.
+
+#### `HG::HG`
+
+The constructor of this class will initialize the `g` parameter of the Henyey-Greenstein phase function. Also precompute some constants that will be used in the sampling and evaluation.
+
+If `g` is close to 0, I will set `m_isotropic` to true, and evaluate and sample the phase function as isotropic phase function. This will largely reduce the computation cost. Also if `g` is not valid (i.e. `g` > 1 or `g` < -1), it will throw an exception.
+
+#### `HG::sample`
+
+First we need to the measure to `ESolidAngle`. Then we need to sample the cosine of the scattering angle, which is defined as, 
+
+$$
+\cos \theta = -\frac{1}{2g}\left(1 + g^2 - \left(\frac{1-g^2}{1+g-2g\xi}\right)^2\right).
+$$
+
+The above equation are from the PBRT book. We then compute the sine of the scattering angle. For the `phi` angle, we can just uniformly sample in $[0, 2\pi]$. Finally, we transform the scattering direction to the world coordinate system with the given incident direction.
+
+Noted that if `m_isotropic` is true, we will just uniformly sample on the sphere using `Warp::squareToUniformSphere`.
+
+The return value is just `Color3f(1.0f)`, becuase we already importance sample the phase function.
+
+#### `HG::pdf`
+
+First of all, if `m_isotropic` is true, it will return $\frac{1}{4 \pi}$. Otherwise, we will compute the probability of sampling the given outgoing direction, which is defined as,
+
+$$
+f_P(\mathbf{x}, \theta) = \frac{1}{4\pi} \frac{1-g^2}{(1 + g^2 + 2g\cos \theta)^{3/2}}.
+$$
+
+Noted that the above equation is difference from "Production Volume Rendering", due to the different direction of the outgoing direction.
+
+#### `HG::eval`
+
+The evaluation function will return `Color3f(pdf(pRec))`, because of the normalization of the phase function.
+
+### Validation
+
+I modify `warptest` to make it able to visualize and run $\chi^2$ test for the phase function. I also create a new `chi2test_phase.cpp` which is modify from `chi2test.cpp` (for testing BSDF) to test the phase function.
+
+Addition to `HG` phase function, I also implement isotropic phase function in `src/isotropic.cpp`. Because the isotropic is essentially a special case of the Henyey-Greenstein phase function (when g=0), I will not discuss the implementation here. However I will show both the isotropic and Henyey-Greenstein phase function in the below validation.
+
+#### Isotropic Phase Function
+
+<img src="images/phase/iso.webp" class="img-responsive">
+<img src="images/phase/iso_chi2.webp" class="img-responsive">
+
+#### Henyey-Greenstein Phase Function
+
+**g = 0.7**
+
+<img src="images/phase/g07.webp" class="img-responsive">
+<img src="images/phase/g07_grid.webp" class="img-responsive">
+<img src="images/phase/g07_chi2.webp" class="img-responsive">
+
+**g = 0.9**
+
+<img src="images/phase/g09.webp" class="img-responsive">
+<img src="images/phase/g09_grid.webp" class="img-responsive">
+<img src="images/phase/g09_chi2.webp" class="img-responsive">
+
+**g = -0.7**
+
+<img src="images/phase/gneg07.webp" class="img-responsive">
+<img src="images/phase/gneg07_grid.webp" class="img-responsive">
+<img src="images/phase/gneg07_chi2.webp" class="img-responsive">
+
+**g = -0.9**
+
+<img src="images/phase/gneg09.webp" class="img-responsive">
+<img src="images/phase/gneg09_grid.webp" class="img-responsive">
+<img src="images/phase/gneg09_chi2.webp" class="img-responsive">
+
+
+
+#### `chi2test_phase.cpp` results
+
+test xml: `scenes/project/tests/chi2test-phase.xml`
+
+In this test xml, I evaluate isotropic function and Henyey-Greenstein function with different `g` values ($0, \pm 0.1, \pm 0.3, \pm 0.6, \pm 0.9, \pm 0.99$). The result shows that the isotropic phase function is always pass the $\chi^2$ test.
+
+<img src="images/phase/chi2test.webp" alt="Chi^2 Test" class="img-responsive">
+
+## Extra Reconstruction Filters - Windowed Sinc (5 points)
+
+### Source
+- `src/rfilter.cpp`
+
+### Implementation
+
+To add new reconstruction filter, I create a new class `SincFilter` which is inherited from `ReconstructionFilter` class. The implementation is mainly referenced from [PBRT book](https://pbr-book.org/3ed-2018/Sampling_and_Reconstruction/Image_Reconstruction).
+
+#### `SincFilter::SincFilter`
+
+The `SincFilter` has two parameters, `tau` and `radius`. The `radius` is used to control the width of the sinc function, anything that is greater than `radius` will be set to zero. The `tau` is the parameter of the lanczos windowing function, where the lanczos function is defined as, 
+$$
+w(x) = \frac{\sin(\pi x / \tau)}{\pi x / \tau}.
+$$
+
+#### `SincFilter::sinc`
+
+This function is used to evaluate the sinc function. The sinc function is defined as,
+$$
+\text{sinc}(x) = \frac{\sin(\pi x)}{\pi x}.
+$$
+
+In order to avoid divide by zero, we directly return 1 if $|x| < 10^{-5}$.
+
+#### `SincFilter::eval`
+
+This function first takes the absolute value of the input, then evaluate the sinc function. The result is multiplied by the lanczos windowing function, which is essentially `sinc(x / m_tau)`.
+
+### Validation
+
+**Comparison between Mitsuba 3, Mine and Gaussian reconstruction filter**
+
+In the below comparison, we set both `radius` and `tau` as 3.0. This aligns with Mitsuba 3's Lanczos filter (`lanczos`) with a width of 3.0. We can observe that the behavior near the area light is similar to Mitsuba 3, which have some ringing artifact, while the Gaussian filter has a smoother transition. As for the overall quality of the image, the Sinc filter is slightly better than the Gaussian filter. However, it takes more time to render the image.
+
+TODO: add the render time of different filter
+
+scene file: `scenes/project/cbox/cbox_path_mis_sinc_3.xml`
+
+<div class="twentytwenty-container">
+    <img src="images/sinc/mit3_cbox_path_mis_sinc_3.webp" alt="Mitsuba 3" class="img-responsive">
+    <img src="images/sinc/cbox_path_mis_sinc_3.webp" alt="Mine (Sinc)" class="img-responsive">
+    <img src="images/cbox_path_mis.webp" alt="Mine (Gaussian)" class="img-responsive">
+</div>
+
+In below comparison, we set both `radius` and `tau` as 4.0. This aligns with Mitsuba 3's Lanczos filter (`lanczos`) with a width of 4.0.
+
+scene file: `scenes/project/cbox/cbox_path_mis_sinc_4.xml`
+
+
+<div class="twentytwenty-container">
+    <img src="images/sinc/mit3_cbox_path_mis_sinc_4.webp" alt="Mitsuba 3" class="img-responsive">
+    <img src="images/sinc/cbox_path_mis_sinc_4.webp" alt="Mine (Sinc)" class="img-responsive">
+    <img src="images/cbox_path_mis.webp" alt="Mine (Gaussian)" class="img-responsive">
+</div>
+
+## Modeling Meshes (5 points)
+
+### Source
+- `ext/plugin/io_nori.py` (clone from https://github.com/Phil26AT/BlenderNoriPlugin)
+
+### Steps
+
+In order to recreate a cave scene in our motivation images, we use Blender to sculpt the cave and export the scene to Nori.
+
+1. Extrude the cube to create a tunnel like shape.
+2. Use the sculpting tool to add some details to the cave.
+3. Using the script `io_nori.py` to export the scene to Nori.
+4. Adjust the scene xml file.
+
+We also create some beautiful landscape using the landscape generator in Blender. The landscape is then exported to Nori.
+
+### Validation
+
+I render the scene using blender and Nori. Below is the comparison between the two renderers.
+
+**Cave Scene**
+
+scene file: `scenes/project/blender_val/CG_validation.xml`
+
+<div class="twentytwenty-container">
+    <img src="images/blender_val/blender.webp" alt="Blender" class="img-responsive">
+    <img src="images/blender_val/nori.webp" alt="Nori" class="img-responsive">
+</div>
+
+
+We can observe some difference between two image. I believe that there are mainly two reasons:
+1. We didn't implement the subdivision and displacement in Nori, thus the cave in Nori is more blocky.
+2. The `path_mis` start Russian roulette in the beginning, while the blender may start Russian roulette after some depth. Leading some difference in the noise level and brightness.
+
+However, the overall shape and position of the mesh is similar. Therefore, we think this is an acceptable result.
+
+## Heterogeneous Participating Media (30 points)
+
+**Before discussing the equiangular sampling of single scattering, I will first discuss the implementation of the participating media, including homogenous and heterogeneous media. And also the implementation of single/multiple volume path tracer. I think this is necessary because the equiangular sampling of single scattering is based on the single scattering path tracer.**
+
+### Source
+
+- `include/nori/medium.h`
+- `src/medium.cpp`
+- `src/null.cpp`
+- `include/nori/shape.h`
+- `src/shape.cpp`
+- `src/homogenous.cpp`
+- `src/path_vol_mis_single.cpp`
+- `src/cube.cpp`
+- `src/heterogeneous.cpp`
+- `src/path_vol_mis_multiple.cpp`
+
+### Implementation
+
+The implementation is mainly referenced from [source code of Mitsuba 3](https://github.com/mitsuba-renderer/mitsuba3), [PBRT book](https://pbr-book.org/3ed-2018/Volume_Scattering/Volume_Scattering_Introduction) and [Production Volume Rendering](https://graphics.pixar.com/library/ProductionVolumeRendering/). I will specify which code is referenced in the following implementation.
+
+I will break the implementation into several parts, following the order of the source code.
+
+#### `Medium` Interface
+
+This class is inherited from `NoriObject` class. It has the following important functions,
+
+- `virtual Color3f transmittance_eval(const Point3f& t1, const Point3f& t2, Sampler *sampler)`: Return the transmittance between two points.
+- `virtual void sample_interaction(const Ray3f& ray, float sample, MediumInteraction& mei)`: sample the interaction point in the medium and store the result in `mei`.
+- `float sample_distance(float sample)`: sample the distance according to the maximum density of the medium.
+- `virtual Color3f getSigmaT(Point3f p)`: Return the extinct coefficient at a given point.
+- `virtual virtual Color3f getAlbedo(Point3f p)`: Return the single-scattering albedo at a given point.
+- `const Shape *getShape()`: Return the shape of the medium.
+- `const PhaseFunction *getPhaseFunction()`: Return the phase function of the medium.
+- `float getMajorant() const`: Return the majorant of the medium.
+- `void setShape(Shape *shape)`: Set the shape of the medium.
+- `void initTransform()`: Initialize the transformation of the medium, will be called after the bounding shape is fully loaded. (Used in heterogeneous medium)
+
+This interface has below member variables,
+- `PhaseFunction *m_phase`: The phase function of the medium.
+- `Shape *m_shape`: The shape that the medium is bounded by.
+- `float m_max_density`: The majorant of the medium.
+- `float scale`: a scale factor for the medium, which will scale the extinct coefficient and the majorant.
+
+#### `MediumInteraction` Struct
+
+This struct is ued to handle the interaction point in the medium. It contains the following fields,
+- `Point3f p`: The position of the interaction point.
+- `Vector3f wi`: The incoming direction of the interaction point.
+- `float t`: The distance from the ray origin to the interaction point.
+- `const Medium *medium`: The medium that the interaction point is in.
+- `Color3f sigma_t`: The extinct coefficient at the interaction point.
+- `Color3f sigma_s`: The scattering coefficient at the interaction point.
+- `float sigma_majorant`: The majorant of the medium.
+
+#### `Null` BSDF
+
+Because we need the shape to bounded the medium, but the shape should not effect the light in any scenario. Therefore, I create a `Null` BSDF which is inherited from `BSDF` class. The `Null` BSDF is essentially a delta BSDF, which will not effect any incoming light. When sample this BSDF, the outgoing light $w_o$ is set to $-w_i$. This BSDF should not effect any direct lighting, and only used to bound the medium. Therefore, when check direct illumination, we should ignore the `Null` BSDF. This change is apply to integrators, suck like `path_mis`, `path_vol_mis_single`, and `path_vol_mis_multiple`.
+
+#### `Shape` class
+
+A new member pointer `medium` is used to store the medium that the shape is bounded by.
+
+A new function `getMedium()` to get the medium that bounded by the shape. This function will return `nullptr` if the shape is not bounded by any medium. Another new function is `getTransform()`, which will get the transform of the shape. This function is useful for the heterogeneous medium, which I will discuss later.
+
+#### `Homogeneous` Medium
+
+The constructor is used to initialize the extinct coefficien, the albedo and the scale. This constructor will scale the extinct coefficient and the majorant by the scale factor.
+
+The `transmittance_eval` function will evaluate the transmittance between two points. The transmittance is defined as in Beer's law, which is
+$$
+\text{Tr}(p_1, p_2) = \exp\left(\sigma_t \cdot |p_1 - p_2|\right).
+$$
+
+The `sample_interaction` function will sample the interaction point in the medium. The interaction point is sampled by the transmittance sampling, using `sample_distance` function. This function won't check if the interaction point is out of the medium, instead, this will be handled by integrators.
+
+#### `path_vol_mis_single` Integrator
+
+In this part, I will only discuss the single scattering path tracer using ray marching technique. I will discuss about the equiangular sampling of single scattering in the next part.
+
+The single scattering will not consider any scatter events in the medium. Therefore, we won't use the `sample_interaction` function. Instead, we will detect whether the ray is in the medium, and evaluate the tranmittance between the ray origin and the intersection point. For calculating the contribution of the direct illumnination in the medium, I use ray marching technique to uniformly sample along the ray (with jittering). I also implement MIS, which is combined phase function sampling and emitter sampling.
+
+The number of samples in ray marching can be controlled by the `sps` parameter in the scene xml file.
+
+This integrator start Russian roulette after 3 bounces.
+
+#### `Cube` Shape
+
+This shape will creata a cube center at (0, 0, 0) with a side length of 2.0 ($[-1, 1]^3$). We can later use transformation to apply affine transformation to the cube.
+
+The cube will be later used to bound the heterogeneous medium and NanoVDB medium will be translate and scale to fit in the bounding cube.
+
+The `Cube` shape is inherited from `Mesh` class, following the same idea in [Mitsuba 3 (src/shapes/cube.cpp)](https://github.com/mitsuba-renderer/mitsuba3/blob/bc0d50171861b04fe06454ad92c07ba7449c2069/src/shapes/cube.cpp). By defining the cube as a mesh, we can easily apply transformation to the cube. The cube is defined by its vertices, normals, UV coordinates, and face indices. I integrate the code into the Nori framework. 
+
+#### `Heterogeneous` Medium
+
+The `Heterogeneous` medium is used to simulate the cloud and the fog of the waterfall. The implementation is mainly referenced from [Production Volume Rendering](https://graphics.pixar.com/library/ProductionVolumeRendering/). The `Heterogeneous` medium is inherited from `Medium` class. Each `Heterogeneous` medium should be bounded by a cube, serve as the bounding box of the medium.
+
+I use NanoVDB to load the volume data. The volume data is a 3D scalar field, which is used to store the density of the medium. The volume data is loaded from a `.nvdb` file, which can be read by NanoVDB library. The volume data is then scaled and translated to fit in the bounding cube. The bounding cube is defined by the `Cube` shape.
+
+The properties of `Heterogeneous` medium are the following:
+- `filename`: path to the `.nvdb` file.
+- `albedo`: the single-scattering albedo of the medium.
+- `sigma_t`: the extinct coefficient of the medium.
+- `scale`: the scale factor of the medium.
+
+The constructor of the `Heterogeneous` will temporaily set the `m_max_density` to the maximum coefficient after scaling, which will be later multiply by the maximum value in the NanoVDB volume data. (in `loadGrid()` function).
+
+The `initTransform()` function will load the grid from the `.nvdb` file, get the bounding box and calculate the transformation matrix to that transform the volume data into $[-1, 1]^3$ cube. The final transformation matrix is then given by multiply the cube's transform and the volume data's transform (volume data -> $[-1, 1]^3$ cube -> cube's transform). We then calculate the inverse of this transformation matrix, which will be used to transform the world coordinate into the volume data's coordinate system.
+
+As for `transmittance_eval`, because we are dealing with heterogeneous medium, which we can't use Beer's law to evaluate the transmittance. Instead, we use ratio tracking technique to evaluate the transmittance. This part of code is mainly referenced from PBRT book and Production Volume Rendering.
+
+The `sample_interaction` function will sample the interaction point in the medium, same as the homogenous medium. We don't handle null-scattering in this function.
+
+The `getSigmaT` function will first transform the world coordinate into the volume data's coordinate system, then sample the extinct coefficient from the volume data. I use `nanovdb::math::createSampler<1>(acc)` to trilinear interpolate the density value. The extinct coefficient is then calculated by mulitply `m_sigma_t` and the density value.
+
+We only implement spatially constant albedo, so the `getAlbedo` function will return the albedo of the medium.
+
+The `getMajorant` function will return the majorant of the medium.
+
+The `loadGrid` function loads the volume data from the `.nvdb` file. The volume data is then scaled and translated to fit in the bounding cube. The bounding cube is defined by the `Cube` shape. The volume data is then stored in the `m_handle` member variable. This function also scaled the `m_max_density` by the maximum value in the volume data.
+
+**Difficulties:**
+
+1. Directly save the `grid` instead of `handle` of NanoVDB grid will raise some error. I finally find that I should save the `handle` of the grid, and then use the `m_handle.grid<float>()` to get the grid.
+2. NanoVDB doesn't have a complete documentation or tutorial, it takes me some time to understand how to use the library.
+
+
+
+#### `path_vol_mis_multiple` Integrator
+
+This is an integrator that can handle participating media with multiple scattering event in the medium. The implementation is mainly referenced from [source code of Mitsuba 3 (src/integrators/volpath.cpp)](https://github.com/mitsuba-renderer/mitsuba3/blob/bc0d50171861b04fe06454ad92c07ba7449c2069/src/integrators/volpath.cpp).
+
+This integrator has two parameters:
+
+1. `maximum_bounce`: The maximum depth of the path.
+2. `minimum_bounce`: The minimum depth of the path.
+
+The integrator will start Russian roulette after `minimum_bounce` bounces.
+
+If the ray doesn't interact with the medium, it just acts like a normal path tracer with MIS (essentially `path_mis`). 
+
+If the ray intersects with the medium, it will use the `sample_interaction` function to sample a free path, and use null scattering technique to decide this interaction point is a scattering event or not. If it is a scattering event, it will sample the phase function for the next ray direction and the emitter to calculate the contribution to radiance. If it is not a scattering event, it will continue to sample the free path along the same direcion. Noted that we don't need to explicitly calculate the tranmittance along the ray, because it will be canceld out.
+
+### Validation
+
+#### **Homogeneous medium w/ single scattering**
+
+I evaluate the homogeneous medium with isotropic phase function and HG phase function with g=0.75 and g=-0.75. The results are shown below.
+
+As we can observe, the overall brightness of Nori is dimer than Mitsuba 3, the main reason is that the `vol_path` integrator in Mitsuba 3 is implemented as multiple scattering. The single scattering path tracer will underestimate the brightness of the medium, as it doesn't consider the radiance from multiple scattering events. This being discuseed in [this issue](https://gitlab.inf.ethz.ch/OU-CG-TEACHING/nori-base-24/-/issues/83).
+
+scene file: `scenes/project/cbox_homo_val/cbox_path_vol_homo_iso_marching.xml`
+
+<div class="twentytwenty-container">
+    <img src="images/cbox_homo/mit3_cbox_path_vol_homo_iso.webp" alt="Mitsuba 3" class="img-responsive">
+    <img src="images/cbox_homo/cbox_path_vol_homo_iso_marching.webp" alt="Mine (Ray Marching)" class="img-responsive">
+</div>
+
+scene file: `scenes/project/cbox_homo_val/cbox_path_vol_homo_pos_g_marching.xml`
+
+<div class="twentytwenty-container">
+    <img src="images/cbox_homo/mit3_cbox_path_vol_homo_pos_g.webp" alt="Mitsuba 3" class="img-responsive">
+    <img src="images/cbox_homo/cbox_path_vol_homo_pos_g_marching.webp" alt="Mine (Ray Marching)" class="img-responsive">
+</div>
+
+scene file: `scenes/project/cbox_homo_val/cbox_path_vol_homo_neg_g_marching.xml`
+
+<div class="twentytwenty-container">
+    <img src="images/cbox_homo/mit3_cbox_path_vol_homo_neg_g.webp" alt="Mitsuba 3" class="img-responsive">
+    <img src="images/cbox_homo/cbox_path_vol_homo_neg_g_marching.webp" alt="Mine (Ray Marching)" class="img-responsive">
+</div>
+
+#### **Homogeneous medium w/ multiple scattering**
+
+
+I evaluate the homogeneous medium with isotropic phase function and HG phase function with g=0.75 and g=-0.75. The results are shown below. As we can observe, the results are very similar to Mitsuba 3.
+
+scene file: `scenes/project/cbox_homo_val/cbox_path_vol_homo_iso_marching.xml`
+
+<div class="twentytwenty-container">
+    <img src="images/cbox_homo/mit3_cbox_path_vol_homo_iso.webp" alt="Mitsuba 3" class="img-responsive">
+    <img src="images/cbox_homo/cbox_path_vol_homo_iso_multiple.webp" alt="Mine" class="img-responsive">
+</div>
+
+scene file: `scenes/project/cbox_homo_val/cbox_path_vol_homo_pos_g_marching.xml`
+
+<div class="twentytwenty-container">
+    <img src="images/cbox_homo/mit3_cbox_path_vol_homo_pos_g.webp" alt="Mitsuba 3" class="img-responsive">
+    <img src="images/cbox_homo/cbox_path_vol_homo_pos_g_multiple.webp" alt="Mine" class="img-responsive">
+</div>
+
+scene file: `scenes/project/cbox_homo_val/cbox_path_vol_homo_neg_g_marching.xml`
+
+<div class="twentytwenty-container">
+    <img src="images/cbox_homo/mit3_cbox_path_vol_homo_neg_g.webp" alt="Mitsuba 3" class="img-responsive">
+    <img src="images/cbox_homo/cbox_path_vol_homo_neg_g_multiple.webp" alt="Mine" class="img-responsive">
+</div>
+
+We can also adjust the albedo to create colorful participating media.
+
+scene file: `scenes/project/cbox_homo_color/cbox_homo_color.xml`
+
+Albelo: From left to right, from top to bottom
+
+- 0, 1, 1
+- 1, 0, 1
+- 1, 1, 0
+- 1, 0, 0
+- 0, 1, 0
+- 0, 0, 1
+
+<div class="twentytwenty-container">
+    <img src="images/cbox_homo_color.webp" alt="" class="img-responsive">
+</div>
+
+#### **Heterogeneous medium w/ multiple scattering**
+
+scene file: `scenes/project/bunny_cloud/cbox_bunny_cloud.xml`
+
+I download the bunny cloud from OpenVDB website as an example. Then use converter to convert it to `.nvdb` (for Nori) and `.vol` (for Mitsuba 3). The bunny cloud is then loaded into the scene as a heterogeneous medium. As we can observe, the results is very similar.
+
+<div class="twentytwenty-container">
+    <img src="images/bunny_cloud/mit3_cbox_bunny_cloud.webp" alt="Mitsuba 3" class="img-responsive">
+    <img src="images/bunny_cloud/cbox_bunny_cloud.webp" alt="Mine" class="img-responsive">
+</div>
+
+
+## Equiangular Sampling of Single Scattering (10 points)
+
+### Source
+
+- `src/path_vol_mis_single.cpp`
+
+### Implementation
+
+This feature add a new parameter `equiangular` in `path_vol_mis_single`, if this parameter is set to true, then the integrator will use equiangular sampling instead of ray marching.
+
+The implementation is mainly referenced from the original paper: [Importance Sampling Techniques for Path Tracing in Participating Media](https://blogs.autodesk.com/media-and-entertainment/wp-content/uploads/sites/162/egsr2012_volume.pdf) and this [GitHub repo](https://github.com/sakanaman/equi-angular-sampling).
+
+I define a new function called `generate_equiangular` to generate sample point on the ray using equiangular sampling. Then using the sample point we can calculate the direct illumination from the light source. Noted that I first sample a point on the light source, then use that same point to perform equiangular sampling for `sps` times. 
+
+### Validation
+
+**Example scene as in the original paper**
+
+scene files:
+1. `scenes/project/equiangular/no_equaiangular.xml`
+2. `scenes/project/equiangular/equiangular.xml`
+
+This scene consist of a point light in the center, the three spheres is enclosed in a homogeneous medium. The first scene is rendered without equiangular sampling (using transmittance sampling), while the second scene is rendered with equiangular sampling.
+
+<div class="twentytwenty-container">
+    <img src="images/equiangular/no_equiangular.webp" alt="Ray Marching" class="img-responsive">
+    <img src="images/equiangular/equiangular.webp" alt="Equiangular" class="img-responsive">
+</div>
+
+**cbox with homogeneous medium, isotropic phase function**
+
+scene files:
+1. `scenes/project/cbox_homo_val/cbox_path_vol_homo_iso_marching.xml`
+2. `scenes/project/cbox_homo_val/cbox_path_vol_homo_iso.xml`
+
+<div class="twentytwenty-container">
+    <img src="images/cbox_homo/cbox_path_vol_homo_iso_marching.webp" alt="Ray Marching" class="img-responsive">
+    <img src="images/cbox_homo/cbox_path_vol_homo_iso.webp" alt="Equiangular" class="img-responsive">
+</div>
+
+**cbox with homogeneous medium, HG phase function with g=0.75**
+
+scene files:
+1. `scenes/project/cbox_homo_val/cbox_path_vol_homo_pos_g_marching.xml`
+2. `scenes/project/cbox_homo_val/cbox_path_vol_homo_pos_g.xml`
+
+<div class="twentytwenty-container">
+    <img src="images/cbox_homo/cbox_path_vol_homo_pos_g_marching.webp" alt="Ray Marching" class="img-responsive">
+    <img src="images/cbox_homo/cbox_path_vol_homo_pos_g.webp" alt="Equiangular" class="img-responsive">
+</div>
+
+**cbox with homogeneous medium, HG phase function with g=-0.75**
+
+scene files:
+1. `scenes/project/cbox_homo_val/cbox_path_vol_homo_neg_g_marching.xml`
+2. `scenes/project/cbox_homo_val/cbox_path_vol_homo_neg_g.xml`
+
+<div class="twentytwenty-container">
+    <img src="images/cbox_homo/cbox_path_vol_homo_neg_g_marching.webp" alt="Ray Marching" class="img-responsive">
+    <img src="images/cbox_homo/cbox_path_vol_homo_neg_g.webp" alt="Equiangular" class="img-responsive">
+</div>
+
+As we can observe in the above comparisons, compared to ray marching, equiangular sampling can bring us less variance in the area that closed to light source.
+
+
+## Environment Map Emitter (15 points; Extra feature)
+
+This is an extra feature that will create a very nice sky in our final rendering. This part I mainly reference the PBRT book, [this paper](https://web.cs.wpi.edu/~emmanuel/courses/cs563/S07/projects/envsample.pdf) and [this file](https://github.com/dehezhang2/Kombu/blob/main/code/src/emitters/envmap.cpp)
+
+### Source
+- `src/envmap.cpp`
+- `include/nori/scene.h`
+- `src/path_mis.cpp`
+- `src/path_vol_mis_single.cpp`
+- `src/path_vol_mis_multiple.cpp`
+
+### Implementation
+
+The `EnvMapLight` has the following properties:
+1. `filename`: path to the HDRI file
+2. `strength`: scale the illumnination
+3. `phi_offset`: add offset to rotate the environment map along z-axis.
+
+I implement importance sampling by the illumnination of each pixel, which is done by first sampling the row based on row total illumination and then sample the column based on pixel illumination. The normalization of discrete PDF and CDF is done by using `nori/dpdf.h`.
+
+In the integrator, when the ray doesn't intersect with any object in the scene, it will use `scene->getEnvMapLight()` to get the environment map light. If the environment map light is not `nullptr`, it will evaluate the environment map light and calculate the contribution to the radiance. In emitter sampling, it also have chance to sample the environment map light, then sample the light position based on its illumination, the higher the illumination, the higher the probability to sample the light position.
+
+### Validation
+
+I load the same HDRI into Mitsuba 3, getting the similar result.
+
+scene files: `scenes/project/envmap/cloudy_sky.xml`
+
+
+<div class="twentytwenty-container">
+    <img src="images/envmap/mit3_cloudy_sky.webp" alt="Mitsuba 3" class="img-responsive">
+    <img src="images/envmap/cloudy_sky.webp" alt="Mine" class="img-responsive">
+</div>
+
+
+<!-- Bootstrap core CSS and JavaScript -->
+
+<link href="../resources/offcanvas.css" rel="stylesheet">
+<link href="../resources/twentytwenty.css" rel="stylesheet" type="text/css" />
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+<script src="../resources/bootstrap.min.js"></script>
+<script src="../resources/jquery.event.move.js"></script>
+<script src="../resources/jquery.twentytwenty.fix.js?v=2"></script>
+
+<!-- Markdeep: -->
+<script>var markdeepOptions = {onLoad: function() {$(".twentytwenty-container").twentytwenty({default_offset_pct: 0.5, move_slider_on_hover: true, placeholder: '../resources/nori.png'});}};</script>
+<script src="https://morgan3d.github.io/markdeep/latest/markdeep.min.js?" charset="utf-8"></script>
+<script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>
+

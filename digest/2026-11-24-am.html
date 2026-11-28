@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 早報｜2026-11-24（週二）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 早報｜2026-11-24（週二）</h1>
+<p><b>今日導讀</b>：今天的主軸是「模型以為自己做對了，其實沒有」。latent world model 的 planner 越搜越像在做 adversarial attack，agent 蓋出來的 3D 房間看起來對、量起來錯，前沿模型會用電腦、卻按不準實體鍵盤。另一條線是 Meta 的 Autoregressive View Model：不建 3D 表示，只靠檢索歷史視角，也能在回訪時保持場景一致。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. Autoregressive View Model：不建 3D，把場景當成一串視角來生成</h3>
+<p><a href="https://arxiv.org/abs/2611.23417">arXiv 2611.23417</a>｜cs.CV｜Meta、University of Oxford（Jensen Zhou、Peter Hedman、Andrea Vedaldi、Peter Kontschieder 等）</p>
+<p><b>問題</b>：給一張或多張圖、甚至一段影片，要沿著指定的相機路徑生成一段影片。看過的區域要重建得準，沒看過的要合理補出來，繞回來時還要和自己先前生成的畫面一致。NeRF/3DGS 需要密集拍攝；影片生成模型會補內容，但路徑一長就漂移，而且輸入加上歷史很快就超過模型一次能看的 context。</p>
+<p><b>方法</b>：AVM 從一個 14B 的 image-to-video DiT 微調，採 N-in-1-out 的 in-context 形式：N 個 context slot（圖片、影片片段，或另一台同步相機的串流）和一個 target clip 串成同一個 sequence。相機平移用 RoPE 注入 attention，旋轉用像素對齊的 ray embedding 加到 patch embedding，時間戳用 sinusoidal embedding，全部用 metric-scale 的原始世界座標。生成時，每一步從「輸入 prefill + 已生成 history」組成的池子裡，依相機位姿取空間相鄰的視角、依時間戳取同步視角，再加上 sink（固定保留的輸入視角）和最近的 motion context，讓 active context 有上限。訓練分兩段：先用 flow matching 加 error-recycling fine-tuning；再做 causal tuning，先以 teacher forcing 混 diffusion forcing 初始化，接著在模型自己的 rollout 上做 DMD 加 adversarial loss，rollout 長度逐步拉長，distillation 時也帶著 prefill 和 history。資料約 600 萬個有位姿的場景（ScanNet++、RealEstate10K、DL3DV、SpatialVID、合成與遊戲渲染等）加 200 萬段無標註影片，後者用來保留原模型的動態與文字跟隨能力。</p>
+<p><b>結果</b>：單張圖輸入時，WorldScore static split 的 camera control 分數 70.67，最好的 world model 只有 3.91；DL3DV 上 FID 18.69，次佳 25.04。七張圖的 sparse reconstruction 與 SEVA 同級或更好，幾何匹配 0.83 對 0.75。從另一台相機的影片做 4D 重建，PSNR 21.16 對 ReCamMaster 的 13.53。最亮眼的是回訪一致性：721 幀繞圈軌跡上，revisit PSNR 28.04，比較的 world model（LingBot-World、HY-WorldPlay 1.5、DreamX-World）最好只有 12.29。ablation 中關掉 retrieval 會掉到 11.13；active window 從 21 縮到 15 個 latent frame 幾乎沒差（28.00）；不做 on-policy tuning 的 causal 版本 revisit PSNR 只有 10.12。</p>
+<p><b>限制與疑問</b>：作者自己承認文字跟隨偏弱（text alignment 39.65，baseline 最好 54.07），dynamic degree 也最低（24.88 對 35.55），也就是畫面傾向「好看但不太動」。retrieval 完全依賴相機位姿，所以位姿要準；在沒有位姿的 in-the-wild 輸入上能否用，論文沒有回答。14B 模型加 context parallelism 的訓練成本，一般實驗室也難複製。</p>
+<p><b>為什麼值得看</b>：這篇等於主張「3D 一致性可以來自記憶與檢索，而不一定要來自顯式幾何」。對做 feed-forward 3DGS 或 world model 的人，有兩個直接可試的點：以位姿檢索 KV cache 做長程記憶，以及在自己的 rollout 上做 distillation 來壓住漂移。作者也提到未來可以加入可選的幾何 proxy，這正好是 3D 研究者可以接手的地方。</p>
+
+<h3>2. A Plan or an Adversarial Example?：latent world model 的 planner 搜越久，越可能在騙自己</h3>
+<p><a href="https://arxiv.org/abs/2611.27124">arXiv 2611.27124</a>｜cs.RO / cs.LG｜浙江大學、香港理工大學</p>
+<p><b>問題</b>：對分類器一直優化一張圖，最後可能得到一張被判成「貓」、其實是色塊的 adversarial example。用 DINO-WM、LeWM 這類 latent world model 做規劃，本質上也是對模型做優化：CEM 找一串動作，讓預測的未來最接近目標。作者問：搜出來的是計畫，還是 world model 的 adversarial example？</p>
+<p><b>方法</b>：先量測。每一輪 CEM 迭代後都把當下的計畫真的拿去模擬器執行，定義 adversarial rate：某一輪曾經解出、最後一輪卻失敗的問題比例。接著是修補，也就是 round-trip check：訓練一個小 MLP inverse-dynamics model（兩層 512 單元），從兩個連續的預測 latent state 反推動作，把與計畫動作的殘差加進 planning cost。關鍵在 identifiability：這些模型每 5 個環境動作才預測一個 latent state，兩個 state 只決定這 5 個動作的「總和」，所以只回讀 block sum。作者也證明，逐動作回讀（ACID 的做法）必然會懲罰正確的計畫。</p>
+<p><b>結果</b>：DINO-WM 的 Wall 任務上，CEM 的成功率在第 11 輪達到 0.56 的高峰，到第 30 輪掉到 0.39、第 60 輪掉到 0.28，模型預測的 cost 卻一路下降了 30 到 200 倍。13 個「模型×任務×planner」組合中，有 7 個會丟掉 14% 到 68% 已解出的問題。nearest-neighbor 等 OOD 分數的 AUROC 最多 0.63，無法分辨失敗的計畫。加上 round-trip check 後，Wall 從 0.39 升到 0.76（adversarial rate 從 52% 降到 10%），Cube 從 0.64 升到 0.79，JEPA-WM 上 MPPI 從 0.56 升到 0.94，規劃時間只多 0.2% 到 3.1%。追查原因，Wall 釋出的資料中，畫面裡一單位動作移動兩格、位置標籤卻只記一格，adversarial plan 正是利用了這個錯誤。不修標籤只加 check 就達到 0.76，接近用修正後標籤重訓的 0.82。</p>
+<p><b>限制與疑問</b>：block sum 的假設適合動作可以相加的導航和推方塊；在 Reacher 這種關節力矩的動力學上，只從 0.37 升到 0.41。實驗都在模擬環境的小任務上，尚未碰到 V-JEPA 2-AC 這種真實機器人尺度的模型。</p>
+<p><b>為什麼值得看</b>：大多數 world model 論文只報告有 replanning 的成功率，這會把單次搜尋的崩壞藏起來。這篇的「每輪都執行一次」的測試很便宜，任何用 learned dynamics 或 reward model 做優化的人都該跑一次。它也點出一個 reward hacking 的通則：拿模型自己的預測當輸入的檢查，抓不到 adversarial 解，必須要有能和計畫本身對帳的訊號。</p>
+
+<h3>3. BeyondEgo：讓 humanoid VLA 多看一台外部相機，再學著預測 0.6 秒後的畫面</h3>
+<p><a href="https://arxiv.org/abs/2611.27047">arXiv 2611.27047</a>｜cs.RO｜同濟大學、Yingwang Intelligent Technology、Université de Montréal</p>
+<p><b>問題</b>：人形機器人搬著箱子穿過窄門、倒退走後轉彎時，頭上的相機會被手臂和箱子擋住，看不到肩膀離障礙物多遠、腳邊有什麼，也看不到身後的岔路。只做 action imitation，模型也沒有被要求理解場景接下來會怎麼變。</p>
+<p><b>方法</b>：以 Ψ0 這個三層式 humanoid VLA 為基礎。System-2 是 Qwen3-VL-2B 處理第一人稱影像與指令；System-1 是 500M 參數的 MM-DiT action expert，用 flow matching 輸出 50 Hz 的全身指令；System-0 是 RL 控制器 AMO，負責腿與腰。空間上，加一台同步的外部相機，用凍結的 DINOv3 ViT-L/16 編碼後直接接到 action expert，而不是一起塞進 VLM。時間上，在 VLM 特徵上加一個 zero-init、4.2M 參數的 residual adapter，訓練時由約 19.2M 參數的 foresight expert 預測兩個視角 0.6 秒後的 DINOv3 特徵（token-wise cosine loss）。部署時丟掉 foresight expert，只保留 adapter。另外以機率遮掉外部視角的 token，避免過度依賴它。作者同時提出 HELM benchmark：Isaac Sim 上的 Unitree G1 加 Dex3 手，五個任務都刻意把關鍵線索放在頭部相機看不到的地方，共 500 條示範。</p>
+<p><b>結果</b>：in-distribution 50 次試驗，成功率從只用第一人稱的 48.0% 提升到 92.0%；直接把雙視角餵進 VLM 是 74.0%，DINOv3 特徵融合但不做 foresight 是 84.0%。在 200 個改變佈局、物件、材質、光照的場景上，四者分別是 23.5%、49.5%、55.0%、65.0%。用 DINOv3 當預測目標的效果，在三種監督設定下都優於用 Qwen3-VL 特徵。外部相機放中間的效果是 77.5%，放右邊 72.5%，放左邊 60.0%。T1 任務用三個 seed 各評估五次，結果都落在 75.0% 到 82.5% 之間。</p>
+<p><b>限制與疑問</b>：全部是模擬，沒有真機實驗。外部相機需要固定位置且能涵蓋整個場景，大範圍移動時這個假設就會失效。每個任務只有 100 條示範，各自訓練 40k 步，比較像 task-specific fine-tuning，而不是 generalist 能力。在 T4 上，foresight 反而略差（85.0% 對 87.5%）。</p>
+<p><b>為什麼值得看</b>：兩個結論很實用。第一，額外的視覺資訊接到 action expert，比重新預訓 VLM 來得好又便宜。第二，future prediction 用 DINOv3 這類幾何性強的特徵當 target，比用 VLM 自己的特徵好。這和 V-JEPA、DINO-WM 這條線相呼應。把外部相機換成場景中的 3D 重建或 BEV，會是自然的下一步。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>Skill-JEPA：問題可能不在 planner，而在 action space</h3>
+<p>JEPA world model 只看過訓練資料中有結構、依狀態而定的動作，planner 卻從 Gaussian 抽候選動作，於是預測不可靠。Skill-JEPA 用一個以狀態為條件的 VAE，把短動作序列編成服從標準 Gaussian 的 latent skill，world model 改為預測 skill 的效果。在三個 JEPA world model、四個 benchmark 上，80 步遠目標的平均成功率從 42% 升到 62%；AntMaze 兩格遠的目標從 0.4% 升到 38%。和上面的 adversarial plan 那篇一起讀，剛好是同一個病的兩種解法。<a href="https://arxiv.org/abs/2611.26825">arXiv 2611.26825</a></p>
+
+<h3>QuantStream3D：串流 3D 重建 transformer 的 2-bit KV cache</h3>
+<p>StreamVGGT 這類串流幾何 transformer 把歷史 KV 當作跨視角的幾何記憶，序列一長就吃光顯存。作者發現不同 cache 位置對量化的敏感度差很多，於是用幾何導向的 mixed-precision 保護關鍵證據，並在學生自己產生的量化歷史上做蒸餾。在以 2-bit 為主的 KV 下大多接近無損，比 LLM 用的 KV 量化器把 TUM 的 ATE 降低最多 57.4%；實體 KV 壓縮 5.05 倍，同顯存下 batch size 可以放大 5.4 倍。<a href="https://arxiv.org/abs/2611.27901">arXiv 2611.27901</a></p>
+
+<h3>Looking Right Is Not Being Right：agent 蓋的 3D 房間，看起來對不等於量起來對</h3>
+<p>用 30 個真實房間的雷射掃描當基準，給 VLM agent 的可編輯 3D 場景打 0 到 100 的幾何分數。最強的 GPT-6 Astra 只看影片拿到 51.4，同一段影片做 dense reconstruction 則有 75.9。工具呼叫紀錄顯示，agent 會反覆量測輸入，卻很少拿輸入和自己蓋出的場景比對。作者加上一份自動的幾何誤差報告後，修正幅度多了 3.9 到 5.5 分。<a href="https://arxiv.org/abs/2611.26937">arXiv 2611.26937</a></p>
+
+<h3>ROSWorld：會用電腦的模型，換成機器人去按鍵盤就不行了</h3>
+<p>把物理模擬的機器人工作站接到真實運行的 OSWorld 桌面，讓模型只能透過相機看螢幕、用機械手臂操作鍵盤滑鼠。五個前沿模型在桌面上能完成 40 個任務中的 31 到 39 個；換成單臂探針最多 23 個，雙手靈巧手最多 28 個。失敗多半是沒按到、按錯目標或不小心碰到別的鍵。<a href="https://arxiv.org/abs/2611.27467">arXiv 2611.27467</a></p>
+
+<h3>Tripwire：讓 agent 自己寫中斷條件，再把控制權交給 VLA</h3>
+<p>agent harness 是一回合一回合的，交給 VLA 執行時就看不見外界。TRIP 讓 agent 每次呼叫 policy 時順便寫一段小 Python 程式當 tripwire，可以呼叫小 VLM 量測人和機器人的距離，條件成立就中斷 policy、把控制權交回 agent。在 168 個有人干擾的 RoboCasa365 場景中，搭配最強 policy 時安全率從 61.3% 升到 81.3%，任務成功率則是 38.7% 對 31.0%。<a href="https://arxiv.org/abs/2611.27182">arXiv 2611.27182</a></p>
+
+<h3>TouchBench：VLM 摸不到的東西，就只能用猜的</h3>
+<p>頭戴影片加上 137 通道全手觸覺手套，共 900 段片段，把問題分成看得出來的（Tier A）和只有觸覺才知道的（Tier B，例如不透明瓶子裡裝了多少）。四個 VLM 在 Tier B 的相對問題上平均 49.8%，等於亂猜。把 34 個可解讀的觸覺統計量寫成文字放進 prompt，zero-shot 就升到 62.9%，微調後 73.1%，還贏過學習出來的 tactile encoder（67.3%）。<a href="https://arxiv.org/abs/2611.26883">arXiv 2611.26883</a></p>
+
+<h3>EgoLAM：latent action 要分清楚是手在動，還是頭在轉</h3>
+<p>第一人稱影片中，杯子在畫面上移動，可能是手推的，也可能只是配戴者轉頭。EgoLAM 訓練時用量測到的手腕運動監督 action code，相機運動另外餵給 forward model，推論時只需要兩張 RGB。用它的 code 預訓練、再在 LIBERO 三個 suite 上微調，平均成功率 79.38%，比 behavior cloning 高 28.73 點，比其他最強的 latent action model 平均高 9.76 點。<a href="https://arxiv.org/abs/2611.27290">arXiv 2611.27290</a></p>
+
+<h3>Future-OPSD：用無標註影片教 VLM「預見」接下來會發生什麼</h3>
+<p>把過去與未來的影片片段配成對，以 on-policy self-distillation 當自監督訊號，不需要人工標註或外部 LLM。作者定義 foresight score，鼓勵模型學習未來片段中與決策相關的部分，壓低無關的背景資訊。開放式預測和封閉式規劃分別提升最多 14.2 與 15.9 點，一般影片理解能力沒有退步。在 HF Daily Papers 上有 17 票。<a href="https://arxiv.org/abs/2611.26954">arXiv 2611.26954</a></p>
+
+<h3>SceneRuler：從影片量出身高、距離和速度，讓重力來定比例尺</h3>
+<p>問影片「這個人多高、球離開斜坡時多快」，端到端的 video-language model 沒有 metric scale，錯了也查不出原因。SceneRuler 針對每個問題只重建「剛好足以量出答案」的最小場景，由 VLM 寫出場景程式的結構，數值則交給量測，並用物理運動定律擬合，讓重力加速度本身就能當比例尺。每個參數都會標記是否已被確定。在 QuantiPhy 驗證集上，平均相對準確度 0.709，最強 baseline 是 0.624；在重建能確定答案的 47 題上達到 0.781。<a href="https://arxiv.org/abs/2611.26994">arXiv 2611.26994</a></p>
+
+<h3>S-BFM：只給「何時、在哪、什麼姿勢」，人形機器人自己補完中間的動作</h3>
+<p>通用的全身追蹤控制器需要密集的參考軌跡，但任務通常只指定終點和抵達時間。S-BFM 在 forward-backward 行為表示中加入世界座標的位置與朝向，從密集參考的 teacher 做時間條件蒸餾，再用蒸餾出的動作生成器擴大可涵蓋的距離與時間。模擬中，固定目標的到達率從 43.5% 升到 74.6%，終點位置誤差從 1.67 m 降到 0.26 m，並部署到全尺寸的 AGIBOT A3 上。<a href="https://arxiv.org/abs/2611.27552">arXiv 2611.27552</a></p>
+
+<h2>新聞與討論</h2>
+
+<h3>Nvidia 讓黃仁勳復任 CEO，股價大漲 33%，國會兩黨群起砲轟</h3>
+<p>Nvidia 週一宣布，黃仁勳即刻復任 CEO，董事會一致通過，並表示曾「收到美國政府高層的意見」，認定他的回任「不構成國家安全風險」。他在本月稍早因多段婚外情的報導辭職，其中一位被指為中國間諜；期間由 Colette Kress 擔任代理 CEO。CNBC 報導，股價自 11 月 8 日他承認外遇以來跌了將近 33%，復任消息後大漲 33%。川普向 CNBC 表示他直接與間接和董事會談過，並說「是我談成的」。參議員 Wyden、Warren、Cornyn 與眾議員 Bacon 等跨黨派議員強烈批評；黃仁勳 12 月 1 日起要接受眾議院委員會閉門訪談，12 月 3 日出席參議院銀行委員會公開聽證。<a href="https://www.cnbc.com/2026/11/23/nvidia-jensen-huang-ceo.html">CNBC</a>｜<a href="https://www.cnbc.com/2026/11/23/nvidia-jensen-huang-congress-trump.html">國會反應</a>｜<a href="https://news.ycombinator.com/item?id=50611576">HN 討論</a></p>
+<p>HN 上兩千多則留言的主要爭論是：這次翻案究竟是國安判斷還是政治壓力，很多人拿 2023 年 OpenAI 董事會事件來比較名義上與實際上的治理權。</p>
+
+<h3>Ladybird 瀏覽器進入 alpha</h3>
+<p>Andreas Kling 宣布，從零自寫引擎（不是任何引擎的 fork）的 Ladybird 推出 macOS 與 Linux 的 alpha 版，採 rolling channel 自動更新，以前要自己編譯才能試用。官方直接說有些網站會壞、會當機，安全性目前不做任何承諾，歡迎大家來攻擊。支援 WebDriver 和 Firefox DevTools protocol，網站開發者可以拿來做自動化測試。<a href="https://ladybird.org/posts/alpha/">Ladybird 部落格</a>｜<a href="https://news.ycombinator.com/item?id=50614249">HN 討論</a></p>
+
+<h3>How should an LLM see a computer?：強模型已經不需要 accessibility tree</h3>
+<p>Greptile 在同樣 172 個 OSWorld 任務上，比較只給截圖、加上 accessibility tree、再加上以元素 ID 點擊三種設定，測了七個 OpenAI 模型。弱模型受惠很大：GPT-5.2 從純截圖的 15.8%，加 tree 變 36.2%，再用 ID 點擊升到 52.8%。最強的 GPT-6.1 Sol 純截圖就有 83.8%，加 tree 反而是 82.7%，ID 點擊 82.1%，三個最強模型都沒有統計上顯著的變化。另外 Figma 的畫布和遊戲根本沒有 tree，所以截圖仍然不可少。和上面的 ROSWorld 一起看：軟體層面的「看懂並點準」快被解決了，物理層面的按鍵還沒有。<a href="https://www.greptile.com/blog/trex-computer-use">Greptile</a>｜<a href="https://news.ycombinator.com/item?id=50615520">HN 討論</a></p>
+
+<h3>Arm 要求下架 Jon's Arm Reference</h3>
+<p>一個廣受開發者使用的 AArch64 指令集與系統暫存器查詢網站（涵蓋 Armv8-A／Armv9-A、SVE、SME），站長說收到 Arm 律師要求下架，否則將採取法律行動，網站會在 12 月 4 日關閉。他表示會想辦法讓既有書籤和連結繼續可用。對常讀組語或寫 SIMD kernel 的人來說，這是少數比官方文件好查的資源。<a href="https://arm.jonpalmisc.com/">網站公告</a>｜<a href="https://news.ycombinator.com/item?id=50617499">HN 討論</a></p>
+
+<h3>sigfpe：Derivative Flipping，把「微分誰」倒過來</h3>
+<p>Dan Piponi 從正規表達式的 Brzozowski derivative 出發，定義多項式配對 ⟨p, q⟩：把 p 當成微分算子作用在 q 上，再於原點取值。重點是，把複雜的微分算子作用在簡單的式子上時，中間結果的複雜度有上限。例如 2D Laplacian 只需要追蹤 4 個係數，不必算整個 Hessian。這正是他早年提出、後來被 folx 實作並用在 PINN 和 VMC 的 Laplacian 計算法的推廣，對任何常係數微分算子都成立。文章附有 Haskell 程式碼。<a href="http://blog.sigfpe.com/2026/11/derivative-flipping.html">sigfpe 部落格</a>｜<a href="https://news.ycombinator.com/item?id=50594935">HN 討論</a></p>
+
+<h3>Show HN：在 3D 裡開車逛我住的村子</h3>
+<p>作者在 HN 討論串中說，這個網頁駕駛遊戲，地形用的是英國政府公開的 LiDAR 資料，建築與道路來自 OpenStreetMap，屋頂與地面顏色取自開放資料和航照。Deddington、British Motor Museum 和 Silverstone 則餵照片給 agent 做了特別處理，還支援力回饋方向盤。作者說自己是後端工程師，整個專案由 Claude 寫成，他「一行程式碼都沒看」，只當產品經理。<a href="https://cherwellvalleymotorclub.app">網站</a>｜<a href="https://news.ycombinator.com/item?id=50574412">HN 討論</a></p>
+
+<h3>Kagi Mail 公開測試</h3>
+<p>Kagi 推出自家的郵件與行事曆服務，可用 @kagimail.com 或自有網域，後端是開源的 Stalwart，支援 IMAP、JMAP、CalDAV，可以用 Apple Mail 或 Thunderbird。功能包括用自然語言寫分類規則、追蹤像素一律封鎖或代理、陌生寄件者需要先核准，所有 AI 功能都能一鍵關閉。免費試用 60 天，之後每年 99 美元，Ultimate 方案內含。<a href="https://blog.kagi.com/kagi-mail-public-beta">Kagi 部落格</a>｜<a href="https://news.ycombinator.com/item?id=50615481">HN 討論</a></p>
+
+<h3>GLM-5.4 與 looped transformer 的討論</h3>
+<p>智譜發表 GLM-5.4，標題稱這是他們第一個 loop transformer；官方部落格是 JavaScript 頁面，這次沒能讀到原文，以下只是 HN 討論的重點。留言者把架構描述為一組層重複跑固定次數，並爭論這和 2019 年的 Universal Transformer、上週 Thinking Machines 開源的 looped 模型 Inkling 2 mini 有何不同。也有人擔心，模型在內部迴圈裡「思考」而不輸出 token，會削弱 chain-of-thought 監控。細節請以官方文章為準。<a href="https://z.ai/blog/glm-5.4">Z.ai 部落格</a>｜<a href="https://news.ycombinator.com/item?id=50609685">HN 討論</a></p>
+</article>
+</body>
+</html>

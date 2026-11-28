@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 早報｜2026-11-12（週四）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 早報｜2026-11-12（週四）</h1>
+<p><b>今日導讀</b>：今天的主軸是「怎麼把影片 world model 接到機器人動作上」。兩篇 World Action Model 論文從不同角度回答：一篇在中間插入一層「互動導向」的 latent，一篇乾脆把機器人訊號用 DCT 塞進影片 latent 裡。另外有一篇把 in-the-wild 3DGS 的訓練時間從小時壓到 9 分鐘，新聞則有 48 個 agent 掃 lidar 找馬雅遺址的「重新發現」、AWS 用 agent 寫出整套 AWS 模擬器，以及 Python 的 Tim Peters 辭世。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. LaST0.5：在 world model 和 action 之間，加一層「互動導向」的 latent 推理</h3>
+<p><a href="https://arxiv.org/abs/2611.14048">arXiv:2611.14048</a>｜cs.RO｜北京大學、香港中文大學、Simplexity Robotics（通訊作者 Shanghang Zhang）</p>
+<p><b>問題</b>：現在的 World Action Model（WAM），不論是「先想像再執行」還是 video-action 聯合建模，都把整個場景的全域表徵直接丟給 action policy。作者認為這種表徵沒有特別強調機器手與物體之間的細節互動，而精細操作偏偏最需要這些。</p>
+<p><b>方法</b>：Mixture-of-Transformers，三個 expert。World expert 從 Cosmos-Predict2.5-2B 初始化，看 5 張歷史畫面、預測 12 張未來畫面（256×256），保留原本的生成 loss。Latent expert 從 Janus 初始化，用 3 個可學習 query 一次 forward 產生「互動 latent」。Action expert 用 flow matching 產生 12 步 action chunk。注意力是 video → latent → action 的 blockwise-causal，且 world expert 的 KV 被 detach，下游梯度不回傳。latent 的監督訊號很巧：在每段最後一張畫面上畫出投影到 2D 的末端軌跡曲線，加上目標物 bounding box（Grounding DINO 提候選，再用夾爪開合時的 TCP 位置挑選），丟進凍結的 SigLIP 得到目標向量，用 cosine loss 對齊；這些標註只在訓練時離線產生。另外加了 AWAT：在 world expert 的去噪特徵上接一個預測「任務進度」的 value head，執行時只要預測進度不再上升就提早中斷、重新推論，若起始進度反而下降就平行取樣多個未來，挑 value 最高的。預訓練資料約 14,892 小時、248 萬條 episode，來自 UMI、AgiBot、DROID、EgoDex 等，動作統一成相對末端座標。</p>
+<p><b>結果</b>：RLBench 10 個任務（單一前視 RGB）平均成功率 88.0%，高於 LaST0 的 82.0%、Cosmos Policy 77.0%、π0.5 65.0%；拿掉 AWAT 是 85.0%。LIBERO 平均 99.5%。消融中拿掉 world expert 讓 LIBERO-Spatial 從 99.6 掉到 96.0，拿掉 latent expert 掉到 97.8。真機雙臂（Tianji Marvin，每任務 150 條 VR 遙操作示範、20 次測試）四個任務平均 63.8%，π0.5 為 52.5%，Cosmos Policy 與 LaST0 都是 43.8%；擰螺絲的插入階段 50% 對 π0.5 的 30%。物體位置改變時 40.0% 對 π0.5 的 15.0%。</p>
+<p><b>限制與疑問</b>：LIBERO 報的是「訓練過程中最好的成功率」，偏樂觀；多個 baseline 是作者自己重現的。latent 標註依賴相機標定、3D 軌跡和偵測器，錯誤怎麼傳播沒有分析。AWAT 的多重取樣推論成本也沒量化。號稱可擴展，但沒有對預訓練資料量做消融。</p>
+<p><b>為什麼值得看</b>：它把「什麼資訊該從 world model 流到 policy」變成可監督的設計問題，而且監督訊號（軌跡曲線＋affordance 框）幾乎可以從任何有標定的資料自動產生。用 world model 自己估「進度」來決定 action chunk 該執行多長，也是可以直接搬到別的 chunked policy 上的點子。</p>
+
+<h3>2. MetaWAM：把機器人訊號用 DCT 塞進影片 latent，不加任何 encoder</h3>
+<p><a href="https://arxiv.org/abs/2611.14365">arXiv:2611.14365</a>｜cs.CV / cs.RO｜新加坡國立大學 Show Lab（Mike Zheng Shou）</p>
+<p><b>問題</b>：用預訓練影片擴散模型當 WAM 時，proprioception、action、任務類型、value 這些低維訊號要怎麼放進一個由自然影片塑形的 latent 空間？過去不是每種訊號各占一個 latent frame，就是另外加 encoder/decoder。作者把它看成分布對齊問題：表徵應該盡量貼近 VDM 的先驗。</p>
+<p><b>方法</b>：先用凍結的 Cosmos-Predict2 denoiser 的相對重建誤差當探針，比較各種塞法：在 σ=1.0 時，空間複製 0.6459、VAE 編碼 0.6379、DCT 編碼 0.5922，多訊號的「Unified Meta-Frame」最低，0.5613。於是每種機器人訊號被分配到 DCT 係數的一段互不重疊的 channel band，再用正交 2D inverse DCT 映射回空間 latent，讀回時用固定的 slot 解析即可，不新增任何可學參數。序列是 8 個 latent frame：輸入 meta-frame（任務類型、當前 proprio）、t 時刻三個視角、輸出 meta-frame（action chunk、未來 proprio、value）、t+H 的三個視角。用 band-level mask 決定哪些訊號是條件、哪些是去噪目標，同一個模型就能切換成 policy、world model 或 value 模式。訊號用 Huber loss，另有很小的 off-slot 懲罰（10⁻⁴）。從 Cosmos-Predict2-2B 全參數微調。</p>
+<p><b>結果</b>：RoboCasa 24 任務（每任務 50 條示範）平均 68.9%，Cosmos Policy 67.1%、GR00T-N1.5 64.1%、π0（用 300 條）62.5%。LIBERO 98.1%，略低於 Cosmos Policy 的 98.5%。LIBERO-Plus 總分 83.4% 對 82.2%。真機 Franka 三任務：分布內 85.0%（Cosmos Policy 78.3%、π0.5 71.7%），分布外 68.3%（63.3%、46.7%）。消融中，相比每個訊號各占一格（11 frame，67.1%、0.479 秒），統一 meta-frame 只要 8 frame、68.9%、0.291 秒，延遲少 39%。在 Wan2.1-14B 和 Wan2.2-5B 上也看到同樣的排序。</p>
+<p><b>限制與疑問</b>：作者自己承認 band 配置和 loss 權重是固定的，訊號尺度差很多時可能要重調；指令跟隨受限於 Cosmos 骨幹；LIBERO-Plus 在背景和機器人初始狀態變化上偏弱。各項提升幅度其實不大（RoboCasa 只多 1.8 個百分點），主要賣點是更簡單、更快。</p>
+<p><b>為什麼值得看</b>：「先量測哪種輸入格式最貼近骨幹先驗，再決定介面」這個方法論很通用，可以拿來評估任何想把非影像訊號（觸覺、力、深度）塞進 video diffusion 的設計。和上面的 LaST0.5 對照讀：一個加結構、一個減結構，剛好代表 WAM 設計的兩個方向。</p>
+
+<h3>3. FastWild-GS：網路照片的 Gaussian splatting，9 分鐘訓練完</h3>
+<p><a href="https://arxiv.org/abs/2611.13808">arXiv:2611.13808</a>｜cs.CV｜中央大學（Chung-Ang University，韓國）</p>
+<p><b>問題</b>：網路照片集合的曝光、光線和路人都不一樣，單一套 Gaussian 顏色解釋不了每張照片。現有 in-the-wild 3DGS 方法多半要每個場景優化好幾個小時；而加速版的 3DGS 又假設所有照片外觀一致。</p>
+<p><b>方法</b>：每張訓練照片配兩樣東西：一個 128 維的 Photo Appearance Token（PAT，沿用 NeRF-W 的思路，初始為零），以及每個顏色通道的 log-scale 和 bias（共 6 個參數）。每個 Gaussian 有 32 維特徵，跟視角方向組成「Splat Descriptor」，再由兩層、寬 128 的 MLP（PAT Decoder）輸出顏色，取代球諧函數。加速部分沿用 FastGS 的 densification 與 pruning，但打分時先套上每張圖的通道轉換再算誤差（作者稱 colour-matched scoring），並把門檻只在後段調低、額外加四次 pruning。loss 是 L1/RMS 加 SSIM，外加 Depth Anything 3 的單目深度先驗。訓練 30k iteration，最後平均最後 100 個 iterate。測試時照 NeRF-W 的半張圖協定，對左半張擬合 137 個參數（PAT、通道轉換和一個徑向增益，用來模擬暗角），評估右半張。</p>
+<p><b>結果</b>：PhotoTourism 三場景平均 PSNR 25.52、SSIM 0.874、LPIPS 0.1461，訓練 8.8 分鐘（RTX 5090）；AsymGS 是 25.62 / 0.872 / 0.150、3.5 小時，WildGaussians 24.65、5.65 小時，WilLaGS 25.51、30.8 分鐘。LPIPS 是表中最好，PSNR 比 AsymGS 低 0.10 dB，速度約快 23 倍。NeRF-OSR 平均 26.00 / 0.856 / 0.152、9.7 分鐘，三項指標都最好。消融中拿掉 PAT 掉到 21.22 dB、拿掉 decoder 掉到 21.18，影響最大；拿掉 colour-matched scoring 或深度 loss 各掉約 0.7 dB。把這套外觀模組加到 2DGS 上，PSNR 從 17.65 升到 24.68。</p>
+<p><b>限制與疑問</b>：PAT 和通道轉換都是整張圖的全域量，單張照片裡的局部陰影只能近似；沒有明確處理路人等暫態物體。訓練時間隨 Gaussian 數量增長（30 萬顆 6.1 分鐘、68 萬顆 11.8 分鐘），更大的照片集可能吃不消。部分 baseline 數字取自原論文，WilLaGS 是作者自己重現的。</p>
+<p><b>為什麼值得看</b>：這篇的貢獻幾乎都是「便宜的工程組合」，但消融做得乾淨，告訴你在 in-the-wild 設定下真正重要的是「讓顏色依賴影像」。外觀模組可以獨立插進其他 3DGS 變體，對要從網路影像或多次採集資料做重建（例如機器人地圖跨日更新）的人很實用。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>Tree-Ising：把修 LLM 權重變成 Ising 問題</h3>
+<p><a href="https://arxiv.org/abs/2611.14210">arXiv:2611.14210</a>｜今天 HF 最高票（71）。MIT 先前讓 GPT-6 Astra 花 158 輪、8,970 萬 token 直接改 Qwen3.5-0.8B 的權重來修推理迴圈；這篇把允許的修改限制成 BF16 的 sign flip 和 exponent shift，問題剛好拆成每列一個 QUBO，用 GPU 模擬退火解。MATH-500 達 54.6%（agent 版 51.7%、原模型 7.9%），改動的 bit 少 2.2 倍，只要 4 次 forward、約 0.90 美元；在 Qwen3.5-2B 上 GSM8K 從 21.6% 升到 69.4%。可以和下面新聞區的 LP 文章一起讀。</p>
+
+<h3>Sim(3)-TurboReg：讓串流式 feed-forward 重建處理尺度漂移</h3>
+<p><a href="https://arxiv.org/abs/2611.14135">arXiv:2611.14135</a>｜feed-forward 3D 模型受記憶體限制只能切 window 串流，每段尺度不一致，需要抗 outlier 的 Sim(3) 對齊。作者把 TurboReg 相容圖中的絕對距離約束換成「三尺度一致性」準則。在 90% outlier 下準確度與 RANSAC 相當、中位延遲少 92.5%；接進 DA3-Streaming 後 KITTI 的 ATE RMSE 平均改善 22.2%、總時間少 16.6%，可做公里級重建。</p>
+
+<h3>Few-Shot Residual Adaptation of Pretrained Latent World Models</h3>
+<p><a href="https://arxiv.org/abs/2611.13592">arXiv:2611.13592</a>｜Wolfram Burgard、Rudolf Lioutikov 團隊。部署後物理改變（重心、摩擦），凍結的 latent world model 成功率接近零。作者不改預訓練權重，只從 latent 預測誤差自監督學殘差修正，同時加在 predictor 內部和輸出 latent 上。真機只用 3 個互動 episode，重心偏移恢復到 90%、摩擦改變恢復到 100%，兩處都修比只修一處好。</p>
+
+<h3>PhysOPSD：用可執行程式碼當影片生成的「特權資訊」</h3>
+<p><a href="https://arxiv.org/abs/2611.12411">arXiv:2611.12411</a>｜通義實驗室。on-policy self-distillation 需要好的 privileged context；作者認為文字太抽象、真實影片又混了外觀，於是把物理場景轉成可驗證的模擬程式，再在共享 rollout noise 下做受控的物理變化，讓模型看出因果差異。摘要稱只用 3K 樣本就在多個骨幹上勝過 SFT 和 RL，且不傷一般畫質（摘要沒給其他數字）。</p>
+
+<h3>DexSeed：把人手與物體互動擴增成靈巧手示範</h3>
+<p><a href="https://arxiv.org/abs/2611.14092">arXiv:2611.14092</a>｜Taku Komura、Yujun Shen 等。依抓取模式整理人手序列，用 InteractionMesh retarget 到機器手並擴增物體幾何與放置位置，手指交給 RL policy、手臂跟預先算好的軌跡，在模擬裡跑出成功 rollout，再拿去微調 VLA。只用生成資料微調的 VLA 在模擬和真機都能執行語言指定的抓法；摘要沒有給數字。</p>
+
+<h3>Ego Guidance：用沒有動作標註的第一人稱影片幫 policy</h3>
+<p><a href="https://arxiv.org/abs/2611.13685">arXiv:2611.13685</a>｜Shanghang Zhang 團隊。在 VLM 骨幹上提出 SPAR，讓「預測未來視覺狀態」和「預測動作」共享，前者成為後者的補充訊號。作者報告從 egocentric 影片學到的表徵改善分布外任務，而且資料越多效果越好，也分析了目標函數與資料篩選的影響（摘要沒有數字）。</p>
+
+<h3>WikiTrace：agent 記憶要附上「證據」</h3>
+<p><a href="https://arxiv.org/abs/2611.14320">arXiv:2611.14320</a>｜KAIST。作者定義 memory-induced degradation：agent 有了記憶反而做錯原本會的任務，原因是 lesson 脫離了它來自的軌跡、無從查證。WikiTrace 把每條 insight 連到成敗摘要和原始軌跡，遇到細節不足、互相矛盾或來自失敗任務的 insight 時，agent 用 terminal 工具順著連結查原始紀錄再行動。五個 agent benchmark 上都優於既有記憶方法。</p>
+
+<h2>新聞與討論</h2>
+
+<h3>48 個 AI agent 掃 NASA lidar，「發現」馬雅金字塔，結果是重新發現</h3>
+<p><a href="https://pietromiotti.com/latest/maya-site/?maya">原文</a>｜一位 Google 工程師讓 48 個 agent 依照一份文字指南逐張檢視約 1,200 km² 叢林的 lidar 影像，找金字塔、平台與廣場並排除自然丘陵和道路；agent 還回頭檢查原始點雲，確認形狀在地面上（上方有 10 到 17 m 的樹冠）。找到的山頂有廣場和至少 8 到 12 m 高的橢圓金字塔，報告翻成西文寄給墨西哥 INAH，對方回覆紀錄中沒有登錄。但文章事後更新：這個遺址其實已在 Estrada-Belli 等人 2025 年的論文裡，agent 和作者都漏看了。<a href="https://news.ycombinator.com/item?id=50452455">HN 討論</a>（859 分）的主調是：文獻回顧正是 LLM 最弱、最容易宣稱新穎性的地方；也有做 lidar 地圖的人指出，真正推動這類發現的是開放 lidar 資料，而非 AI。</p>
+
+<h3>AWS 推出官方 AWS Emulator，程式碼全由 agent 寫成</h3>
+<p><a href="https://github.com/aws/aws-emulator">GitHub</a>｜<a href="https://www.allthingsdistributed.com/2026/11/aws-emulator-and-the-engineers-job-when-agents-write-the-code.html">Werner Vogels 的文章</a>｜本地端的 AWS API 模擬器，涵蓋 200 多個服務、400 多個 API model，CC0 授權、離線可用，遙測預設開啟。Vogels 說所有程式碼都由 agent 撰寫與測試：先讓 agent 把端到端測試調到能通過真正的 AWS，等於記錄下真實行為，再讓 agent 把模擬器做到通過同一批測試；合併前還要過數個做對抗審查的安全 agent。他的論點是工程師的工作正轉向設計 spec、測試和 merge gate。<a href="https://news.ycombinator.com/item?id=50456631">HN 討論</a>多半拿它當 LocalStack 改走付費後的替代品，但有人貼出各服務相容度落差很大（Firehose 約 77%、Athena 約 22%），也有人注意到三週約三萬個 commit。</p>
+
+<h3>Tim Peters 辭世</h3>
+<p><a href="https://discuss.python.org/t/in-memoriam-tim-peters-1952-2026/110028">Python Discourse</a>｜Guido van Rossum 宣布 Tim Peters 已於 7 月 15 日過世。他寫下了 Zen of Python（PEP 20），2002 年設計的 Timsort 後來被 Java 和 Android 採用；他的第一個貢獻是說服 Guido 支援 int/float 混合運算。其他開發者補充了 pymalloc、doctest、difflib、Karatsuba 乘法等，以及他在郵件列表上被稱為「Timbot」的耐心回覆。<a href="https://news.ycombinator.com/item?id=50450488">HN 討論</a></p>
+
+<h3>一個假煙霧警報差點淹掉 Jane Street 唯一的紐約機房</h3>
+<p><a href="https://michael.bacarella.com/2026/11/10/false-smoke-alarm-jane-street-datacenter/">原文</a>｜隔壁施工的粉塵觸發煙霧警報，系統把灑水管充滿水，同時關掉機房空調。灑水頭靠溫度觸發，於是沒有真火的情況下，溫度會一路升到真的灑水。作者衝回辦公室一排排拔電源，溫度在約華氏 143.6 度停住。教訓：安全系統彼此的交互作用可能把假警報變成真危險；許多機器同時升溫是比任何單一警報更可靠的冷卻失效訊號。<a href="https://news.ycombinator.com/item?id=50455394">HN 討論</a></p>
+
+<h3>用電壓 glitch 把礦卡解鎖成完整的 A100</h3>
+<p><a href="https://blog.kate.land/posts/using-voltage-glitching-to-unlock-the-a100/">原文</a>｜CMP 170HX 8GB 礦卡其實是 GA100 晶片，板上有約 80GB HBM，但 eFuse 只開放 8GB、70 個 SM、PCIe Gen2。作者用 STM32 攔截 VRM 的 PWMVID 訊號，在開機時打三個約 2 ms 的 glitch，清掉控制 fuse 的狀態後重新燒錄設定。10 張卡中約九成解鎖到可用的 80GB，FP16 FMA 約 85.9 TFLOP/s，約為零售 A100 的 1.18 倍；PCIe 可到 Gen4 x16。漏洞已在發表前通報 NVIDIA。<a href="https://news.ycombinator.com/item?id=50451903">HN 討論</a></p>
+
+<h3>線性規劃能不能取代 LLM 做「權重空間程式設計」？</h3>
+<p><a href="https://nathan.rs/posts/weight-space-lp/">原文</a>｜同樣從 MIT 讓 GPT-6 Astra 修 Qwen3.5-0.8B 推理迴圈的工作出發。Astra 的修改本質上是 rank-1 的 ΔW = u vᵀ，作者把選 v 寫成 L1 最小化的 LP：迴圈 token 要被推離 u、正常 token 幾乎不變。用 Astra 的方向，LP 只改 16,291 個權重（Astra 改了 130,188 個），MATH-500 51.7%、GSM8K 69.6%，與 Astra 相當；不靠 LLM 的啟發式方向也拿回約 93% 的增益。更有趣的是，直接當 steering vector 加上去也能恢復大部分效果，但強度窗口很窄。和上面的 Tree-Ising 剛好是同一問題的兩種離散/連續最佳化解法。<a href="https://news.ycombinator.com/item?id=50452655">HN 討論</a></p>
+
+<h3>Apple：把 Attention 蒸餾成純 Mamba</h3>
+<p><a href="https://machinelearning.apple.com/research/attention-mamba-distillation">原文</a>｜過去直接把 Transformer 蒸餾成 Mamba 會掉很多，只好用混合架構。Apple 的兩階段做法是先蒸餾到 kernel trick 線性化的 attention，再蒸餾到不含 attention 的 Mamba，關鍵在有原則的初始化。Pythia-1B 老師的 perplexity 13.86，學生 14.01；下游任務大致保留，但依賴 in-context recall 的任務仍有落差。<a href="https://news.ycombinator.com/item?id=50453171">HN 討論</a></p>
+</article>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 晚報｜2026-11-24（週二）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 晚報｜2026-11-24（週二）</h1>
+<p><b>今日導讀</b>：今天的共同線索是「把現成的大模型接上正確的介面」。Wan2.1 這種影片生成模型改兩個小 head 就能做 feed-forward 3D 重建；GPT 級前沿模型當機器人 policy 時，真正有用的是它的空間感知，不是它寫 joint 角度的能力；人形機器人的動作生成則靠 Mamba 狀態加一層「記憶介面」撐到 40 秒。新聞區有 Stalwart 開源實作 Exchange 協定、一個 10 GB 就跑得動的 27B 量化模型，以及對 OpenAI perplexity 曲線的回應。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. Motion Mamba 2.0：讓 Unitree G1 邊聽指令邊生成動作，撐過 40 秒還不忘記目標</h3>
+<p><a href="https://arxiv.org/abs/2611.29897">arXiv 2611.29897</a>｜cs.RO｜Peking University（HF Daily Papers 今日最高票，106 upvotes）</p>
+<p><b>問題</b>：互動式的人形機器人需要「串流」的動作生成：使用者走到一半改方向、插一個揮手動作、或指定某個時間點手腕要到哪裡。一次生成 52 幀窗口的 autoregressive diffusion 很適合這個介面，但有兩個矛盾：attention cache 有上限就會丟掉舊歷史，沒上限則越跑越慢；另外每個窗口要重複去噪，單次很小的模型呼叫也會累積成可觀的延遲。</p>
+<p><b>方法</b>：沿用 ARDY 的 root–body 拆解，每一步去噪先預測全域 root 軌跡，再以它的局部特徵預測身體關節（body 部分是 causal motion codec 的 latent）。兩個 denoiser 都是 DiT 層，sequence mixer 裡 local attention 與可續跑的 Mamba-3 分支並行，用可學的 gate 混合。關鍵是 persistent content memory（PCM）：把 Mamba 的遞迴狀態摘要、相鄰兩窗的狀態差、以及目前的文字指令，經過 gated write 寫進一組 memory slots，讓 attention 可以「讀到」被壓縮的歷史，而不只是最近幾窗的 cache。另一個細節是 accepted-only 更新：去噪中途的雜訊候選一律讀同一份凍結的歷史，只有乾淨窗口被接受後才同時更新 cache、Mamba 狀態與 PCM，避免把 diffusion 迭代和物理時間混在一起。資料把 BONES Seed、HumanML3D、HiPHI 統一 retarget 到 29-DoF G1（25 Hz，約 589 小時），所有 baseline 都在同一份 G1 資料上用相同的 100k updates 重訓。推論端用 CUDA Graph 重播三個 CFG 分支加上 kernel fusion。</p>
+<p><b>結果</b>：HiPHI 上 39.52 秒（19 個窗口）的 rollout，Root/End CE 為 7.55/13.64 cm，MotionStreamer 的 Root CE 是 7.78、ARDY 的 End CE 是 14.84；18.72 秒時差距更大（2.87/8.45 對 MotionStreamer 6.17/18.07）。Ablation 很清楚：拿掉 Mamba 的 Minimal 版本在 39.52 秒時 Root CE 是 60.00 cm，加 Mamba 降到 9.36，再加 PCM 到 7.55，command matching 從 32.20% 升到 46.05%。推論最佳化把每窗 p50 從 1685 ms 壓到 276 ms（RTX 4090），且輸出 bitwise 相同；其中大部分來自 CUDA Graph，fusion 只貢獻一小段。實機以 SONIC 追蹤參考動作，100 次試驗 94 次完整成功、沒有跌倒，鍵盤控制的實體反應延遲中位數 351 ms。</p>
+<p><b>限制與疑問</b>：作者明說不處理物體操作。生成器跑在遠端 4090，機器人只做追蹤，所以「即時」是系統層級的。短時距指標並非全面領先：BONES Seed 單窗 L2-FID 輸給 OMG，HumanML3D 單窗 R@3 輸給 MotionStreamer。訓練時歷史最長只抽樣到 7.84 秒，40 秒的泛化靠的是遞迴狀態，PCM 也明說不保證記得很早以前的指令。</p>
+<p><b>為什麼值得看</b>：「SSM 狀態要怎麼變成 attention 讀得到的東西」以及「去噪中間態不准寫進記憶」這兩個設計，可以直接搬到 autoregressive 影片 world model 或 WAM 的長時記憶。CUDA Graph 的消融也提醒大家：小模型多步去噪的瓶頸常在 host dispatch，不在 FLOPs。</p>
+
+<h3>2. VG3R：把 Wan2.1 變成一次前向的 3D 重建模型，同時輸出深度和每一幀的相機</h3>
+<p><a href="https://arxiv.org/abs/2611.28520">arXiv 2611.28520</a>｜cs.CV｜South Dakota State University、KTH、Aalto、Concordia、Mila</p>
+<p><b>問題</b>：影片生成模型被大量拿來當 3D prior，也能 fine-tune 成深度估計器，但要做完整的重建（幾何加相機）時，現有作法不是只給沒有相機的深度，就是像 Aether、Geo4D 那樣靠多步去噪同時生成幾何與相機，速度慢。Feed-forward 重建於是被 VGGT、DA3 這類以 DINOv2 為 backbone、把影片當「一堆圖片」的幾何基礎模型壟斷。</p>
+<p><b>方法</b>：以 DVD 的確定性深度管線為基礎（Wan2.1-T2V-1.3B，固定 timestep、LoRA，直接從乾淨影片 latent 回歸深度 latent）。作者指出兩個缺口：DVD 輸出的是整段 clip 正規化到 [0,1] 的 inverse depth，最遠處被設成 0，直接拿來當深度會把遠處推到無限遠，房間整個彎掉；而且它不估相機。對應兩個元件：<b>ClipShift</b> 用 attention pooling 匯整最後一個 DiT block 所有 latent frame 的 token，用 MLP 預測一個 clip 共用的 shift，把幾何恢復到只差一個全域尺度；<b>LayerTap</b> 把中間兩個 block 與最後一個 block 的 token 線性投影後相加，每個 latent frame 和第一幀配對，再用每個 RGB 幀一個 learned query（因為 Wan VAE 把 4 幀壓成一個 latent）餵給 VGGT 式的 camera head 迭代細化 R、t 與 FoV。訓練損失包括 point map 的 L1、clip 級的單一 affine 對齊誤差，以及用 GT 對應點做的多視角一致性；資料是 ScanNet++、TartanAir V2、DL3DV、Waymo、RealEstate10K 等 11 個公開資料集。</p>
+<p><b>結果</b>：在「建在影片生成模型上」的方法裡，ATE 全部最低：TUM-dynamics 0.031、ScanNet 0.035，對照 Geo4D 的 0.071 與 0.123；7-Scenes 的重建 Acc/Comp 為 0.018/0.017。推論每幀約 74–84 ms（GH200），ScanNet 上 Aether 383 ms、Geo4D 1351 ms，約快 4 倍與 14 倍。和幾何基礎模型比，Bonn 深度 AbsRel 0.037 是全場最低，7-Scenes completeness 也最低。Ablation：不加 shift 時 eval20 的 F@5 只有 19.6，固定常數 shift 44.3，ClipShift 65.0；只用最後一層做相機，RPE-r 從 3.79 惡化到 7.80。從頭訓練同一個 DiT（不用 Wan 預訓練）或改成單幀輸入都明顯變差。</p>
+<p><b>限制與疑問</b>：相機仍輸給 VGGT 系列，TUM-dynamics ATE 0.031 對 VGGT 0.012、ScanNet 0.035 也只和 VGGT 打平。只輸出到一個全域尺度，沒有 metric scale。長影片要靠重疊窗口加剛體對齊，誤差累積的行為沒有深入分析。</p>
+<p><b>為什麼值得看</b>：這篇最有價值的是那個診斷：生成模型其實「知道」深度與相機運動，只是輸出格式不對。如果你在做 4D 重建或 world model 的幾何監督，可以試著把 LayerTap 式的多層 probe 當成通用介面；作者也提到同一套 LoRA 加 head 的方式可延伸到 scene flow 與 3D point tracking，甚至做一個同時能生成和重建的模型。</p>
+
+<h3>3. Embo-Harness：前沿模型當機器人 policy 時，強的是空間感知，不是動作生成</h3>
+<p><a href="https://arxiv.org/abs/2611.31201">arXiv 2611.31201</a>｜cs.RO｜MMLab@NTU（HF 71 upvotes）</p>
+<p><b>問題</b>：GPT-6-Astra 這類模型已經能直接輸出機器人動作，並在 benchmark 上贏過不少 VLA 和 WAM。但「harness」（觀測、規劃、工具、動作執行、回饋的閉環軟體）該怎麼設計，模型到底靠什麼能力成功，都還沒有系統研究。</p>
+<p><b>方法</b>：在 RoboLab 的 20 個任務（每個 3 次）上做逐步消融：每次只改一個因素，留下最好的設定再往下走。起點是 absolute joint 動作、chunk 15、雙視角 320×180 影像、GPT-6-Astra medium effort。探索四個面向：動作執行（joint/EEF × absolute/delta、chunk 大小、非同步推論）、規劃（模型與 reasoning effort、顯式拆解子任務、裁掉視覺歷史）、提示（用 RSI 從失敗案例蒸餾出的 12 條提醒、單/雙視角、解析度）、工具（一次輸出短動作序列、把 VLA 當工具「選擇」或「修正」）。</p>
+<p><b>結果</b>：最後的配方是 absolute EEF、固定 chunk 8、xhigh effort、640×360 雙視角、短動作序列工具、以及「VLA 先提案、前沿模型修正」。幾個反直覺的發現：顯式規劃沒有幫助只增加時間；失敗經驗蒸餾出的提醒反而讓表現下降；high effort 比 medium 差；讓模型自己決定何時交給 VLA，它會把大部分動作都丟給 VLA，即使 VLA 不可靠。完整 RoboLab-120 上 SR 83.3%、Score 89.2，比同樣用 GPT-6-Astra 的 SenseNova-RoboRSI 高 26.2 個百分點。實機四個任務：疊積木與裝水果 5/5，洗碗 2/5、插花 3/5。機制分析：讓模型直接寫 joint 角度的 SR 只有 20.0%，比走 IK 低 23.3 點；逐幀寫軌跡比預測目標 pose 再插值低 18.3 點；直接預測最終 EEF 目的地反而最好。模型的 3D 位置估計誤差隨 effort 與解析度下降，且量級和失敗抓取時夾爪到目標的平均誤差 11.04 cm 相當。</p>
+<p><b>限制與疑問</b>：結論綁定單一閉源模型家族與單一模擬 benchmark，消融只在 20 個任務上做，貪婪地逐項保留最佳設定也可能錯過交互作用。實機每個任務只有 5 次。裁掉視覺歷史雖然省時，但 KV-cache 命中率從 95% 以上掉到約 25%，未快取 token 增加 7–8 倍，成本面向值得注意。</p>
+<p><b>為什麼值得看</b>：對做 VLA 或 robot foundation model 的人，這篇給了一個清楚的訊號：與其讓大模型學低階 action prior，不如把資源投在 3D 空間定位（spatially grounded 的資料和 benchmark）。「VLA 提案、VLM 修正」也是一個很容易複製到自家系統的 baseline。</p>
+
+<h2>快速瀏覽</h2>
+<ul>
+<li><b>Plan4D：可規劃的 4D world model</b>（<a href="https://arxiv.org/abs/2611.26516">2611.26516</a>，HF 27 upvotes）把 Depth Anything 3 和 LongCat-Video 用 model stitching 縫在一起，再加一個 DPT head 預測 scene flow，從場景脈絡和文字動作同時生成未來的 RGB 影片與深度、相機、點雲、scene flow。動機是成對的動作與稠密 4D 標註太少，所以借兩種基礎模型的 prior。</li>
+<li><b>WorldLeague：衡量 AI 的「物理行動力」</b>（<a href="https://arxiv.org/abs/2611.30989">2611.30989</a>，NUS，HF 30 upvotes）用 60 個模擬機器人任務比較 VLM、VLA、WAM，各自用原生的控制介面，分探索、重排、適應變化等六個能力維度。13 個系統中 Claude Fable 5.2 完成 13 個目標、平均 Interactive Score 28.58/100 最高；值得注意的是，VLM 就算最後問答全對，71.8% 的這類 episode 物理進度仍是零。</li>
+<li><b>nanoAstra：試著復刻「VLM 當操作基礎模型」</b>（<a href="https://arxiv.org/abs/2611.29338">2611.29338</a>，Tsinghua，HF 25 upvotes）把機器人行為表示成可重用、帶參數的動作原語組成的語意步驟，並用帶機器人專屬 system prompt 的 CP-SFT 減少對通用能力的干擾，用 5,000 小時以上的機器人資料加 VQA 訓練。nanoAstra-9B 在 RoboTwin 2.0 randomized 零樣本成功率 17.8%，串流執行讓機器人閒置時間從 35.0% 降到 6.9%。和上面的 Embo-Harness 一起讀很有意思。</li>
+<li><b>Native LAM：world model 本身就是 latent action model</b>（<a href="https://arxiv.org/abs/2611.30898">2611.30898</a>，SenseTime）用同一個預訓練影片 DiT 同時當 IDM 和 FDM，中間只靠可學的 dynamics registers 連接，並用「只差在動作」的反事實時間配對訓練。延伸的 PAWlicy 用它當大規模影片的 dynamics teacher 預訓練 VLA（不生成影片），3.8B 模型在 RoboTwin 2.0 平均 93.6%，全程只用公開資料與公開 world model。</li>
+<li><b>WildAnySplat：in-the-wild 的 feed-forward 3DGS</b>（<a href="https://arxiv.org/abs/2611.31023">2611.31023</a>）針對路人遮擋、光照變化、相機 ISP 造成的多視角不一致，用 teacher（乾淨影像）帶 student（野外影像）的架構，搭配真實配對、合成擾動與最佳化式重建產生的 pseudo-clean 標籤。另外預測每視角的 transient mask，並用 bilateral grid 建模每張圖的色彩轉換。</li>
+<li><b>EgoStudy：第一人稱人類資料到底怎麼幫 VLA 和 WAM</b>（<a href="https://arxiv.org/abs/2611.30490">2611.30490</a>）固定機器人資料，只改 egocentric 資料的規模、多樣性和處理方式。結論：多樣性、軌跡對齊與詳細語言標註最關鍵；擴量主要改善末端位移預測，對手指細動作幫助小；資料少時 WAM 較好，資料多時 VLA 進步更多。</li>
+<li><b>Wrist Video Policy：用預測腕部相機影片來控制機器人</b>（<a href="https://arxiv.org/abs/2611.31079">2611.31079</a>）生成未來的腕部視角，再用改自預訓練 3D 模型的 pose estimator 解出相機軌跡，經固定的 hand-eye 轉換就是末端 pose；生成器的 latent 直接縫進估計器的中間特徵，不解碼 RGB。估計器不需 fine-tune 就能跨 Franka、PiPER-X、Galaxea R1 Pro，零樣本 OOD 成功率超過 50%。</li>
+<li><b>SANA-Robot：能在邊緣裝置即時跑的 WAM</b>（<a href="https://arxiv.org/abs/2611.28943">2611.28943</a>，NVIDIA）4.5B 參數，linear attention 維持固定大小的全域記憶、sliding window softmax 傳遞近期資訊，達到分鐘級記憶與固定推論成本；對 action 與 video token 給不同雜訊等級，可兼當 policy 與模擬器。RTX 5090 上每個 action chunk 135 ms（FP8）/115 ms（NVFP4），30 Hz 非同步閉環控制。</li>
+</ul>
+
+<h2>新聞與討論</h2>
+<ul>
+<li><b>Stalwart 1.2.0 變成 Microsoft Exchange 的 drop-in 替代品</b>：Rust 寫的開源郵件伺服器 Stalwart 實作了 MAPI over HTTP、EWS、Exchange ActiveSync 和 Autodiscover，classic Outlook、Outlook for Mac、Apple Mail、手機的 Exchange 帳號都能像連 Exchange 一樣連上，且這部分屬於 AGPL 的 Community 版。文章整理了地端 Exchange 的處境：2016/2019 已停止支援，新版 Outlook 不支援地端帳號，Exchange Online 的 EWS 將在 2027 年 4 月完全移除。這些相容程式碼約 20 萬行，設計成可以在協定過時後乾淨移除，定位是「先換伺服器、使用者週一照常開 Outlook，再慢慢換客戶端」。<a href="https://stalw.art/blog/microsoft-exchange-replacement/">文章</a>｜<a href="https://news.ycombinator.com/item?id=50620349">HN 討論</a>。HN 上有人說他們正因授權改成年費而在找離開地端 Exchange 的路，也有人擔心未來的免費版政策。</li>
+<li><b>NariQ：Qwen3.8-27B 壓到 10 GB，agent 任務仍追平 BF16</b>：nari-labs 釋出 3、2.5、2 bpw 的 GGUF，是用真實 coding-agent 軌跡校準的 trellis-coded PTQ，需搭配他們的 llama.cpp fork。3-bit 檔（10.1 GB，BF16 是 53.8 GB）在 DeepSWE v1.1 拿 41.0%（BF16 39.8%）、Terminal-Bench 2.1 63.8%（62.6%），2.5-bit 也大致持平，2-bit 則在 DeepSWE 掉到 28.6%。<a href="https://huggingface.co/nari-labs/Qwen3.8-27B-NariQ-GGUF">模型頁</a>｜<a href="https://news.ycombinator.com/item?id=50611402">HN 討論</a>。HN 有人肯定它真的用 held-out、多種長時距任務評估；也有人指出它看起來是從 exl3 的 trellis codebook 演變而來，卻沒在顯眼處交代來源。</li>
+<li><b>對 OpenAI perplexity 曲線的回應：「對什麼文本的 perplexity？」</b>：昨天早報提過 OpenAI 公開內部 perplexity 曲線並主張它可衡量智慧。micjm 指出那張圖的註腳寫明語料是固定的程式碼，於是引用一篇論文的實驗：同一個 160M 模型只改訓練資料中程式碼的比例，程式碼佔 75% 的版本在程式碼 perplexity 上大降，在非程式碼文本上則明顯變差。作者的結論不是曲線沒有意義，而是需要更多限定。<a href="https://micjm.com/blog/lowering-perplexity-without-scaling/">文章</a>｜<a href="https://news.ycombinator.com/item?id=50607512">HN 討論</a>。HN 上補了一個角度：perplexity 也會隨 context 長度下降，OpenAI 沒說明 context 變長在其中的貢獻。</li>
+<li><b>LeCun 公開批評 Dario Amodei</b>：Yann LeCun 在 X 上說 Dario 從 GPT-2 時期就在渲染危險，目的是讓開放模型被禁、自己保有控制權，並把它比作鄂圖曼帝國禁止阿拉伯文印刷。這則推文超過 138 萬次瀏覽，在 HN 上有 1,600 多分、900 多則留言。<a href="https://x.com/ylecun/status/2124550037912920090">推文</a>｜<a href="https://news.ycombinator.com/item?id=50615308">HN 討論</a>。留言兩極：有人認同是在建立監管護城河，也有人回應風險問題該用證據和推理回答，而不是猜測動機，並以 Hinton 離開 Google 為例。</li>
+<li><b>「2035 提前到了」：Linux 編成 WebAssembly，Firefox 在瀏覽器裡跑 Firefox</b>：Farid Zakaria 的 trynix.dev 原本用 qemu-wasm 在瀏覽器裡跑任意 Nix 套件，太慢；11 月 19 日有人發布 unkernel（把 Linux kernel 編成 wasm，只模擬 user program），他立刻改用，第一次執行快了 2 到 32 倍，還接上 Wayland 視窗、透過 WebGL2 的 virgl Mesa、ALSA 音效與經由 WebSocket 的網路。標題呼應 Gary Bernhardt 的演講 The Birth &amp; Death of JavaScript；文末的 Firefox 套 Firefox 截圖作者坦承渲染了一個多小時。<a href="https://fzakaria.com/2026/11/23/2035-came-early">文章</a>｜<a href="https://news.ycombinator.com/item?id=50624497">HN 討論</a></li>
+<li><b>紐約州立法禁止汽車的「內建功能訂閱費」</b>：Hochul 州長簽署 S.9348A/A.10411A，禁止車廠、經銷商或第三方對使用既有硬體、沒有持續成本的功能（例如座椅加熱、遠端啟動、進階導航）收取訂閱或購後費用，2027 年 2 月 27 日生效。<a href="https://www.governor.ny.gov/news/money-your-pockets-governor-hochul-signs-bill-restricting-exploitative-vehicle-subscription">新聞稿</a>｜<a href="https://news.ycombinator.com/item?id=50622774">HN 討論</a>。HN 最多人問的是 Tesla FSD 和 SiriusXM 這類有持續成本的服務算不算，以及車價會不會因此上漲。</li>
+<li><b>越彎越強的水凝膠</b>：WashU 的 Chenfeng Ke 團隊在 Nature Materials 發表一種由糖類 cyclodextrin 與聚乙二醇組成、可 3D 列印的水凝膠：拉伸時大的 cyclodextrin 環簇被打散，沿高分子鏈滑動，放鬆後重組成較小的結晶結構，於是受力處變強、沒受力處保持柔軟。他們在類似膝關節的可彎曲結構上彎了 10,000 次，目前一次只能做幾十公克。<a href="https://source.washu.edu/2026/11/breakthrough-material-gets-stronger-the-more-it-bends/">新聞稿</a>｜<a href="https://news.ycombinator.com/item?id=50610170">HN 討論</a></li>
+</ul>
+</article>
+</body>
+</html>

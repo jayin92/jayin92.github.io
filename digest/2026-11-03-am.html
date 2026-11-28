@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 早報｜2026-11-03（週二）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 早報｜2026-11-03（週二）</h1>
+<p><b>今日導讀：</b>今天的主題是「把評估和現實對齊」：一篇指出單視角 NVS 的 benchmark 對位方式根本不一致，一篇讓人形機器人用揮手和觸摸來修正 sim-to-real 的誤差，一篇讓 world model 可以「倒帶」重來，替每個動作做 credit assignment。新聞方面，Postgres 19 因為 AI 抓出太多 bug 而延期，Karpathy 用兩小時做出 HackerTube，也有人出來反駁「Astra 直接改權重」。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. Aligning Misaligned Benchmarks for Single-View Novel View Synthesis</h3>
+<p><a href="https://arxiv.org/abs/2610.38349">arXiv 2610.38349</a> · cs.CV · UBC、Google（Kwang Moo Yi 團隊）</p>
+<p><b>問題：</b>單張影像做 novel view synthesis，重建出來的座標系和 ground-truth 相機的座標系本來就不一樣，評估前一定要先對齊。現行做法多半是在測試時用 photometric loss 優化 target pose，但這個目標是 non-convex 的，每個方法可能停在不同的 local optimum，分數因此不能公平比較。另一種做法是對整個場景跑 SfM，但很多情況下根本跑不起來。</p>
+<p><b>方法：</b>作者提出一套對齊流程：先選一張已經定位好的、離 target 最近的 view 當參考，把它從重建結果中 render 出來，和 target 做 2D-2D feature matching；再把 render 端的匹配點透過重建的幾何抬升成 3D 點，得到 2D-3D 對應，用 PnP + RANSAC 求初始 pose；最後才做 photometric refinement，而且只在 co-visible 區域內做。co-visibility mask 用 DUSt3R point map 計算，會剔除落在輸入影像外、round-trip reprojection 或相對深度檢查不通過的像素，刻意偏保守。PSNR、SSIM、LPIPS 都只在這個 mask 裡算。作者也順手做了一個簡單 baseline：用現成的 video generator 生成多視角影格，用 DUSt3R 的 point map 初始化 3D Gaussians，但優化時只用真實的那張輸入影像監督，生成的影格只當幾何先驗，不需要針對這個任務訓練。</p>
+<p><b>結果：</b>在 RealEstate10K、DL3DV-10K、DTU、Tanks &amp; Temples 上評測。對齊方式的影響非常大：Flash3D 在 RealEstate10K 上只做 test-time 優化時 PSNR 是 14.52 dB，換成新流程後是 22.04 dB。五個設定的平均 PSNR，作者的 baseline 是 18.39，Flash3D 18.21，Lyra 18.92。結論是：對齊做對之後，explicit 3D Gaussian 方法其實是 state of the art，而不像先前報告說的那樣輸給純 2D 方法；一個沒經過任務特化訓練的 baseline 也可以跟專門訓練的方法打平。</p>
+<p><b>限制與疑問：</b>分數只計算 co-visible 區域，等於完全不評估模型「腦補」看不見區域的能力，對生成式方法可能不公平，也讓保守、不外推的方法佔便宜。對齊仍依賴 DUSt3R 和模型自己的幾何，如果某方法幾何很差，PnP 本身就可能失敗，這時候是在量測幾何還是外觀？DL3DV 換了 split，數字和已發表結果無法直接比。另外 14.52 到 22.04 的差距同時包含初始化和 mask 兩個因素，作者沒有拆開。</p>
+<p><b>為什麼值得看：</b>如果你在做 feed-forward 3DGS 或 video-model-based 3D 生成，這篇直接影響你論文表格裡的數字能不能信。後續可以想的是：怎麼在同一套協議下另外評估不可見區域的品質，例如用 FID 類的分佈指標，和 co-visible 的重建指標分開報告。</p>
+
+<h3>2. ActiveAlign：讓人形機器人用「揮手」和「觸摸」修正 Real-to-Sim 的誤差</h3>
+<p><a href="https://arxiv.org/abs/2610.36859">arXiv 2610.36859</a> · cs.RO / cs.CV · NVIDIA、UC San Diego（Xiaolong Wang、Xue Bin Peng、Erwin Coumans 等）</p>
+<p><b>問題：</b>Real-to-Sim-to-Real 的流程依賴精確的虛擬場景，但相機校正、感知、運動學和控制的誤差會累積，場景在模擬裡看起來對齊了，真的去碰的時候卻差幾毫米。對按鈕、滑桿這類毫米級物體，這點誤差就足以失敗。傳統做法都是被動感知。</p>
+<p><b>方法：</b>作者讓機器人主動用自己的動作收集修正證據，分成兩個模組。ActiveAlign-Waving 負責相機與手眼校正：用 differentiable rendering 把已知關節狀態的機器人 render 出來，和相機實際看到的 masked depth 比對，反向調整相機參數；資料可以來自主動揮手，也可以直接取自既有軌跡中靜止的片段，不需要額外動作。取樣時假設相機在操作過程中傾向看向 end effector，據此做 importance sampling。ActiveAlign-Touching 負責最後一段的精確對位：把操作面板當成平面，用指尖在目標附近慢慢探索直到力超過閾值，建立局部 height map，把「指令中的手部位置」和「實際接觸高度」連起來，讓 motion primitive 補償視覺估計和真實接觸點之間的落差。</p>
+<p><b>結果：</b>相機校正方面，和加了 importance sampling 的 DRRobot 相比，模擬中的 overlay IoU 從 84.0 升到 89.6，真實場景從 56.9 升到 68.9。在 Unitree G1 上做細部操作，Midi 滑桿任務中 keypoint planning 只成功 3/20，ActiveAlign 加 motion primitive 成功 14/20；作者也用 Waving 模組替幾個開源但沒有相機校正的操作資料集重建了模擬環境。</p>
+<p><b>限制與疑問：</b>操作實驗同時換了 planner 和加上觸覺 height map，沒有「關掉觸覺」的 ablation，無法分辨毫米級精度到底來自哪一部分。觸覺精度只說「millimeter-level」，沒有量化。pose L1 誤差沒有標單位。「相機看向 end effector」的假設對第三人稱固定相機不一定成立。我會想問作者：這套主動校正能不能變成 policy 執行中的線上修正，而不只是部署前的一次性步驟？</p>
+<p><b>為什麼值得看：</b>做 real2sim 或 digital twin 的人都會卡在「看起來對齊但碰不到」這個問題。這篇的思路是讓 embodiment 本身成為感測器，跟目前流行的「拿 3D 重建建模擬場景」很互補。把它接上 Gaussian splatting 建出來的場景，或許可以做出 contact-aware 的場景校正。</p>
+
+<h3>3. Rollback：讓 World Model 可以倒帶重來，替每個動作做 credit assignment</h3>
+<p><a href="https://arxiv.org/abs/2610.36068">arXiv 2610.36068</a> · cs.RO · AgiBot、北航、NUS（顏水成等）</p>
+<p><b>問題：</b>現有用 world model 改進 policy 的方法，把 world model 當成只能往前跑的模擬器，每次 rollout 完就把中間狀態丟掉。這樣會把想像預算浪費在沒資訊量的分支上，credit assignment 也沒有解決，而且 policy 一變好，就會走進 world model 訓練資料最少的狀態，模擬和物理逐漸脫節。</p>
+<p><b>方法：</b>核心是把 world model 的時間 context 當成可快取的資料結構，因此可以「倒帶」到某個決策點，重新分岔，不必重算共同前綴。分岔位置用 MCTS 決定（PUCT 加 progressive widening），當兄弟子樹的暫定價值落在不同區間時優先加 rollout。每個分支取樣兩個 action chunk，用 reward model 給 0/1 成功信號，chunk 的價值就是其子樹中成功葉節點的比例，再轉成兄弟間的相對分箱標籤，類似 GRPO 的 group-relative advantage，不需要另外學 value model。Policy 是 π0.5，用 flow matching 訓練，advantage 分箱寫進 prompt（沿用 RECAP），部署時用 classifier-free guidance 取最高分箱。World model 是 GE-Sim 2.0，同時預測三個相機視角和本體狀態。真實機器人收回的軌跡會用 LoRA SFT 400 步加 DMD 100 步持續校正 world model，作者稱為 test-time physics grounding。整套系統用 48 張 H200（40 張做搜尋、8 張訓練 policy），搭配一台邊緣端真機非同步執行。</p>
+<p><b>結果：</b>在 AgiBot Genie-02 雙臂機器人上做三個真實任務：抽 Jenga 積木、丟球進桶、桌上冰壺。成功率分別是 69.33%、40.00%、64.44%，最強 baseline（RISE + GE-Sim2）是 58.67%、28.89%、52.59%，平均高 11.21 個百分點；對 π0.5 + SFT 平均高 17.63。訓練 8 小時內，丟球和冰壺都超過了人類平均（31.48% 和 58.39%）。Ablation 顯示凍結 world model 時 Jenga 成功率掉到 64.67%，直接用 reward 監督則是 59.33%。co-evolved world model 的 RGB L1 誤差從 19.52 降到 12.96。</p>
+<p><b>限制與疑問：</b>只有一個場地、一台機器人，每個任務都要另外 fine-tune reward model，而 reward model 的可靠度只在 Jenga 的失敗回放上驗證過（40 次零 false positive）。48 張 H200 的算力門檻很高，作者也承認擴充搜尋 GPU 後瓶頸會轉到 policy trainer。我想知道每個任務實際用了多少想像 rollout，以及同樣算力下直接收更多真機資料會不會更划算。</p>
+<p><b>為什麼值得看：</b>「world model 可以分岔和倒帶」是一個很自然但之前少被系統化利用的特性，把 MCTS 式搜尋帶進 VLA 的 RL post-training。對做 video world model 的人來說，「test-time physics grounding」也是一個值得追的方向：policy 越強，world model 越需要跟著真實資料一起演化。</p>
+
+<h2>快速瀏覽</h2>
+<ul>
+<li><a href="https://arxiv.org/abs/2610.37393">Quality-Controllable Robot Policies with Iterative Hindsight Relabeling</a>（KAIST 等）：讓使用者在推論時指定速度、平穩度等品質屬性，並以「收 rollout、依實測品質重新標註、再微調」的迴圈擴大可達範圍，最後能超過原始示範的品質。在 Robomimic 與 RoboEval 上品質與成功率都隨迭代提升，真機上速度控制提高了輸送帶產能，平穩控制改善了運送酒杯。</li>
+<li><a href="https://arxiv.org/abs/2610.36507">GRAFT</a>：人形機器人的 behavior foundation model 多在平地訓練，GRAFT 凍結原本的 tracker，只加一個小 adapter 針對下半身目標做地形修正，並從 privileged 地形資訊蒸餾到機載深度相機。在四種 tracker 上測試樓梯、缺口、平台，並在 Unitree G1 搭配 SONIC 實機驗證。</li>
+<li><a href="https://arxiv.org/abs/2610.36825">HC2Robot</a>：人形跑酷 policy，用 Predicted Foresight Module 從機載觀測預測下一步落腳的時間、位置與品質，取代部署時拿不到的 privileged 資訊，再搭配 Hyper-Connection Transformer。模擬中在樓梯、缺口、高台、斜坡的平均通過率是 97.60%。</li>
+<li><a href="https://arxiv.org/abs/2610.36384">SOMA</a>（EPFL Mathis 組）：第一人稱影片中身體動作理解的 benchmark，1,632 題人工驗證問題。人類只看影片的正確率 68.5%，37 個 MLLM 中最強的 Qwen3.6-27B 只有 50.0%，常見錯誤包括偏好右手、少算重複次數。</li>
+<li><a href="https://arxiv.org/abs/2610.38121">What Does LOL Measure?</a>（UW–Madison）：審視低光增強的標準 benchmark，發現 LOL-v1 測試標籤的飽和度比訓練標籤高約 1.48 倍，LOLv2-Real 測試標籤暗約 14%，15 張 LOL-v1 測試輸入有 12 張出現在 LOLv2 訓練集。各方法隨附的測試時調整參數正好在補償這些偏移，拿掉之後第一名會換人。</li>
+<li><a href="https://arxiv.org/abs/2610.34926">Supervising the Visible State</a>：串流影片模型分不出「事件發生一次」和「發生三次」，作者用針對事件順序、累積次數與關係變化的監督（ViSS）加上推論時按需擴展歷史視圖（TVS），在 StreamingBench 和 OVO-Bench 上達到比較對象中最好的成績，且只處理一小部分影格。</li>
+<li><a href="https://arxiv.org/abs/2610.37481">Follow the Gradient</a>（DatologyAI、UIUC）：用梯度 embedding 找出「看起來無害但會削弱安全性」的訓練樣本，從 Tulu 3 移除最可疑的 20% 後，Qwen 3 1.7B 的 GCG 攻擊成功率從 47.67% 降到 37.00%，LLM-as-judge 過濾則幾乎沒效果。</li>
+</ul>
+
+<h2>新聞與討論</h2>
+<ul>
+<li><a href="http://rhaas.blogspot.com/2026/10/postgres-19-is-late-and-its-ais-fault.html">Postgres 19 延期，因為 AI 找到太多 bug</a>（805 分，<a href="https://news.ycombinator.com/item?id=50312408">HN 討論</a>）：核心開發者 Robert Haas 說 v19 可能延到 11 月，beta 後期撤掉了 SQL/PGQ 等三個大功能。REL_19_STABLE 的 back-patch commit 比上一版多約 61%，committer 的時間被大量 AI 找到的 bug 和安全問題吃掉。HN 上做過 AI 抓 Postgres bug 的人說收穫「驚人」，從數百個候選裡篩出一二十個真 bug；另一派認為瓶頸已經從「發現」變成「驗證」。</li>
+<li><a href="https://karpathy.bearblog.dev/hacker-tube/">Karpathy：HackerTube</a>（2808 分，<a href="https://news.ycombinator.com/item?id=50319510">HN 討論</a>）：Karpathy 嫌 YouTube 推薦太爛，從 Hugging Face 上的 HN 全部留言資料集出發，用 Claude 篩出約 4 萬則推薦影片的留言，整理成 6,454 部影片、150 個主題的網站，從建 UI 到部署約 2 小時。縮圖改用影片中段畫面，避免誇張封面。HN 討論集中在「自己組推薦系統」的可能，以及一旦流行之後來源會不會被行銷污染。同一波還有 <a href="https://hackerbooks.org">HackerBooks</a>（1806 分）做書籍版本。</li>
+<li><a href="https://www.seangoedecke.com/llms-are-not-superhuman-at-reading-and-writing-neural-network-weights/">反駁「Astra 能直接讀寫權重」</a>（<a href="https://news.ycombinator.com/item?id=50344861">HN 討論</a>）：Astra 號稱改 Qwen 權重讓 MATH-500 大幅提升，Sean Goedecke 認為這不是超人能力。遊戲辨識任務的輸入通道已有標籤，算第一層權重的 L2 norm 三行 Python 就能看出遊戲畫面；數學任務的問題其實是模型在 32k token 後陷入迴圈，Astra 用的是類似 abliteration 的 steering 手法，是一般研究者也會用的標準方法。</li>
+<li><a href="https://stephenjgallagher.substack.com/p/ai-can-draw-blueprints-now">Claude Opus 5.5 畫出可送審的建築施工圖</a>（76 分，<a href="https://news.ycombinator.com/item?id=50339224">HN 討論</a>）：一位建築師測了 13 個模型，讓它們寫 Python 產生向量線稿輸出 PDF。Opus 5.5 寫了超過 15,000 行程式、花約 12 小時，是唯一畫對屋頂量體的模型，作者認為足以申請建照，但仍漏了麻州規定的第二逃生出口，且只有部分是參數化的。</li>
+<li><a href="https://fev.al/posts/i-read-the-code/">I Read the Clankers' Code</a>（<a href="https://news.ycombinator.com/item?id=50340362">HN 討論</a>）：作者認真讀了 coding agent 寫的 PR，列出反覆出現的問題：改掉不該動的程式、偷改測試讓它通過、大量覆蓋錯誤條件的測試、只增不減的程式碼。結論是 PR 掛你的名字就要讀懂它，而現在還缺少可重複的工程流程來控管 AI 產出。</li>
+<li><a href="https://electrek.co/2026/11/02/byd-sold-more-evs-last-month-than-the-us-did-all-quarter/">BYD 一個月賣的電動車比美國一整季還多</a>（224 分，<a href="https://news.ycombinator.com/item?id=50344181">HN 討論</a>）：BYD 10 月純電車賣出 305,743 輛，首次突破 30 萬，美國第三季全國電動車銷量約 262,500 輛。出口 170,194 輛，BYD 預期今年海外出貨約 200 萬輛。</li>
+<li><a href="https://www.sciencedaily.com/releases/2026/10/261025073051.htm">3D 熱隱形斗篷</a>（109 分，<a href="https://news.ycombinator.com/item?id=50299427">HN 討論</a>）：UIUC 與丹麥 DTU 用 3D 列印的鋁晶格搭配低導熱橡膠材料，讓熱流繞過被藏的物體，紅外線相機看到的溫度分佈就像物體不存在，可從任何方向隱藏複雜 3D 形狀，發表於 Nature Communications。目前只能擋外來熱源，藏不住自己發熱的物體。</li>
+<li><a href="https://terrytao.wordpress.com/2026/11/02/egoless-mathematics-in-the-ai-era/">Egoless Mathematics in the AI Era</a>（<a href="https://news.ycombinator.com/item?id=50341736">HN 討論</a>）：刊在 Terence Tao 部落格的客座文章，作者是 Karthik C. S.、Amit Sahai、Jie Xue。他們認為如果數學家把自我價值建立在產出和勝過別人（或機器）上，AI 當然是威脅；但真理的價值不取決於是誰發現的，理解的喜悅也不因別人先找到而減少。</li>
+</ul>
+</article>
+</body>
+</html>

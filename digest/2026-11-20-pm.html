@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 晚報｜2026-11-20（週五）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 晚報｜2026-11-20（週五）</h1>
+<p><b>今日導讀</b>：今晚的主題是「穩健」：模型在沒見過的條件下還能不能用。Apple 的 Depth Pro 2 一次解決單目深度在銳利與時間一致之間的取捨，Infer3D 用反推生成模型來對付奇怪視角與魚眼鏡頭，Awaken-HI 則用五萬小時的人類全身動作讓人形機器人在新指令、新物件上不再卡住。快速瀏覽裡有好幾篇在檢查我們的評估本身可不可靠，新聞則有 OpenSSL 的高風險漏洞、PostgreSQL 19，以及兩篇關於「AI 從零造東西」的有趣實驗。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. Depth Pro 2：一個網路同時做到 metric、銳利、時間一致的單目深度</h3>
+<p><a href="https://arxiv.org/abs/2611.26603">arXiv:2611.26603</a>｜cs.CV｜Apple（Peiyun Hu、Stephan R. Richter、Vladlen Koltun 等）｜<a href="https://apple-aiml-research.github.io/ml-depth-pro-2/">程式碼與權重</a>｜HF Daily Papers 14 票</p>
+<p><b>問題</b>：作者整理現有單目深度方法後發現一個普遍的取捨。單張圖方法（Depth Pro、InfiniDepth、MoGe）邊界銳利，但逐幀跑時物體的距離會跳動。多幀方法（VGGT、DepthCrafter、Video Depth Anything）時間上穩定，但為了處理多幀或 video diffusion，只能在較低解析度運作，把毛髮、細枝這類邊界抹平。在 Sintel 與 Spring 上畫出 boundary F1 對 jitter 的散佈圖，兩類方法正好各據一角。</p>
+<p><b>方法</b>：架構很樸素：從 DINOv3 初始化的 ViT，前段 block 只做幀內 self-attention，後段交替幀內與跨幀 attention，最後接 DPT decoder（上採樣改用 transposed conv）。跨幀 attention 不加任何新參數，也刻意不編碼幀序，所以網路對幀的排列是 equivariant 的，可以直接沿用單圖預訓練權重。位置編碼是 2D RoPE，座標除以長邊以保留長寬比。全程在原生解析度運作，訓練資料不做插值重採樣（作者的對照實驗顯示，這比 Depth Pro 的 resize 在邊界上多 5 個百分點以上）。訓練用 19 個資料集，以合成資料為主，clip 長度 1 到 32 幀，單張圖就是長度 1 的 clip；以 token 數而非樣本數組 batch。Loss 有四項：focal-normalized inverse depth 的 trimmed loss（只用在有 metric GT 的資料）、尺度平移不變 loss、多尺度梯度 loss（只用在合成資料），以及新的多視角一致性 loss：用預測深度與 GT 相機位姿把像素投到另一幀，懲罰兩幀預測的差異，並以 GT 深度剔除遮擋和動態物體。焦距沒給時，由一個 23.5M 參數的 ViT-S 估計 FoV。推論支援 buffered（32 幀 clip、互相重疊後線性混合）與 unbuffered（causal 跨幀 attention 加 FIFO KV cache）兩種串流模式。</p>
+<p><b>結果</b>：模型家族從 24M（S）到 872M（H+）。S 在 B200 上跑 1080p 串流 53 fps，H+ 約 8 fps。在 11 個 zero-shot 資料集上，不論給 GT 內參或用預測內參，單圖與影片設定的 metric 深度平均排名都是第一。時間一致性方面，沿 ground-truth point track 量 jitter，H+ 在 Sintel 是 1.39，次佳的 DepthCrafter 2.09、VGGT 系列 2.36；Spring 上 0.86，僅次於 VeloDepth 的 0.72，平均排名仍是第一。FoV 估計器在 Depth Pro 的 zero-shot 基準上平均 88.6%，Depth Pro 為 71.7%。unbuffered 的 cache 從 1 幀加到 16 幀，jitter 由 0.860 降到 0.300，32 幀後就不再明顯改善；和 buffered 模式相比品質幾乎相同。</p>
+<p><b>限制與疑問</b>：一致性 loss 依賴 GT 位姿，只在有位姿的影片與多視角資料上起作用；動態物體被直接遮掉，所以會動的東西本身的時間一致性主要靠跨幀 attention 自己學。多幀輸入假設焦距固定（取各幀估計的中位數），變焦影片不適用。訓練資料大量來自內部合成資料集，外部難以重現。另外，模型只輸出逐幀深度，沒有相機位姿，要做重建還得另外估。</p>
+<p><b>為什麼值得看</b>：這篇的訊息是「不用 video diffusion、不用多階段 curriculum，一個 DINOv3 加交替 attention 就夠了」。對做 3DGS、SLAM 或 4D 重建的人，這是一個可直接拿來當 depth prior 或初始化的開源模型，53 fps 的小模型也能放進機器人感知迴圈。值得試的方向：把它的輸出接到 feed-forward Gaussian splatting，或用 unbuffered 模式做線上稠密建圖，看邊界銳利度能否減少 floaters。</p>
+
+<h3>2. Infer3D：看不懂的視角就「反推」，用生成模型做 analysis-by-synthesis 的 3D 重建</h3>
+<p><a href="https://arxiv.org/abs/2611.25061">arXiv:2611.25061</a>｜cs.CV｜Amani Kiruga、Mark Hamilton、Joshua B. Tenenbaum、William T. Freeman、Vincent Sitzmann、Yilun Du｜<a href="https://amanikiruga.github.io/infer3d-site/">專案頁</a></p>
+<p><b>問題</b>：Splatter Image、CATSplat 這類 feed-forward 單圖 3D 重建，本質上是 amortized inference：輸入一張圖、直接吐出 3D Gaussians。只要輸入的視角、鏡頭或材質超出訓練分布，效能就崩。論文的熱圖顯示，Splatter Image 的 PSNR 在仰角或 roll 偏離訓練範圍後迅速下降。作者想借用認知科學裡「人類視覺是 top-down 生成推論」的觀點，讓重建在 OOD 條件下仍然穩健。</p>
+<p><b>方法</b>：把重建寫成 MAP 估計，但不直接建 3D 先驗，而是串起兩個凍結的模組：一個在 in-distribution 影像上訓練的 2D 生成模型（StyleGAN2 或 Diffusion Autoencoder），和一個 2D 到 3D 的 lifter（Splatter Image 或 CATSplat）。推論時只最佳化生成模型的 latent code 與渲染參數，讓「生成一張 ID 圖 → 抬成 3D Gaussians → 用 3DGS 渲染」的結果對上 OOD 輸入。因為 lifter 永遠只看到生成模型產生的 ID 圖，輸出就被限制在合理、多視角一致的流形上。渲染參數依情境替換：視角偏移時最佳化相機位姿（以 SVD 投影回旋轉矩陣）；魚眼鏡頭時加入 Hybrid Neural Distortion Field 最佳化內參與畸變；合成到真實的材質落差時，把像素 loss 換成 DINOv2 特徵 cosine 相似度加深度一致性。為避開局部極小，用 particle filtering 式的多起點搜尋：600 個假設（30 個旋轉乘 20 個 latent），在第 3、122、302 步剪到 32、10、5 個，共 783 步。另外，DiffAE 的 encoder 給 ID 圖一個接近最佳的初始化，所以「初始重建誤差」本身就是 OOD 偵測分數。</p>
+<p><b>結果</b>：在 OOD 視角的 ShapeNet Cars 上，Infer3D 20.29 dB，BRFI 14.30 dB、3D GAN Inversion 15.23 dB；就算後兩者拿到 GT 位姿也只有 17.70 與 17.37 dB。真實車輛的 RealCars（先驗只在合成 SRN Cars 上訓練）上，Chamfer Distance 0.131，Splatter Image 0.219，餵同樣 DINO 特徵微調的 Splatter Image 0.152，BRFI 0.491。OOD 偵測 AUROC 在 CO3D Hydrants 0.972、Vases 0.961、RE10K 0.997，只需約 286 ms。直接對 lifter 做 test-time training 反而更差（12.41 對 15.73 dB）。</p>
+<p><b>限制與疑問</b>：每個 OOD 樣本完整最佳化約 2.8 分鐘，提前停在 100 步也要 1.2 分鐘，batch 10 個假設時峰值 VRAM 48 GB。在 ID 資料上，純最佳化反而比 feed-forward 差（CO3D 低 0.93 dB、ShapeNet 低 2.66 dB），差距集中在接近輸入視角的新視角，因為 lifter 看不到原圖、無法直接複製可見細節；所以實務上要靠偵測器分流。實驗多為單物件、類別專屬的設定，生成先驗也是較輕的 StyleGAN2／DiffAE，細節銳利度受限。</p>
+<p><b>為什麼值得看</b>：這是「feed-forward 負責快、analysis-by-synthesis 負責穩」的一個乾淨示範，而且把 OOD 偵測幾乎免費地做了出來。對機器人來說，相機裝在奇怪角度、換魚眼鏡頭，正是 feed-forward 3D 模型最常出事的地方。值得追的方向：把先驗換成大型 diffusion 或 video model、lifter 換成 VGGT／Depth Anything 3 這種場景級模型，看這套框架能否擴展到整個場景。</p>
+
+<h3>3. Awaken-HI：五萬小時全身動作的人類第一人稱資料，讓人形機器人學會邊走邊做事</h3>
+<p><a href="https://arxiv.org/abs/2611.26420">arXiv:2611.26420</a>｜cs.RO｜EngineAI（眾擎機器人）｜<a href="https://engineai-robotics.github.io/Awaken-HI">專案頁</a></p>
+<p><b>問題</b>：人形機器人的 loco-manipulation（走到架子前、轉身、蹲下、雙手搬東西）需要全身協調，但全身遙操作的成本很高，資料量撐不起來。現有第一人稱影片資料集（Ego4D、EgoDex 等）多半只有頭和手的姿態；有全身動作的 Nymeria 只有幾百小時。另一個問題是 retarget：人與機器人的身體比例不同，轉換後的姿態和手部軌跡會失真。</p>
+<p><b>方法</b>：先蒐集 Awaken-Human：PICO 頭顯加五個身上的 tracker，在家庭、工作場所、賣場、倉儲錄下約 50,000 小時的雙目第一人稱影片與同步全身動作，涵蓋 100 多種技能、約 1,702 萬個 episode。標註流程包括微調 VLM 切分子任務並人工校正、用自家 3D 手部重建模型取代 PICO 的手部追蹤、用 Fast-FoundationStereo 產生深度。以 GMR 為基礎做 T800 專用 retarget，末端位置誤差從 16.42 cm 降到 2.42 cm，姿態誤差從 39.6° 降到 15.6°。模型 Awaken-HI 是 VLM 加 flow-matching action expert 的 VLA。關鍵設計是預訓練時讓同一個 action expert 透過三個分支同時預測：retarget 後的 40 維 T800 動作、原始的 161 維人體動作（身體與雙手關鍵點），以及相機座標系下的手腕位姿。每個分支有自己的 encoder／decoder，但共享 expert，所以未經 retarget 扭曲的人類動作也直接監督機器人動作所用的參數。另外加上目前與未來深度的 DPT 頭，以及子任務描述的語言頭。後訓練只用約 150 小時 T800 遙操作資料與機器人動作 loss。</p>
+<p><b>結果</b>：預訓練資料從 5,000 增加到 50,000 小時，held-out 動作 MSE 從 0.06649 降到 0.05926（約 11%），符合冪律（指數 0.051）；後訓練後三個家務任務的平均成功率從 56.7% 升到 90.0%。全量預訓練後，八個單一任務平均成功率 93.75%，比 π0.5 與 GR00T N1.7 分別高 36.25 與 35.0 個百分點。串接的長程任務：工業上架 90%、家務整理 80%。把物品與目的地重新配對（例如黑料改放上層）時，Awaken-HI 四項都達 80% 到 100%，基線常把東西放回訓練時的位置。換成沒見過的面紙與藥瓶，完成率 50% 與 30%，兩個基線都是 0%。在 5,000 小時的消融中，只用 retarget 動作的 Base 平均成功率 13.3%，三種輔助監督全加的 Full 是 53.3%，單項以人體動作監督最有效。</p>
+<p><b>限制與疑問</b>：每個任務只做 10 次試驗，環境與物件配置是預先定義的 10 組，統計誤差不小。所有實驗都在同一家公司的 T800 上，資料集也沒有說明是否公開。冪律擬合只有四個資料點，指數很小（0.051），而成功率的大幅提升究竟來自資料規模還是其他因素，還需要更多驗證。消融時手腕監督在掛衣服任務上反而從 40% 掉到 30%。</p>
+<p><b>為什麼值得看</b>：這篇和前天討論的「人類資料的好處從哪來」形成有趣的對照：這裡的答案是「保留未經 retarget 的人類動作當監督」。對做 humanoid VLA 的人，這提供了一個可以直接借用的設計：多個 embodiment 分支共享一個 action expert。也值得想想，同樣的 shared expert 能不能拿來吸收沒有全身動作、只有手部姿態的大型第一人稱資料集。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>Mind2Act World：VLA 會想也會做，但合起來就不行</h3>
+<p><a href="https://arxiv.org/abs/2611.26444">arXiv:2611.26444</a>｜HF 今日最高票（38）。30 個模擬操作任務、180 種配置，拆成三個視角：Mind 考「根據過去觀察做決策」，Act 考精準即時的執行，Mind2Act 則是兩者靠環境回饋組合的閉環任務。最強的 agent 在 Mind 成功 52.7%、Act 39.0%，到了 Mind2Act 只剩 12.0%。multimodal agent 記得住任務狀態但做不好持續接觸，端到端的 VLA／WAM 剛好相反。</p>
+
+<h3>AFFECT：讓 world model 學會「動作差一點，結果差多少」</h3>
+<p><a href="https://arxiv.org/abs/2611.25980">arXiv:2611.25980</a>｜Jinwoo Shin 組（KAIST）。對遙操作策略的動作加入時間相關的噪聲，訓練 world model 讓生成影片對這些擾動的反應和真實錄影一致，不需要從同一初始狀態重複執行。在 DROID 上，world model 裡的策略成功率與真實機器人的 Pearson 相關從 0.47 升到 0.79，FVD 最多降 23%，拿來做 planning 也最多提升 8.3% 成功率。對想用 world model 做 policy evaluation 的人很實用。</p>
+
+<h3>Search or Scoring？視覺 world-model planner 失敗的兩種原因</h3>
+<p><a href="https://arxiv.org/abs/2611.25347">arXiv:2611.25347</a>。DINO-WM、JEPA-WM 這類 planner 失敗時，可能是 optimizer 沒搜到好動作（search），也可能是在「預測結果」上算的 cost 把壞動作排第一（scoring）。作者實際執行候選動作來區分兩者：PushT 與 Wall 主要是 search 問題，Metaworld 與 RoboCasa 則是 scoring 問題，cost 在真實結果上 AUROC 0.94，在預測結果上只有 0.54。對策也不同：scoring 出錯時，乾脆不用模型、直接平均檢索到的示範片段，在 168 個新 Metaworld 任務中解了 127 個，讓模型挑選最多只有 87 個。</p>
+
+<h3>RecurrentVLM：讓 VLM 玩「猜杯子」不再靠運氣</h3>
+<p><a href="https://arxiv.org/abs/2611.25210">arXiv:2611.25210</a>｜Vishal M. Patel 組。球藏在杯子下、杯子互換，直接回答的 VLM 接近隨機，thinking 模型在長局失敗。作者認為瓶頸是序列運算：固定深度的模型只能做固定次數的狀態轉移。RecurrentVLM 讓每層 attention 用自己的輸出計算已完成幀組的 KV，在時間上遞迴。結果 VET-Bench 100%、MET-Bench 99.6%，只訓練到 30 次交換也能在 50 次交換的局達到 99%；長度泛化是在訓練中某個時間點突然出現的。</p>
+
+<h3>Phantom Success, Silent Failure：模擬操作 benchmark 的成功判定有多少錯</h3>
+<p><a href="https://arxiv.org/abs/2611.25179">arXiv:2611.25179</a>。用 LLM 讀任務指令與 success checker 的程式碼，找出兩者可能不一致的情境，在模擬器中重建並以多視角渲染驗證。在 RoboTwin 2.0、RoboCasa365、RoboDojo 中找出 49 個任務的 61 個缺陷：40 個是「沒做完卻判成功」，21 個是「做對了卻判失敗」。RoboCasa365 以前者為主，RoboDojo 以後者為主。報 VLA 成功率之前，值得先看一眼 checker。</p>
+
+<h3>VODA：3DGS 分割不該只看渲染出來的 mask</h3>
+<p><a href="https://arxiv.org/abs/2611.21383">arXiv:2611.21383</a>｜NeurIPS 2026，延世大學（Seon Joo Kim 組）。alpha blending 的特徵監督主要把梯度給貢獻最大的 Gaussians，被遮擋或貢獻低的 Gaussians 幾乎沒被監督，所以渲染 mask 很準、3D 選取卻不完整。VODA 依局部深度把每個像素的貢獻者分群，直接監督整個深度群內的 Gaussians。作者另建 Removal-3D benchmark 與 Removal Depth Error 指標，用移除物件後的深度變化來衡量 3D 完整度，在四個 baseline 上都有提升。</p>
+
+<h3>Plan4D：同時生成未來影片與 4D 幾何的 world model</h3>
+<p><a href="https://arxiv.org/abs/2611.26516">arXiv:2611.26516</a>｜NeurIPS 2026。給定場景與文字動作，同時預測未來 RGB 影片、深度、相機、點雲與 scene flow。因為成對的動作與稠密 4D 標註很少，作者把 Depth Anything 3 和 LongCat-Video「縫」在一起，再加一個預測 scene flow 的 DPT 頭，利用影片生成器和 3D 重建器各自的先驗。</p>
+
+<h3>Streaming-AAA：1080p、43 FPS、198 ms 延遲的互動遊戲影片生成</h3>
+<p><a href="https://arxiv.org/abs/2611.26040">arXiv:2611.26040</a>。在 A800 上即時生成 1080p 遊戲畫面，端到端互動延遲 198 ms。三個關鍵：重新設計 VAE 以加速高解析度解碼、用 diffusion forcing 預訓練並大幅拉長訓練時間範圍以維持長期記憶、後訓練蒸餾與記憶壓縮。前幾天 FastFrames 指出延遲瓶頸在 VAE 與 KV cache，這篇正好從同樣兩處下手。</p>
+
+<h2>新聞與討論</h2>
+
+<h3>OpenSSL 修補 EVP_EncodeBlock() 緩衝區溢位（CVE-2026-121481，CVSS 9.8）</h3>
+<p><a href="https://github.com/openssl/openssl/pull/33652">GitHub PR #33652</a>。這個 base64 編碼函式在輸入極大時會溢位；PR 說明提到可以透過對 <b>openssl s_client</b> 傳入很長的 <b>-proxy_pass</b> 觸發，而 GOST 會接受這種密碼。OpenSSL 安全團隊要求公開修補，但正式 advisory 截至 PR 頁面上仍「pending」，標籤列在 master、4.0 與 4.1 分支。修法本身也有爭議：原本對非法輸入回傳 -1，審查者指出這個函式成功時回傳 0、呼叫端可能不檢查負值，最後改成對原本會造成 undefined behavior 的輸入直接 <b>OPENSSL_assert()</b>，同樣的修正也套用到 EVP_DecodeBlock()。<a href="https://news.ycombinator.com/item?id=50569226">HN 討論</a>裡有人讀完 PR 後指出，問題出在輸入超過約 1.5 GB 時，而且呼叫端得自己算輸出長度、函式也不收 buffer 大小，API 設計本身就容易出錯；也有人問實際上只有 OpenSSL 4 受影響，哪些發行版真的在用。</p>
+
+<h3>PostgreSQL 19 發布：內建 REPACK、plan advice、standby 讀到自己的寫入</h3>
+<p><a href="https://www.postgresql.org/docs/release/19.0/">官方 release notes</a>（2026-11-19）。重點包括：新的 REPACK 指令回收空間、重整資料表，REPACK (CONCURRENTLY) 不會擋住讀寫；pg_plan_advice 讓你控制 planner 的決策，pg_stash_advice 依查詢自動套用；I/O worker 數量自動調整、外鍵檢查更快；wal_level 為 replica 時不重啟就能開啟 logical replication，還能複寫 sequence；新的 WAIT 指令提供 standby 上的 read-your-writes 一致性；autovacuum 可平行處理索引並以評分排序。升級要注意：移除 RADIUS 支援、standard_conforming_strings 強制開啟、max_locks_per_transaction 預設由 64 改為 128。<a href="https://news.ycombinator.com/item?id=50569890">HN 討論</a>；另一篇談 REPACK 的文章<a href="https://news.ycombinator.com/item?id=50569516">討論串</a>裡，有人分享過去用 pg_repack 處理數 TB 資料庫、連線一斷就得重來的慘痛經驗。</p>
+
+<h3>Weight-Space Programming：LLM 手寫權重，其實是在重演 1990 年代的電腦視覺</h3>
+<p><a href="https://notesbylex.com/weight-space-programming-1990s">NotesByLex</a>。原本的 Weight-Space Programming 實驗讓 GPT-6 Astra 從零寫出 9×9 圍棋網路的權重。作者自己做了一個更嚴格的版本：固定一個 5,994 個權重的 CNN，讓 Claude Fable 5.2 只用 NumPy／SciPy 寫程式設定每個權重，不准 fitting 或搜尋，每步只看到訓練 loss、準確率和 confusion matrix，最多 50 步。模型先用公式畫出四個方向的線條偵測器（Sobel 的親戚），手繪每個數字當 template，再改成透過 confusion matrix「量測」每個特徵在各數字上的出現率，最後丟掉手繪 template，變成一個 naive Bayes 式分類器，測試集 91.3%，和 Adam 訓練 50 步差不多。作者指出，這整套就是 LeCun 1998 年描述的「手工特徵抽取器加可訓練分類器」；回頭看 Astra 的圍棋網路，也是 liberty 計算、眼位判斷、influence function 這些古典圍棋程式的技巧。換成 Dogs vs. Cats 時只到 61.6%，而且 17 步花了 8.08 美元。<a href="https://news.ycombinator.com/item?id=50538977">HN 討論</a>裡有人說，這篇讓原本看似神奇的現象變得清楚：模型不是「看懂」權重，而是像工程師一樣反覆迭代。剛好 arXiv 今天也有一篇 <a href="https://arxiv.org/abs/2611.26408">Training Vision Models for LLM-Driven Weight-Space Programming</a>，這個方向正在變熱。</p>
+
+<h3>用 Claude Code 從零寫出最強的 Sokoban 求解器</h3>
+<p><a href="https://healeycodes.com/introducing-the-worlds-strongest-sokoban-solver">healeycodes</a>。作者沒有手寫任何一行程式，用一個連續 14 天的 Opus 5.5 session 搭配約 430 個 subagent，API 等值成本約 3,500 美元，另用了 15,000 vCPU 小時做實驗與驗證。成果 Soksolv 在兩個標準 benchmark（共 9,756 個不重複關卡）上解出的關卡數超過所有已發表的求解器，包括 24 個首次被程式解出的關卡；在同硬體、10 分鐘限制下，比最強對手 Festival 在 Large Test Suite 多 10 關、Open Test Suite 多 18 關，雙方都解出的關卡平均 4.40 秒對 14.16 秒。方法上值得看的是流程設計：不可變的現行版本、一次只驗證一個假設、agent 不能改的凍結驗證器（曾擋下兩條不健全的剪枝規則），以及禁止 ML、禁止讀對手程式碼。文中也把 Sokoban 的技巧講得很清楚：只在 push 上搜尋、deadlock 偵測、PI-corral 剪枝、前後雙向搜尋。<a href="https://news.ycombinator.com/item?id=50523241">HN 討論</a>裡有人說幾十年前寫過類似求解器，死格排除與雙向搜尋都是當年做過的，很高興看到這些啟發式被系統化地重新發現。</p>
+
+<h3>Google DeepMind Institute：AGI 之後會發生什麼？</h3>
+<p><a href="https://institute.deepmind.com/essays/what-comes-after-agi/">DeepMind Institute 文章</a>，作者 Tim Genewein，改寫自與另外 13 人合著的報告〈From AGI to ASI〉。文章主張 AGI 之後的問題正在「從哲學臆測轉為實證研究與治理問題」。它用「認知工業化」描述算力增長：每美元算力約每年 1.5 倍、演算法效率每年 3 到 6 倍、硬體支出約每年 2.5 倍，合起來有效算力「每年至少 10 倍」。從 AGI 到 ASI 有四條路徑：擴大模型與資料、技術典範轉移、改善 agent 之間的協作，以及遞迴自我改進；它們會互相疊加，所以只限制其中一項（例如訓練算力）不足以擋住整體進展。建議做法是「建模、量測、預測、重複」。<a href="https://news.ycombinator.com/item?id=50569519">HN 討論</a>的反應偏懷疑，幾個高票留言都在問 AGI 到底有沒有共識定義。</p>
+</article>
+</body>
+</html>

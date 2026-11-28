@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 晚報｜2026-11-04（週三）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 晚報｜2026-11-04（週三）</h1>
+<p><b>今日導讀</b>：今晚的主線是「影片模型正在變成機器人的基礎設施」。DreamX 把一個現成的 video diffusion model 改造成 latent action 學習器，PrimeSim 把 video generator 訓成多視角的 robot 模擬器，Kling 團隊則反過來說明：影片生成的品質，其實是被 caption、prompt、reward 這些「理解」端決定的。另一條線是評估：RoboColosseum 在 124 個真實場地跑了五千多場對戰，結論是不同評估方式排出來的名次根本對不上。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. DreamX：Video Diffusion Model 就是通用的 Latent Action 學習器</h3>
+<p><a href="https://arxiv.org/abs/2611.05377">arXiv 2611.05377</a>｜cs.CV / cs.RO｜KAIST（Seungryong Kim 組）、NVIDIA</p>
+<p><b>問題</b>：Latent action model（LAM）想從沒有動作標註的影片學出「動作」表示，好讓人類影片也能拿來訓 robot policy。但現有 LAM 多半只看一對 frame、encoder 從頭訓練，學到的 latent 常常把外觀、embodiment 跟動作混在一起，換一個人、換一隻手臂就失效。</p>
+<p><b>方法</b>：作者直接拿預訓練好的 Cosmos-Predict2.5 2B 當 backbone，backbone 凍結，encoder 與 decoder 各掛一組 rank-16 LoRA。Encoder 端在每個 latent frame 後面接 4 個可學的 query token，query 對影片是 frame-causal attention，彼此之間不設限，等於把每一步約 1,200 個 frame token 的變化壓成 4 個 latent action token（300 倍壓縮）。Decoder 是同一個 backbone，把原本的 text conditioning 換成 latent action，從第一張 frame 重建未來影片；有動作標註時，再從 proprioception 預測 action chunk。損失是 flow matching 的 L_video + λL_action，沒標註的片段 λ=0。直覺是：第一張 frame 已經提供了外觀，重建損失只會逼 latent 去記「第一張 frame 解釋不了的東西」，也就是運動。資料約 2.19k 小時，含 469 小時人類第一人稱影片（EgoDex、EgoVerse）與 Bridge、DROID、AgiBot 等機器人資料。做 policy 時再用一個 variational bottleneck 把 2,048 維 token 壓到 32 維（FAE-32），policy 先生成這些 code，再由 DiT action head 解出低階動作。</p>
+<p><b>結果</b>：在 LARYBench 表示品質評測上，regression MSE 平均 0.17，最強 baseline DiLA 是 0.38；classification 69.67% 對 62.25%，壓到 32 維的版本（0.22 / 67.15%）仍贏所有 baseline。零樣本 human-to-robot 影片轉換（1,008 段、21 個任務）FVD 57.44，AdaWorld 170.19、VideoWorld2 241.92，PSNR 26.52 對 22.95。真機關抽屜任務只用 45 條示範，平均成功率 96.7%，Mimic-Video 50.0%，推論延遲 1,474 ms 對 28,226 ms（19.1 倍）。CALVIN 上加入 latent action 讓平均完成長度由 2.378 提升到 2.643。一個有意思的 ablation：拿掉動作監督，regression 只從 0.23 退到 0.24，說明運動資訊大多來自影片本身。</p>
+<p><b>限制與疑問</b>：真機 policy 只測了一個關抽屜任務、每種設定 10 次，baseline 也只有 Mimic-Video；action transfer（讓機器人照人類影片畫出「N」字）只有定性結果，而且是 open-loop。1.47 秒一次推論對閉環控制仍然偏慢。另外，latent 是否真的與 embodiment 無關，目前主要靠 attention 集中在手和夾爪的視覺化來支撐。</p>
+<p><b>為什麼值得看</b>：這篇把「影片模型的先驗」用得很徹底：不再另訓 encoder，而是讓 video diffusion 自己決定哪些資訊需要從 action 補上。對做 cross-embodiment 或從人類影片學操作的人，這是一個很乾淨的配方；後續可以想的是把 4 個 query token 換成跟 3D flow 或手部姿態對齊的結構，或者把 FAE-32 code 當作 world action model 的動作空間。</p>
+
+<h3>2. RoboColosseum：在 124 個真實場地做大規模 robot policy 評估</h3>
+<p><a href="https://arxiv.org/abs/2611.02497">arXiv 2611.02497</a>｜cs.RO｜NUS、UW、Stanford、UNC、Ai2、Oxford、Hugging Face、BitRobot 等（通訊作者 Jiafei Duan）</p>
+<p><b>問題</b>：通用 robot policy 宣稱跨機器人、跨任務、跨環境，但真機實驗難以標準化，多數論文只跑少量 rollout；模擬器好擴充，卻不一定能預測真實表現。問題是：我們到底該怎麼排名這些 policy？</p>
+<p><b>方法</b>：一個分散式實體評測網路，四種機器人：SO-101、DROID Franka、Bimanual-YAM、Unitree G1。兩條賽道：Fine-tune Track 給每個 policy 同樣 100 條遙操作示範再測固定任務（每種 embodiment 5 個任務），用 progress score（PS）和 success rate（SR）計分；Open Track 不做任務適配，由各場地評測員自選任務，兩個匿名模型在相同條件下背靠背執行。Open Track 的主指標是 Difficulty-Calibrated Rasch 模型，同時估計 policy 能力與任務難度，以人類標的 1 到 10 難度為 prior，再換算成 Elo 尺度；配對用類似 Chatbot Arena 的 active matchmaking。場地包括新加坡、馬來西亞、中國的辦公室、圖書館、公園、宿舍、美食街、工廠；最多 30 位全職操作員。首輪資料（2026/9/17 至 10/28）共 5,699 場 Open Track 對戰。受測者有 GR00T N1.7、π0.5、MolmoAct2、G0.5、LingBot-VLA v2，Open Track 另加 GPT-6 Astra、Claude Opus 5.5、Grok 4.7 這類前沿 agent。</p>
+<p><b>結果</b>：Fine-tune Track 中，GR00T N1.7 在 SO-101 最好（PS/SR 89.0/82.4），π0.5 在 Franka（91.2/84.0）和 Bimanual-YAM（97.2/93.6）領先；G1 人形上沒有任何 policy 完成任何一個任務，progress 只有 13.3% 到 23.2%。Open Track 中，901 場 agent 對 VLA 的對戰，agent 平均多 5.3 個百分點的進度，但沒有任何系統在任何類別成功率超過 13%；難度 1 到 4 的任務成功率 30.7%，到 9 到 10 只剩 0.4%。最關鍵的發現是一致性很差：不同 embodiment 的排名 Kendall's W 只有 0.24；Open 與 Fine-tune 兩條賽道的 Spearman ρ 在 SO-101 是 −0.20、Franka 是 −0.40。Active matchmaking 約 400 到 500 場就能與全資料排名有 90% 一致，uniform 抽樣要約 1,000 場。</p>
+<p><b>限制與疑問</b>：作者自己也說這是初步快照，每種 embodiment 只有 5 個 fine-tune 任務；兩條賽道的任務分布、起始 checkpoint、指標都不同，所以排名不一致不能全歸因於「泛化 vs 適配」。SO-101 的跨場地一致性只有 59%，暗示低成本手臂的硬體變異可能很大。</p>
+<p><b>為什麼值得看</b>：如果你在寫 VLA 論文，這篇提醒的是：單一 benchmark 的名次很可能換個 embodiment 就反過來。它也給了一個實用數字：要穩定排名大約需要上千場真機對戰。作者承諾提供 10,000 小時的免費評測給學術夥伴，值得關注能否申請。</p>
+
+<h3>3. Behind Video Generation：Kling 談影片生成背後的多模態理解</h3>
+<p><a href="https://arxiv.org/abs/2611.04916">arXiv 2611.04916</a>｜cs.CV｜Kling Team（快手 KlingAI Research）</p>
+<p><b>問題</b>：影片生成的瓶頸已經從畫質轉向語意控制：鏡頭語言、左右關係、身份綁定、密集的時間變化。作者主張生成品質取決於整條鏈上的「理解」：資料 caption、prompt 改寫、text encoder、reward model 與評估，而一般的多模態 benchmark 量不到生成器真正需要的能力。</p>
+<p><b>方法</b>：他們訓了一個共用的 Kling-MLLM（dense 27B，以及 MoE 35B-A3B、397B-A17B，從 Qwen3.5 到 3.8 初始化），涵蓋圖、影、音與音畫同步，再特化成 captioner、prompt enhancement（PE）模型、text encoder、reward model 與 evaluator。音訊與影片 token 在共同時間軸上交錯，並注入時間戳。訓練分四階段，並發現把第一與第四階段的 checkpoint 合併比單獨任一個好。幾個主要觀點：caption 應該是給 DiT 的「語意契約」，盡量提高描述密度，品質要同時滿足準確、覆蓋、多樣、一致；text encoder 的好壞來自感知訓練而不是更強的語言能力，篩選時應看 prefill 的 sequence-level hidden state 對最小差異描述的區分度，而不是 QA 或 retrieval 分數。</p>
+<p><b>結果</b>：PE 從 SFT 到加上 text-level RL，faithfulness/reasonableness/vividness 由 4.02/3.95/3.72 升到 4.45/4.31/4.25；但再加 DiT-in-the-loop RL 後，faithfulness 降到 4.38、vividness 降到 4.23，reasonableness 升到 4.42，作者形容為「拉高下限、壓低上限」，因為三個 reward 都在懲罰風險，policy 學會避開複雜動作和大幅運鏡。Text encoder 對 Qwen baseline 的偏好比，逐步加入多模態適配、多粒度 conditioning、穩定化後為 1.10、1.22、1.27。Reward model 方面，Decision RM 在內部 pairwise 評測 macro accuracy 77.86%，General RM 74.72%，Gemini-4-Argon 73.54%。VidCapBench 報告 caption 準確度與下游生成品質的相關係數 0.89 到 0.92。</p>
+<p><b>限制與疑問</b>：多數數字是自家評測，不少內部 benchmark 沒公開。文中說 DRM 在三個公開 reward benchmark 都領先，但表格裡 VideoPhy2-test 有 Gemini-3.8-Flash 47.80、VideoGen-RewardBench 有 VideoReward 59.69，都比 DRM 高，讀的時候要對照表格。Kling-MLLM 也不是每一欄都贏，Doubao2.0-Lite 在若干影片與圖像 benchmark 更好。</p>
+<p><b>為什麼值得看</b>：這是少見的工業界「經驗談」型報告。對做影片生成或 world model 的研究者，DiT-in-the-loop RL 讓模型變保守的觀察非常實用，任何用生成結果當 reward 的 RL 都可能遇到；text encoder 的篩選方法也可以直接借用。反過來想，若 robot world model 也用 VLM 寫 caption 當條件，「語意契約」的觀點同樣適用。</p>
+
+<h2>快速瀏覽</h2>
+<ul>
+<li><b>PrimeSim：從大規模跨 embodiment 示範學出的通用 world model 模擬器</b>（<a href="https://arxiv.org/abs/2611.04870">2611.04870</a>）：從預訓練 video generator 出發，在 22 種平台、30,110 小時的機器人示範上 midtrain，用統一的跨 embodiment 動作表示、帶 camera identity 的 view-aware interleaved attention 處理多視角，再用「fast-video, slow-memory」後訓練把雙向生成器轉成 10.1 FPS 的自回歸模擬器。新平台 100 到 200 步就能適配，在 WorldSimProbe 五個 suite 中贏四個，rollout 夠穩到能拿來做 GRPO policy 優化；權重與訓練碼都開源。</li>
+<li><b>AIRoA-0：只用手持夾爪資料，做到長時程、精細、跨 embodiment 操作</b>（<a href="https://arxiv.org/abs/2611.03815">2611.03815</a>）：約 16,151 小時的 YUBI 手持夾爪示範，完全沒有機器人資料、沒有遙操作也沒有 RL，只用兩顆腕部相機。十個任務平均成功率 78%，用同樣資料訓的四個其他 VLA 最好只有 27%；可在 bimanual Franka、OpenArm、UR 等裝 YUBI 夾爪的機器人上跑，資料集與權重公開，單節點 8 張 H200 四小時內可後訓練。</li>
+<li><b>RoboTryOn：把人類影片「虛擬試穿」成機器人示範</b>（<a href="https://arxiv.org/abs/2611.05163">2611.05163</a>，KAIST）：把 human-to-robot 轉換當成 virtual try-on，保留人的動作，把人換成目標機器人，關鍵幀自回歸轉換再引導整段影片合成，以手部骨架作為運動條件，最後用帶深度特徵的 inverse dynamics model 推出動作標籤。在多種人形機器人上，新任務平均成功率從 2% 提升到 60%，與純遙操作資料訓練相當，蒐集成本約三分之一。</li>
+<li><b>MoviEdit：長片多鏡頭影片編輯</b>（<a href="https://arxiv.org/abs/2611.02737">2611.02737</a>，Adobe）：自動管線從同步多視角、真實多鏡頭與生成影片中產生 87K 組無需人工標註的編輯配對；架構是先在時空壓縮表示上用輕量雙向模型做全片一致的草稿，再用自回歸階段傳播精修。另提出 MoviEdit-Bench，作者稱勝過開源模型、與業界前沿模型相當。</li>
+<li><b>Compression Forcing：為 world model 設計的階層式歷史 tokenization</b>（<a href="https://arxiv.org/abs/2611.04028">2611.04028</a>，Max Simchowitz 等）：指出 world model 沿用影片生成的 tokenizer，是在優化視覺逼真而非預測有用性，在背景雜亂的環境吃虧。Dynamics-Aware Tokenization 依「對動力學的資訊量」排序歷史 token，推論時再用 Hierarchical History Guidance 加強最相關的歷史。</li>
+<li><b>Mamba3R：固定容量的選擇性狀態記憶，用於長序列 3D 重建</b>（<a href="https://arxiv.org/abs/2611.04221">2611.04221</a>）：在凍結的 recurrent 重建模型上加一個只有 1.28M 參數的 state-memory adapter，用 selective state-space mixer 融合原生狀態與固定大小的輔助記憶。記憶體不隨長度成長，一千到兩千幀之間吞吐量變化不超過 1.4%，RTX 4060 上 11.7 FPS、5.1 GiB，某指標最多改善 40%。</li>
+<li><b>SettleSplat：鏡頭前場景改變時的單目 Gaussian mapping</b>（<a href="https://arxiv.org/abs/2611.04195">2611.04195</a>）：處理物體在鏡頭前被搬動、停下後成為場景一部分的情況。用 per-pixel uncertainty 建 Gaussian dynamicity field 剪掉暫態 Gaussian，再以渲染深度不確定性加權的幾何矛盾，分辨「真的變了」與「只是還沒優化好」。Bonn 與 Co-Fusion 上地圖一致性優於 baseline，速度相當。</li>
+</ul>
+
+<h2>新聞與討論</h2>
+<ul>
+<li><b>Safari 27.3 推出 Adaptive Dark Mode</b>（<a href="https://webkit.org/blog/18541/introducing-adaptive-dark-mode/">WebKit Blog</a>）：系統設為深色時，Safari 會把「主要是淺色」的網頁自動轉暗：背景亮度反轉但保留色相，文字以 WCAG 4.5:1 為目標，多數圖片不動，簡單的黑白 logo 會依像素分析反轉。已宣告 color-scheme: light dark 的網站不受影響，也可用 color-scheme: light only 退出；網站無法偵測這個模式是否開啟。HN 上有人抱怨花了上百小時做 dark mode QA，也有人提醒 4.5:1 對淺字深底其實偏低。（<a href="https://news.ycombinator.com/item?id=50358562">HN 討論</a>）</li>
+<li><b>There is no posttraining data commons</b>（<a href="https://openathena.ai/blog/there-is-no-posttraining-data-commons/">Open Athena</a>）：「Pretraining 消耗文件，posttraining 消耗任務。」作者指出預訓練靠的是本來就存在的網頁與程式碼，但 RL 需要「世界、意圖、工具、評分器」組成的任務，而人類工作很難轉成這種形式：SWE-bench 從約 90,000 個 PR 只留下 2,294 個可執行任務，Verified 版 1,699 題又刷到 500 題，事後還發現約六分之一有問題；一份 Xiaomi MiMo 環境稽核發現約三分之二的環境可從 Git 撈到參考解答。作者呼籲刻意建立公共的 RL 任務庫。HN 上有人認為分散式蒐集 agent traces 比分散式預訓練容易得多。（<a href="https://news.ycombinator.com/item?id=50352641">HN 討論</a>）</li>
+<li><b>Figma 在訓練自己的設計編輯模型</b>（<a href="https://www.figma.com/blog/training-a-figma-fluent-editing-model/">Figma Blog</a>）：最新版本以 Qwen 3.8 27B 後訓練（早期版本用 Llama 3.3 70B、超過 25 萬筆範例），資料是「原始設計 + 合成編輯指令 + 成功編輯」，由大模型產生候選、validator 與視覺 judge 篩選。內部 eval 77.8% 對第三方模型 76.9%，使用者評分高 33%、undo 少 60%。重點是 SFT 會讓設計太像訓練資料，所以轉向 RL 與專家撰寫的評分準則；agent 依任務路由，生圖、向量交給第三方模型。HN 評論多半質疑：直接讓 coding agent 寫 HTML/CSS 是否就夠了。（<a href="https://news.ycombinator.com/item?id=50322603">HN 討論</a>）</li>
+<li><b>C++26 的 DIS 投票沒過</b>（<a href="https://andreasfertig.com/blog/2026/11/cpp26-dis-failed-how-does-cpp-survive/">Andreas Fertig</a>）：10 月 23 日 ISO 各國代表對 C++26 草案的投票結果是「Disapproved」，作者說這是 C++ 史上第一次 DIS 投票失敗，主因是 Contracts 被多國認為還沒準備好。接下來的選項包括修訂後重投、退回 CD 階段、改成 Technical Specification，或乾脆回到 C++23、把新功能延到 C++29；WG21 11 月 16 日開會處理。（<a href="https://news.ycombinator.com/item?id=50360164">HN 討論</a>）</li>
+<li><b>RTX Spark 筆電上跑 Linux，插電反而只剩三分之一推論速度</b>（<a href="https://www.mindstudio.ai/blog/linux-nvidia-rtx-spark-laptop">MindStudio</a>）：在 MSI 的 RTX Spark 筆電（與 DGX Spark 同 GPU 設計）上，原生 Linux 插電時 GPU 時脈被鎖在約 780 MHz，GPT-OSS-120B 只有 13.9 tok/s，Windows 65.4、WSL 65.1。作者歸因於只在 Windows 上的 Nvidia 電源管理元件，其加密的 power table Linux 讀不到；用電池時 Linux 反而接近 Windows 速度。另外 128GB 統一記憶體的 GPU 分配只有 Windows 能改。目前建議用 WSL。（<a href="https://news.ycombinator.com/item?id=50362905">HN 討論</a>）</li>
+<li><b>Verification is not knowledge</b>（<a href="https://blog.cosmos-institute.org/p/verification-is-not-knowledge">Cosmos Institute</a>）：Jessica Hullman 主張「驗證過的結果」不等於知識：知識需要有人能為主張辯護、回應質疑，也就是 answerability。她引用 Terry Tao 的思想實驗：AI 設計的療法通過三期試驗、附帶正確性證明，但沒有人理解它是怎麼來的，萬一試驗被鑽了漏洞也沒人能察覺。對越來越依賴 AI 寫論文、跑實驗的研究者，這是值得想一想的觀點。（<a href="https://news.ycombinator.com/item?id=50363019">HN 討論</a>）</li>
+<li><b>The Little Book of Generative AI Foundations</b>（<a href="https://arxiv.org/abs/2605.29713">arXiv 2605.29713</a>）：195 頁、以推導為主的生成模型數學入門，沿一條主線串起 PCA 與 probabilistic PCA、VAE、diffusion、normalizing flow、autoregressive、GAN/WGAN 與 energy-based model，v2 加了大量圖解。適合放進 Kobo 慢慢讀，或拿來帶學弟妹。（<a href="https://news.ycombinator.com/item?id=50358582">HN 討論</a>）</li>
+</ul>
+</article>
+</body>
+</html>

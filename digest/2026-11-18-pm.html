@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 晚報｜2026-11-18（週三）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 晚報｜2026-11-18（週三）</h1>
+<p><b>今日導讀</b>：今晚的主題是「把慢的部分拆出去」。π⁴ 用一個 0.5B 的模型同時做 4D 幾何與運動，FastFrames 發現自回歸影片模型一半的延遲根本不在 DiT 裡，ForceHarness 則把力控從大模型的決策迴圈裡拿出來，交給會自己停下的 primitive。新聞面有 OpenJDK 的 Base64 RCE、ONNX Runtime 的 GitHub repo 整個消失，以及兩份關於「AI 改變了誰的工作量」的數據。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. π⁴：一個模型同時吐出深度、相機、尺度、3D 追蹤與動態遮罩</h3>
+<p><a href="https://arxiv.org/abs/2611.23144">arXiv:2611.23144</a>｜cs.CV｜Shanghai AI Lab、上海交大、浙大（Chunhua Shen 等）</p>
+<p><b>問題</b>：VGGT、π³ 之後，feed-forward 重建已經很強，Track4World、ARROW 也開始往動態場景延伸。但這些系統面對野外輸入（單張圖、無序照片集、影片，張數從 1 到上千）時是否還穩？作者想要一個不需要內參、外參、時間順序的統一模型，靜態幾何與動態運動一次給齊。</p>
+<p><b>方法</b>：共用一個 DINOv3 encoder（融合第 11、17 層），後面分兩支。幾何分支是 looped Transformer：同一組 frame attention / cross-view attention block 重複跑 8 到 16 次（評測用 16），加上 step conditioning，並沿用 π³ 的 permutation-equivariant 設計，不指定參考視角。輸出 ray 加 log-depth 的 pointmap、相機姿態、整組共享的 metric scale，再用改自 MoGe-3 的 sparse 3D U-Net 迭代修深度。運動分支是另一組權重的 looped decoder（固定 8 圈），用 AdaLN 吃 detach 過的幾何特徵；追蹤頭改自 CoWTracker，動態遮罩頭融合凍結的 SAM 2 特徵。關鍵設計是：模型只回歸 2D 對應點，再到目標視角的 metric pointmap 上取值，得到世界座標的 3D 軌跡，所以可見點天生落在重建表面上。訓練資料混了數十個公開資料集、約一萬個 Sketchfab 等場景資產的合成渲染（含魚眼、桶形變形增強）、用早期 checkpoint 做偽標籤的網路影片，以及遊戲引擎資料 GameRealm。幾何在 64 張 A800 上訓約 30 萬步，最多 64 視角、長邊 512 px。</p>
+<p><b>結果</b>：16 個幾何設定、10 個方法的平均排名 3.00 居首（Pi3X 3.10、DA3-Giant 5.53、VGGT-Ω 5.93）；Sintel video depth AbsRel 0.160（Pi3X 0.189），DTU accuracy 1.045（VGGT-Ω 1.095）。幾何模型只有 343M，而 VGGT 1.26B、Track4World 1.72B。Oxford Spires 長路線（361 到 800 幀）一次跑完全部 6 條，ATE 0.73 m，比 DVLT 低 47%，VGGT、MapAnything、DA3 在部分路線上 OOM。單視角追蹤平均 2D AJ 72.43，和 CoWTracker（72.42）打平；動態物體分割平均 J&amp;F 85.04，第二（GMOS 87.48）。</p>
+<p><b>限制與疑問</b>：metric scale 誤差 20.1%，輸給 Pi3X 的 16.9%；作者自承大面積或無紋理的移動前景會被當成靜態背景，離原點遠的相機位置誤差變大，超過訓練長度時仍不如優化式方法。追蹤表裡「第二名」的敘述和數字並不完全對得上，讀表時要自己核對。論文也沒有給出明確的推論速度。</p>
+<p><b>為什麼值得看</b>：這是目前「一個 backbone 做完 4D」最完整的版本，而且小。「預測 2D 對應、在 pointmap 上取 3D」的 lifting 方式很值得借用到機器人的 point-track policy 或 dynamic 3DGS 初始化。Section 6 的消融（looped decoding、encoder 學習率、camera 梯度路由）幾乎是一份訓練 VGGT 類模型的經驗清單。</p>
+
+<h3>2. FastFrames：互動式影片生成，延遲瓶頸其實在 VAE 與 KV cache</h3>
+<p><a href="https://arxiv.org/abs/2611.23226">arXiv:2611.23226</a>｜cs.CV｜Apple、Cornell（Gene Chou、Vladlen Koltun 等）</p>
+<p><b>問題</b>：自回歸影片 diffusion 常報 FPS，但批次生成一段 clip 可以有很高的 FPS，使用者仍然要等。作者改用「端對端單幀延遲」：輸入到達到第一張反映該輸入的 RGB 幀出現的時間，目標是 50 ms 以內（約 20 次回應/秒）。他們先剖析當時最快的 Causal Forcing++（Wan 2.1 1.3B、兩步取樣，單張 B200）：一次 DiT 41.6 ms，KV cache 更新要多跑一次 DiT，而 VAE decoder 要 147 ms，佔總延遲 271.8 ms 的一半以上。改成一步取樣只省約 15%，品質卻明顯變差。</p>
+<p><b>方法</b>：三招。第一，拿掉 VAE decoder，換成 pixel head：三個 causal 3D ConvNeXt block 加一層 linear，直接從 DiT 的低解析度 token 輸出 RGB patch，63.9M 參數、1 ms（原本 147 ms）。先用 L1、MSE、梯度、時間、運動加權等損失對齊 VAE 輸出，再用凍結的 DINOv3 ViT-S 當判別器 backbone 做對抗訓練；DiT 本身凍結。第二，KV cache 不再額外跑一次 DiT 覆寫，改用一個小網路（凍結的 patch embedding 加四層輕量 Transformer，再接每層的 repair head）預測 K/V 的殘差修正，1.3B 只要 2 ms。第三，系統面優化：持久化 KV buffer、預先算好 RoPE、fused QKV、split-KV attention、CUDA graph；8 卡時只有 context parallelism 真正有效。</p>
+<p><b>結果</b>：VBench 上 FastFrames-S（1.3B）單卡 36 ms、總分 84.23，CF++ 是 272 ms、84.11，Self-Forcing 717 ms、84.10；8 卡可降到 14 ms。FastFrames-L（14B）8 卡 45 ms、84.44，與 Krea-Realtime（1,675 ms、84.42）同級。套到相機條件的 LingBot 1.3B，從 1,085 ms 降到 52 ms；物理條件的 RealWonder 1.3B 從 1,141 ms 降到 51 ms，而且不需要大資料集，直接用凍結模型 rollout 產生監督。</p>
+<p><b>限制與疑問</b>：主實驗是 480p，720p 時 8 卡仍要 116 到 127 ms；數字都在 B200 上，H100 慢 25% 到 50%。pixel head 必須針對每個模型重新訓練。品質比 CF++ 略高，作者歸因於 pixel 空間的對抗訓練，但 VBench 差距本來就小。</p>
+<p><b>為什麼值得看</b>：做 world model 或 robot 模擬器的人常只盯著取樣步數，這篇證明「周邊元件」才是大頭。如果你在做 action-conditioned video model 給 policy 評估或遙操作預覽，pixel head 與 KV repair 幾乎可直接移植；作者也建議把相機姿態改用 channel concat 而非放進 sequence，避免條件化本身增加延遲。</p>
+
+<h3>3. ForceHarness：不微調、不示範，讓凍結的大模型用「力」操作機械手臂</h3>
+<p><a href="https://arxiv.org/abs/2611.21099">arXiv:2611.21099</a>｜cs.RO｜NUS Show Lab（Mike Zheng Shou）</p>
+<p><b>問題</b>：前沿多模態模型已能從影像零樣本控制機器人，但很多接觸任務的關鍵資訊在影像裡看不到：重量、摩擦、門閂角度、孔的真實位置。對只能透過 API 呼叫的凍結模型有兩個難處：接觸變化比模型決策快得多，而模型也讀不懂原始的力訊號串流。</p>
+<p><b>方法</b>：分三層。最底層從手腕 F/T 感測器，或沒有感測器時從關節力矩用 Jacobian 最小平方估計末端力，每次動作前歸零。中間層是 12 個「會自己停下」的 force primitive，分五組：接觸（move_until_contact、probe）、維持力（push）、滑動（slide）、尋找與插入（search、insert、wiggle）、帶負載旋轉（screw、press_turn）、量測（lift/hold、pull）。每個 primitive 在接觸事件或自身目標達成時結束，另有力、力矩、時間上限與固定的安全 guard。例如 search 會邊壓邊走阿基米德螺線，掉進孔裡就停。最上層是 physics translation：用固定的簡單估計器把力的軌跡轉成帶不確定度的物理量，例如質量、摩擦、接觸高度、剛度，不含任何任務閾值，讓模型自己判斷。模型每回合讀指令、工具清單、歷史與最新觀測，只發出一個工具呼叫。主要用 GPT-6 Astra，也測了 GPT-6.1 Sol 與 Claude Fable 5.2。</p>
+<p><b>結果</b>：真實 Franka FR3（沒有腕部 F/T 感測器）六個任務各 10 次：沒有力資訊 2/60，加上 ForceHarness 54/60（即摘要的 3.3% → 90.0%），擦桌、轉螺絲、插 USB、軟硬分辨都大幅提升。ForceBench 八個任務：Astra 70.0% → 87.5%，最佳的示範訓練策略（π0.5 + Prompt Fusion）只有 35.3%。作者新提出的 HiddenPhys（七個 MuJoCo 任務，各藏一個物理變數）：Astra 87/140 → 135/140，接近手寫的專家力控 136/140；Diffusion Policy、π0.5、ForceVLA 等用約 200 條示範訓練的策略只有 65 到 83/140。消融顯示，對較小的模型，給「帶不確定度的物理量」決策正確率 0.85，給原始數字只有 0.57，給力的曲線圖 0.71。</p>
+<p><b>限制與疑問</b>：每次查詢模型要花數秒，無法做反應式協調；primitive 選單固定，新的運動法則得手寫；消融只在模擬做。工具與感知閾值在 ForceBench 十個 seed 中的八個上調過，有兩個任務在初次跑後修改過，真機每個條件只有 10 次。</p>
+<p><b>為什麼值得看</b>：這篇給「VLM 當 planner」路線一個清楚的介面設計原則：快的迴圈放在底下，回給模型的是物理量而不是訊號。用 HiddenPhys 這種「隱藏一個變數」的設計去測 VLA 也很有意思，可以直接檢驗端到端 policy 到底有沒有在用力資訊。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>TCP4D：從 RGB 影片追蹤工具中心點，順便生成未來軌跡</h3>
+<p><a href="https://arxiv.org/abs/2611.23143">arXiv:2611.23143</a>｜cs.RO。以與機器人本體無關的 tool-center-point 姿態當 action space，同一個 4D 場景表示既從單目影片恢復 metric SE(3) 姿態、夾爪狀態與相機參數，也能根據語言生成未來 TCP 軌跡。DROID 上追蹤誤差 7.60 mm，RoboTwin 平均成功率 69.19%；用它把舊影片轉成別的機器人的示範，再與原始資料聯合訓練，目標機器人成功率比只用轉換資料高 41.5%。</p>
+
+<h3>DreamFAR：只用機器人遙操作資料訓練的 world model</h3>
+<p><a href="https://arxiv.org/abs/2611.22001">arXiv:2611.22001</a>｜cs.RO｜Jitendra Malik、Andrew Owens 等。不做網路影片預訓練，直接在大規模遙操作資料上從頭訓練動態模型，比主流影片生成模型小得多，卻更能捕捉接觸與因果，在商用 GPU 上 10 FPS。作者展示了長時程預測、policy 評估與混合資料 co-training 的用途；可與上午那篇 GameWM、昨天的 Flip Test 對照著讀。</p>
+
+<h3>Heave-Ho：十台人形機器人一起搬東西，不用網路通訊</h3>
+<p><a href="https://arxiv.org/abs/2611.22275">arXiv:2611.22275</a>｜cs.RO。低層把人形 tracking foundation model 做 multi-agent post-training，讓彼此物理耦合的機器人只靠局部觀測行動；高層是 VLM planner，加上用「說話」同步的 leader-follower 機制。只用兩台相同機器人訓練，卻能擴展到十台與異質團隊。附 12 個任務的 HH-Bench，摘要沒有給成功率。</p>
+
+<h3>ReLAP：在 JEPA 特徵空間遞迴預測，學 latent action</h3>
+<p><a href="https://arxiv.org/abs/2611.22077">arXiv:2611.22077</a>｜cs.RO。inverse dynamics 從相鄰幀推 latent action，world model 在凍結的 JEPA 空間多步遞迴預測，讓後面步驟的誤差回傳到前面的動作，再蒸餾進 VLM，最後以 flow matching 微調，部署時移除輔助分支。1.06B 參數，LIBERO 97.9%，LIBERO-Plus 零樣本擾動 70.0%。</p>
+
+<h3>Every Camera Grows Up：world model 會把地板機器人的視角「長高」</h3>
+<p><a href="https://arxiv.org/abs/2611.21782">arXiv:2611.21782</a>｜cs.CV。從 0.15 m 高度起始、轉 180° 再前進，六個開源互動式 world model 全部漂向 1.1 到 1.5 m 的人眼高度，只有 0–20% 的 clip 最後停在起始高度的 1.3 倍以內。作者歸因於以人為中心的影片先驗；前半段去噪的 CFG 會加劇，無引導取樣加高度平衡微調能緩解，但 MUSIQ 掉 5 分。拿 world model 評估掃地機或四足 policy 的人要注意。</p>
+
+<h3>CueClash：前沿 VLM 判斷 3D 關係時，其實在看 2D 畫面</h3>
+<p><a href="https://arxiv.org/abs/2611.22180">arXiv:2611.22180</a>｜cs.CV。用渲染場景讓 2D 線索在一半的題目上是錯的，Claude Opus 5.5、GPT-5.5、Gemini 3.6 Flash 在線索正確與錯誤之間差 18 到 37 個百分點；但給地面座標時答對 99–100%，問題出在感知而非推理。模型畫出的俯視圖保留深度順序，卻像照片一樣壓縮深度，Opus 與 Gemini 能修正約 0.6。</p>
+
+<h3>EgoHandWAM：手的動作對預測第一人稱畫面幫助有多大</h3>
+<p><a href="https://arxiv.org/abs/2611.22151">arXiv:2611.22151</a>｜cs.CV。在 75 萬個 EgoDex 片段上訓練，兩秒後手腕位置誤差只從 60.26 mm 降到 56.48 mm；加入手部歷史讓未來 DINOv2 特徵誤差降 1.32%，打亂歷史就消失。在兩個 RoboTwin 任務上用人手資料替換部分機器人資料，三個 seed 都沒有一致提升。少見的誠實負面結果。</p>
+
+<h2>新聞與討論</h2>
+
+<h3>Java4Shell：OpenJDK 的 Base64 解碼器可遠端執行程式碼</h3>
+<p><a href="https://calif.io/java4shell/">Calif 的技術文章</a>。CVE-2026-114938，CVSS 4.0 評 9.2。x86-64 上 AVX-512 VBMI 版本的 Base64 intrinsic 處理結尾 <b>=</b> 時算出負的輸出長度，64 bytes 寫到陣列尾端之後；觸發字串只要 64 個 A 加一個等號。影響 OpenJDK 17.0.6 之後的各家發行版，需要 Ice Lake 以上的 Xeon 或 Zen 4 以上，ARM 不受影響。Calif 展示了 Keycloak、Jira、Jenkins 等的未授權 RCE，Oracle 已於 11/17 修補，暫時的緩解是 <b>-XX:-UseBASE64Intrinsics</b>。<a href="https://news.ycombinator.com/item?id=50538240">HN 討論</a>：留言比較推薦這個旗標而非 UseAVX=2（後者在沒有 AVX2 的機器上無法啟動），也有人推測 fuzzer 沒抓到，是因為根本沒跑在 AVX-512 硬體上。</p>
+
+<h3>Microsoft 的 ONNX Runtime 從 GitHub 消失</h3>
+<p><a href="https://github.com/microsoft/onnxruntime">github.com/microsoft/onnxruntime</a> 目前回傳 404，onnxruntime-genai、extensions 等相關 repo 也一起不見，微軟尚未說明。<a href="https://news.ycombinator.com/item?id=50539610">HN 討論</a>中有人是看到 CI 的 eval 失敗才發現；推測包括供應鏈入侵（同時有 Agent Framework 的 PyPI 套件被入侵）或安全問題，但都未證實。PyPI 與 Maven 上的套件仍可下載，Intel 有包含 OpenVINO 修改的 fork。若你的部署流程直接從 GitHub 拉原始碼，現在正是設定 registry proxy 或 vendoring 的時候。</p>
+
+<h3>Claude 似乎在大量蛋白質序列上訓練過</h3>
+<p><a href="http://xinmingtu.cn/blog/2026/claude-opus-5-5-protein-sequences/">原文</a>。作者挑了 167 個 Pfam「功能未知」家族的 668 個蛋白，讓模型預測下一個胺基酸，再以打亂順序的同組成序列當基線。Fable 5.2 真實 54% 對打亂 9%，差 45.1 個百分點；Opus 5.5 差 27.4；GPT、Gemini 與七個開源模型接近 0。Fable 5.2 甚至贏過 ProGen3-3B 與 ProtGPT3-10B。差距隨家族大小上升，在完全沒有論文的家族上幾乎不變，所以不像是從文獻讀來的。<a href="https://news.ycombinator.com/item?id=50541619">HN 討論</a>多在談生物相關請求常被拒，以及 Anthropic 的生命科學驗證計畫。</p>
+
+<h3>Harvard：coding agent 讓程式碼多了 30%，交付的工作卻沒變多</h3>
+<p><a href="https://complexdiscovery.com/harvard-researchers-find-ai-coding-agents-shifted-the-bottleneck-to-code-review/">報導</a>，論文為 Fiona Chen 與 James Stratton 的工作論文（未經同儕審查），資料來自 Jellyfish 平台的 718 家公司、約 72.6 萬名員工。採用 agent 後新增程式碼行數增加約 30%、PR 增加 23%，但部署到生產環境的已解決 issue 在統計上與零無異。PR 從送出到合併的時間增加 3.45 天（基線 7.03 天，約 49%），被要求修改的比例增加約 12 個百分點。<a href="https://news.ycombinator.com/item?id=50538303">HN 討論</a>：很多人說審查 agent 的輸出令人疲憊，也有人提醒資料截至 2026 年 3 月，模型已經換了幾代。</p>
+
+<h3>Google AI 摘要讓點擊少了四成，柏林生活指南網站撐不下去</h3>
+<p><a href="https://revscope.co/blog/search-seo-geo-2026/">Revscope 的整理</a>：一個 770 人的隨機實驗顯示，有 AI Overview 的搜尋對外點擊少了 39.8%；出現 AI Overview 的關鍵字比例從 2024 年 9 月的 5.9% 升到 2026 年 8 月的 61.4%，桌機首位自然結果的點擊率從 17.8% 跌到 7.4%。同一天另一篇 <a href="https://nicolasbouliane.com/blog/death-by-ai">All About Berlin</a> 的作者說，經營八年、連柏林移民局都在用的網站流量少了 70–75%，他正準備另找收入。兩篇的 HN 討論：<a href="https://news.ycombinator.com/item?id=50540178">搜尋流量</a>、<a href="https://news.ycombinator.com/item?id=50542705">All About Berlin</a>。</p>
+
+<h3>Quad9 退出法國：DNS 封鎖令的連鎖效應</h3>
+<p><a href="https://blog.cloudflare.com/quad9-withdrawal-from-france/">Cloudflare 部落格</a>。法國法院因 Quad9 不封鎖涉嫌侵權的網域而處以每日罰款，這個瑞士非營利 DNS 服務選擇直接退出法國。Cloudflare 指出 Cisco OpenDNS 先前已因類似命令退出法國、葡萄牙；德國法院則判 Cloudflare 與 Quad9 勝訴；比利時要求 Cloudflare、Google、Cisco 在 2027 年 1 月初前開始封鎖，三家都已上訴。Cloudflare 的論點是：換 resolver 不到一分鐘，封鎖無效又會殃及整個網域，應該去找託管侵權檔案的主機。<a href="https://news.ycombinator.com/item?id=50538994">HN 討論</a>。</p>
+
+<h3>Cerebras 推出 disaggregated inference：GPU 做 prefill，晶圓做 decode</h3>
+<p><a href="https://www.cerebras.ai/blog/cerebras-launches-disaggregated-inference">Cerebras 部落格</a>。prefill 交給 AMD Instinct GPU，逐 token 的 decode 交給 CS-3，已上線生產。官方以 11/14 在 GPT-OSS-120B 端點上的實測，宣稱每百萬瓦 token 數是純 CS-3 架構的 5 倍、生成速度不變；理由是單片晶圓的 SRAM 是 GB300 的 350 倍、記憶體頻寬 5,400 倍。AWS、Fireworks 等是早期夥伴。數字來自廠商內部測試，宜保留看待。<a href="https://news.ycombinator.com/item?id=50540472">HN 討論</a>。</p>
+</article>
+</body>
+</html>

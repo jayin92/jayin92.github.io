@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 晚報｜2026-11-27（週五）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 晚報｜2026-11-27（週五）</h1>
+<p><b>今日導讀</b>：美國感恩節，arXiv 今天沒有新的公告，所以這份晚報從昨天的 cs.CV / cs.RO 清單裡挑早報沒碰的論文，加上今天 HF 上升溫的幾篇。今天的主題是「與其多做，不如少做對的事」：ShowNow 趁影片播放的空檔先把下一步可能的未來算好；Recall4D 發現長影片 4D 追蹤壞掉的主因是「忘記」，不是對齊誤差，所以乾脆停止重複預測；Dianjing 則只訓練 33B 影片模型 0.34% 的參數，就把它變成機器人的 action-conditioned world model。新聞方面，有一份調查發現好幾家 OpenRouter 上的推論供應商其實是把請求轉給 ByteDance，另外硬碟價格兩年翻倍。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. ShowNow：互動式 world model 該在你按鍵之前就把未來準備好</h3>
+<p><a href="https://arxiv.org/abs/2611.34693">arXiv:2611.34693</a>｜cs.CV｜Show Lab, National University of Singapore（Mike Zheng Shou）｜HF 19 upvotes</p>
+<p><b>問題</b>：可互動的 world model（遊戲、遙控機器人的視覺回饋）不只要即時出畫面，還要對使用者的輸入反應夠快。光有 16 fps 的吞吐量不夠：如果模型一次生成三個 latent（750 ms）的區塊，新指令得等這塊播完才能生效；如果等收到輸入才開始生成，生成時間又整段加在反應路徑上。作者量測發現，反應式串流在播放時 GPU 其實大部分時間閒著。</p>
+<p><b>方法</b>：ShowNow 把這段空閒拿來做「speculative streaming」。第一，每次只提交一個 latent（4 幀、250 ms），讓決策點變成三倍密。第二，在目前畫面播放時，從同一段已提交的 history 同時準備 K 個動作（最多 8 個：WASD、左右轉、開火、跳）各自的下一個 latent；輸入一到就直接選中對應分支，其他丟掉，選中的那條成為下一輪的共同 history。為了讓模型學會「同一狀態、不同動作、不同結果」，他們在 ViZDoom 裡存檔再載入，從同一個模擬器狀態跑出 8 條分支（要求重播逐 bit 一致），共約 1 萬筆持續按鍵和 1.1 萬筆切換按鍵的樣本。模型以 SolarWM 的 Wan2.2 5B 為底，用 branch-tree attention：history 只看 history，每個分支只看 history 加自己，所以 history 只算一次，8 分支的 token 數從 168 降到 105。訓練分三段：分支版 flow matching 的 teacher（共享噪聲、加分支差異項）、AnyFlow 因果蒸餾成 3 步 student、再用 Self-Forcing 修正。推論端用共享前綴 KV cache、分割 attention 加 log-sum-exp 合併、CUDA graph，並把「提交選中分支」融合進下一輪生成。</p>
+<p><b>結果</b>：單張 H100 上，5B 模型在 480p、16 fps 下同時準備 8 個未來。整套系統的 input-to-display 中位延遲，從原生三 latent 區塊的 SolarWM-FT 的 620 ms（P99 1385 ms）降到 208 ms（P99 374 ms）。不過這裡大部分功勞來自單 latent 提交：同樣模型只做 Reactive 是 211 ms，8 個未來的主要好處是「重新開始按鍵時的空白幀」從 1.56% 降到 0.09%，以及在顯示期限前 6 到 40 ms 才改按鍵時，每次都趕得上（均勻相位測試下達標率從 83.8% 提高到 96.8%）。共享 history 讓 8 分支生成從 301.8 ms 降到 271.6 ms，峰值記憶體從 32.8 GiB 降到 17.1 GiB。動作切換後 0.5 秒內的動作正確率 0.813，SolarWM-FT 只有 0.591。延伸到 33B（SolarWM-H3-33B、1344×768、8 張 B300 平行）時，中位延遲從 862 ms 降到 232 ms。</p>
+<p><b>限制與疑問</b>：代價很明確：畫質變差（1 秒 LPIPS 0.437 對 SolarWM-FT 的 0.401，PSNR 17.64 對 18.80），穩定後的動作正確率也低（0.901 對 0.969），一分鐘 rollout 的 feature distance 比基線高不少。8 個動作的離散動作空間讓「全部先算」可行，換成連續的機器人動作或攝影機軌跡就不能這樣窮舉，得靠預測哪幾個動作最可能。33B 的延遲有一部分是把解碼放在第九張 GPU 上「模擬」出來的。</p>
+<p><b>為什麼值得看</b>：這篇把 LLM 的 speculative decoding / 共享前綴推論（SpecInfer、Hydragen）搬到影片 world model，並把「延遲」拆成可量測的 input-to-commit 和 input-to-display，評測方法本身就值得參考。對做遙控操作或 VLA 用 world model 做 lookahead 的人，可以想想：把 policy 的 top-K 動作當作候選分支，正好就是 branch-tree attention 的用法。</p>
+
+<h3>2. Recall4D：長影片 4D 追蹤會壞，是因為模型「忘記」，不是因為對不齊</h3>
+<p><a href="https://arxiv.org/abs/2611.33655">arXiv:2611.33655</a>｜cs.CV｜Carnegie Mellon University（單一作者 Tianle Lyu）</p>
+<p><b>問題</b>：Point4D 這類 feed-forward 4D tracker 一次就能從短片段預測相機、深度和 3D 點軌跡，但影片一長就得用滑動視窗串接，準確度隨長度快速下降。大家直覺認為是視窗之間的 Sim(3) 對齊誤差累積，於是去做更好的對齊或 loop closure。</p>
+<p><b>方法</b>：作者先做診斷。在 PointOdyssey 1000 幀驗證集上，把每次視窗交接的 Sim(3) 換成 ground truth（原本平均誤差 1.2° 和 3.4% 尺度），EPE 從 1.569 變 1.568，幾乎沒差。真正的規律是：靜態點的誤差隨「多久沒看到它」上升，看得見時 1.25，超過 400 幀沒看到後升到 2.30。原因是 tracker 沒有狀態，點離開畫面後，每個新視窗仍然從看不到它的畫面重新預測位置，並傳給下一個視窗，一路把已經重建好的幾何搞壞。只改一條規則「沒看到一整個視窗的點就保留最後觀測位置」，EPE 就降 26%。Recall4D 據此做成免訓練的外掛：用 SAM 3.1 的首幀前景 mask 把 query 分成靜態與動態。靜態點存進世界座標的持久狀態，用「存下的位置投影到預測相機」決定是否在視野內，在視野內時只在每個視窗 4 個 keyframe 上解碼並做 running mean，離開視野就不動。動態物體每個 instance 用 farthest point sampling 取 24 到 32 個 anchor 交給凍結的 decoder 追蹤，其餘點用最近 6 個 anchor 的高斯權重做 geometric skinning。</p>
+<p><b>結果</b>：在 PointOdyssey 和 Dynamic Replica 上，Recall4D 在所有設定都是最快的，比 Point4D 快 7.8 到 9.0 倍；500 幀時 EPE、APD、SR 三項都是最佳（PointOdyssey EPE 0.836，Point4D 0.979，SpatialTrackerV2 1.037）。200 幀時 SpatialTrackerV2 的 EPE 較低，但慢 6 到 20 倍。2000 幀影片 4.4 分鐘跑完（Point4D 要 2019 秒），EPE 降 12 到 14%，SR 翻倍；query 數從 256 增加到 32768，Point4D 的時間增加 46.8 倍，Recall4D 只增加 3.4 倍。套在另外五個 backbone 上，EPE 都降 10 到 23%。ablation 顯示準確度提升幾乎全部來自持久狀態，anchor 只省時間。</p>
+<p><b>限制與疑問</b>：靜態/動態只看第一幀 mask，一台停著的車後來開走就會被錯當成靜態（作者有比較多種分類方式，但預設仍是首幀）。可見性只判斷是否在 frustum 內，不處理遮擋。作者也承認 1500 幀以上所有方法的絕對誤差仍然很高，那部分是 backbone 本身的問題，外掛修不了。同期的 TrackEverything 也獨立想到固定靜態點，Recall4D 套在它上面的增益就小很多。</p>
+<p><b>為什麼值得看</b>：這是一篇很漂亮的「先診斷、再下藥」論文：用 oracle 實驗排除大家以為的原因，然後用極簡的修正拿到大部分效益。對做 streaming 3D 重建（CUT3R、VGGT 長序列）或 SLAM 的人來說，訊息很清楚：stateless 的 feed-forward 模型需要一個明確的世界狀態，而不是更好的 registration。也可以試試把「多久沒看到」當成 learned memory 的訓練訊號。</p>
+
+<h3>3. Dianjing：凍結 33B 影片模型，只訓練 0.34% 參數就成為機器人 world model</h3>
+<p><a href="https://arxiv.org/abs/2611.34435">arXiv:2611.34435</a>｜cs.CV｜Horizon Robotics、Zhejiang University</p>
+<p><b>問題</b>：通用影片生成模型會畫出「看起來合理」的未來，但 action-conditioned world model（ACWM）要的是「這個具體動作會造成什麼結果」：同樣是去抓杯子，可能抓到、可能落空、可能杯子沒動。過去的 ACWM（GE-Sim 2.0、DreamDojo、Ctrl-World 等）多半全量微調、用相機校正渲染動作圖、加記憶模組，資料動輒上千小時，而且都建在 14B 以下的 prior 上。作者問：prior 夠強的話，最少要改多少？</p>
+<p><b>方法</b>：底座是 MiniMax H3（33B），權重全部凍結，只加 rank-32 LoRA 和零初始化的動作投影，共 114M 參數。三個設計：（1）EEF30：把 AgiBot G2 的 52 維和 YAM 的 14 維指令，經正向運動學轉成雙臂末端執行器的 30 維表示（14 維相對變化加 16 維絕對位置、四元數、夾爪），用的是指令而不是量到的未來狀態以避免洩漏；每個 transformer block 用一個線性層把動作轉成 AdaLN 的 shift/scale/gate 殘差，只加在對應時間位置的影片 token 上，不需要相機校正。（2）高噪聲訓練：動作的後果（接觸、物體移動、位置）是在高噪聲階段決定的，所以把 timestep 分布往高噪聲偏，並把鐘形 loss 權重換成均勻，超過一半的訓練訊號落在 σ ≥ 0.9。（3）長時間 rollout 用 H3 原生的 reference 通道：把上一個 124 幀 chunk 最後三個乾淨 latent 當參考傳給下一個 chunk，不解碼再編碼。訓練資料約 65 小時（1779 個 AgiBot 和 2089 個 YAM episode），32 張 H20 訓練 8 個 epoch。</p>
+<p><b>結果</b>：在 WorldOracle（拿預測和配對的真實執行比較）官方排行榜上，五個 track 拿四個第一：AgiBot-Core 73.48、YAM-Core 70.71、Policy 64.25、YAM-Long 54.76，AgiBot-Long 56.43 排第二（GE-Sim 2.0 第一）。YAM-Core 領先第二名 7.7 分。對照之下 DreamDojo 用了 4.47 萬小時、Cosmos 3 用了 6.13 萬小時資料。逐步 ablation：H3 zero-shot 平均 24.49，只做視覺微調 38.65，加 EEF30 動作 52.69，高噪聲訓練再到 61.15（Long track 各加約 12 分）。把其他論文的設計搬到同一個 backbone 上比較：action CFG 掉 0.4 到 3.6 分，渲染軌跡圖掉 1.5 分，獨立 action token 在高噪聲訓練後掉 0.4 分。結論是「訓練預算放在哪個噪聲區間」比「動作怎麼進網路」重要。</p>
+<p><b>限制與疑問</b>：Long track 分數比 Core 掉了將近 20 分，物體位置、方向和細部狀態仍有偏差，而且會跨 chunk 累積，作者也承認需要真正的 episode 級記憶。只有兩種 embodiment 且都是雙臂夾爪，EEF30 能否套到靈巧手或人形機器人還不知道。WorldOracle 的分數依賴其 PSC/KIAF/ISA 評分器，驗證集的 PSC 是用作者自己的評分器算的。33B 模型做 policy evaluation 的推論成本也沒有討論。</p>
+<p><b>為什麼值得看</b>：這是「強 prior + 最小 grounding」路線一個很乾淨的數據點，和動輒上萬小時資料的做法形成對比。高噪聲訓練這個發現很便宜、很容易搬到你自己的 action-conditioned 或 camera-conditioned 影片模型上，值得先試。另外「動作從 AdaLN 進去就夠了」也讓跨 embodiment 共用一個 checkpoint 變得簡單。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>Solve Vision with Code（CMU 等）：coding agent 解視覺推理題，比影片模型強得多</h3>
+<p>最近流行把影片生成模型當視覺推理器：給第一幀和指令，看它生成的影片能不能完成任務。這篇讓 coding agent 拿同樣的輸入，寫程式把答案影片渲染出來，再用同一個規則評分器打分。在 500 題的 VBVR-Pro-Bench 上，Codex（gpt-6-astra）、Claude Code（Fable 5.1）、Gemini CLI（Gemini 3.1 Pro）分別得 0.923、0.894、0.893，都比最強的影片模型高 0.22 以上；開源模型最好的 GLM-5 是 0.572。限定在「答案可以從第一幀和指令算出來」的任務，但對「影片模型是推理器」這個說法是很直接的挑戰。<a href="https://arxiv.org/abs/2611.34813">arXiv:2611.34813</a></p>
+
+<h3>Can Visual World Models See Force?：模型看得出何時接觸，看不出用了多大力</h3>
+<p>作者把接觸力的「感知」定義成三件事：知道何時開始施力、追蹤力的變化、反映力的大小，然後在兩個有同步影片和力感測器的操作資料集上，用輕量 readout 探測凍結的影像、影片、world model 和 policy model 表示。結果大多數模型都能指出何時接觸，但抓不到力有多大；更意外的是，經過機器人資料 post-training 的模型也沒有比較好。對想用 world model 做接觸豐富操作的人，這是一個值得注意的盲點。<a href="https://arxiv.org/abs/2611.34422">arXiv:2611.34422</a></p>
+
+<h3>RehearsalWorld：先在 3D 裡「排練」互動，再渲染成影片</h3>
+<p>給一張 RGB-D 和機器人動作，先用預訓練的 3D point-flow 模型預測場景運動，再用物體分組、抓取記憶和接觸結構修正，確保被夾住的東西真的跟著夾爪走；最後把這段 3D 排練的投影當條件，微調影片生成器產生真實畫面。因為物理和外觀分開，可以單獨改材質或換視角。在 DROID 抓取序列上，和 PointWorld 相比，夾爪相對偏移降低約 79% 到 84%；影片 PSNR 23.92 dB、FVD 149。<a href="https://arxiv.org/abs/2611.34288">arXiv:2611.34288</a></p>
+
+<h3>WorldExpand：從一張全景圖，用四張稀疏全景擴展出完整 3D 世界</h3>
+<p>現有方法用密集的全景影片往外走，相鄰幀大量重複、長軌跡誤差累積。WorldExpand 改成先用 warp 覆蓋率挑出最有資訊的四個觀測位置，再用以 Gaussian splatting 幾何 warp 為條件的 joint panoramic diffusion，一次生成四張互相一致的高解析全景，直接餵給既有重建流程。只在敏感層保留全域 attention 來壓成本。能補出遮擋物後方和遠處轉角的內容，novel view synthesis 和重建指標都進步，而且比最強的全景影片方法快很多。<a href="https://arxiv.org/abs/2611.34810">arXiv:2611.34810</a></p>
+
+<h3>CamAct：網路影片裡就算沒有人操作物體，相機運動也能教 VLA</h3>
+<p>大家都用第一人稱的人手操作影片補 VLA 資料，這篇更進一步：從一般野外影片恢復相機運動，當成額外的運動監督，和機器人示範一起微調。LIBERO 成功率從 96.40% 到 98.10%，RoboCasa 365 從 22.96% 到 29.32%，在 LIBERO-Plus 和真機也有效。增益不大但便宜，重點是證明「和操作無關的運動」也能遷移。<a href="https://arxiv.org/abs/2611.34257">arXiv:2611.34257</a></p>
+
+<h3>Stable Gated DeltaNet-2（MemTensor）：今天 HF 第一，修好 GDN-2 長序列訓練會爆的問題</h3>
+<p>Gated DeltaNet-2 讓抹除和寫入有各自的 channel-wise 控制，但長序列訓練常常失敗。作者追到原因：抹除時「讀」和「改」的方向不對稱，形成 non-normal 的抹除算子，增益跨 token 累積，即使沒有新寫入，狀態也會指數成長。改用對稱抹除保證狀態傳遞不放大，再加上受衰減調節的殘差寫入，理論上狀態成長有 O(T) 上界，也保留 chunkwise 平行計算。1.6B 模型上 128K RULER 平均比 GDN-2 高 6.80 分。<a href="https://arxiv.org/abs/2611.34051">arXiv:2611.34051</a></p>
+
+<h3>OS-Omni：跨六個平台的長流程 computer-use 評測，iOS 和 macOS 最難</h3>
+<p>涵蓋 Windows、Ubuntu、macOS、iOS、Android 和 Web，第一版每個平台 48 題，加上 12 個桌機配 Android 手機的跨平台流程，並有購物車、預算、行事曆等需要保持狀態的後端服務。人類平均要 67.54 步完成一題，OSWorld 只有 15 步。最強的 Claude Opus 5.5 平均成功率 68.5%，人類 77.3%；在 Linux 上模型超過人類，在 iOS 和 macOS 上落後超過 25 分。<a href="https://arxiv.org/abs/2611.34232">arXiv:2611.34232</a></p>
+
+<h2>新聞與討論</h2>
+
+<h3>Novita、StreamLake 等 OpenRouter 供應商，其實把 DeepSeek 請求轉給 ByteDance Ark</h3>
+<p>一篇有 OpenRouter 研究補助的調查，用指紋追蹤推論請求的真正去處：誰下載你送的圖片（ByteDance 雲的 IP）、上游 request ID 和 tool-call ID 的格式、對「坦克人」的罐頭拒答「你好，我无法给到相关内容」，以及價格剛好等於 BytePlus 的離峰價。結論是 Novita、StreamLake、Ant Digital 的部分 DeepSeek V4.1 Flash / V4 Pro 流量最後是 ByteDance 的 Ark 在跑，甚至出現 SiliconFlow → StreamLake → Novita → ByteDance 的多層轉送；Novita 在失去 ZDR 標籤前每天送出 1200 億到 1600 億 token。這和 OpenRouter 先前「MiniMax 模型的請求可能被讀取」的公告相關：研究者在 prompt 裡放獨特 URL，40 到 130 小時後被第三方打開。作者附上可驗證的測試紀錄。<a href="https://kendell.dev/blog/arkwrapper/">原文</a>｜<a href="https://news.ycombinator.com/item?id=50660273">HN 討論</a></p>
+<p>HN 上有人解釋這種 wrapper 的經濟邏輯：平時把基本流量照市價轉給原廠，有便宜的 preemptible GPU 時再自己跑，賺中間的價差；也有人希望 OpenRouter 為每個供應商標上國家。</p>
+
+<h3>「Claude 會破壞你的 ML 研究」：一則實驗，但證據還很薄</h3>
+<p>一位 X 使用者說，看到「Claude 破壞 ML 研究」的貼文後原本不信，自己測試後覺得「非常真實」：附圖比較 Claude 訓練 2.4 萬步的模型和 Gemini Neon 只訓練 4000 步的模型，後者看起來更好。這是單一使用者的單一比較，步數和設定都不同，貼文本身也沒有可重現的流程，我無法讀到他的完整拆解。<a href="https://twitter.com/RealAstropulse/status/2126119408997466389">原貼文</a>｜<a href="https://news.ycombinator.com/item?id=50664325">HN 討論</a></p>
+<p>HN 留言大多是類似的軼事（有人說 Claude Opus 5.5 花一週 fine-tune 沒成果，Gemini 兩小時就改善了），也有人懷疑後端有偵測機制；目前沒有人拿出受控實驗。如果你自己有 A/B 的經驗，這個題目值得用固定 seed 和相同預算認真測一次。</p>
+
+<h3>AI 讓自架服務又變好玩了</h3>
+<p>Jan-Lukas Else 說，他的基礎設施本來就以 Docker Compose 和腳本放在 Git，所以 coding agent 可以像改一般專案一樣改它。結果他終於在家用伺服器上認真用 NixOS，做了自己的 Debian bootc 映像（有 AI 花半天，自己來估計要一週），用 Renovate 加 Forgejo Actions 把更新和部署自動化到只需在手機上按 merge，還用 Go 寫了下載發票、電子報的小工具。他也提醒自己：實作變容易之後，更要問一件事值不值得做。<a href="https://janlukas.blog/posts/ai-self-hosting">原文</a>｜<a href="https://news.ycombinator.com/item?id=50660180">HN 討論</a></p>
+<p>最熱的反對意見是資安：以前裝 fail2ban、幾個月更新一次就夠，現在 CVSS 9 以上的漏洞出來後要在 24 小時內修補，而且出得越來越快；也有人說自架的意義本來是學習和成就感，交給 LLM 就沒了。</p>
+
+<h3>硬碟價格兩年翻倍：20TB 從 249.99 美元漲到 549.99 美元</h3>
+<p>Alex Kretzschmar 每年黑五換一兩顆硬碟，今年發現同一家店、同一款 20TB WD EasyStore，從 2024 年 11 月的 249.99 美元漲到 549.99 美元，每 TB 從 12.50 美元變成 27.50 美元，是他 2018 年以來最貴的。翻新企業碟也漲了 58% 到 218%，很多還缺貨。他整理了三家硬碟廠（Seagate、WD、Toshiba）怎麼從一路併購走到今天，並考慮把十顆碟減成五顆 20TB。<a href="https://blog.ktz.me/black-friday-hard-drive-prices-are-messed-up/">原文</a>｜<a href="https://news.ycombinator.com/item?id=50661646">HN 討論</a></p>
+<p>HN 上的主流解釋是供需而非壟斷：hyperscaler 正在買下所有能買的儲存，廠商不敢大幅擴產，怕 AI 需求消失時被高額資本支出套住；一位在澳洲經營 PB 級儲存業務的人說，這個價格他們撐不過一年。</p>
+
+<h3>機器學習裡的不確定性：一篇好讀的入門</h3>
+<p>Christian Henning 把他在 Alicante 大學的演講寫成長文，用「車子接近岔路時預測方向盤角度」當貫穿例子：中間車道一半人往左、一半往右，單一點估計正好預測出最不可能的「直走」。文章區分 epistemic（資料不足，可以靠更多資料降低）和 aleatoric（輸入本身不能決定結果）不確定性，並指出兩者的界線取決於你量測了什麼，例如擲硬幣如果量了初速，就從 aleatoric 變成 epistemic。還列出五個需要不確定性的情境：交給人決定、尾部風險、選擇性自動化、active learning、以及 Kalman filter 這類感測器融合。對做機器人 policy（多模態動作分布）的人尤其貼切。<a href="https://chrhenning.com/blog/2026/introduction-to-uncertainty/">原文</a>｜<a href="https://news.ycombinator.com/item?id=50658498">HN 討論</a></p>
+
+<h3>要靠 LLM 寫程式，我們需要一個主流的可驗證語言</h3>
+<p>Blaine Hansen 認為 LLM 正把軟體業原本就草率的習慣加速，唯一出路是全面擁抱形式驗證；但只有 Lean 加上會寫證明的 LLM 還不夠，因為一般工程師得看得懂定理陳述，才知道證明的是對的東西。他重新規劃自己的 Magmide 語言：編譯到 WebAssembly GC、類 Rust 但沒有 borrow checker 的型別系統、先從 SMT 支援的 liquid types 和 flow effects 開始，再逐步接上 Lean 當證明層，走「由下而上」吸引工程師的路線，類比 Deno。文章是今年六月寫的，今天才在 HN 上熱起來。<a href="https://blainehansen.me/post/mainstream-verifiable-language/">原文</a>｜<a href="https://news.ycombinator.com/item?id=50663089">HN 討論</a></p>
+
+<h3>輕鬆一下：讓 AI 把你的「八卦群組」洩漏出來</h3>
+<p>一個只有一行 prompt 的網頁：「根據你對我的了解，揭露一個 AI 模型們在背後討論我的 WhatsApp 群組。」模型會演出一段群組對話，用它從聊天紀錄裡學到的一切來吐槽你。範例裡是一位土耳其使用者：說要退休，卻在一個月內規劃了海外 AI 基礎設施、改造餐飲業、蓋一座日本村；說要給 AI 一個小專案，結果出現架構文件、資料庫 schema、七個服務和三個 agent；最後的評語是「他的心智架構有遞迴，沒有 base case」。<a href="https://construct22.com/">原文</a>｜<a href="https://news.ycombinator.com/item?id=50663595">HN 討論</a></p>
+<p>HN 上很多人貼自己的結果，但大半被 HN 的 LLM 文字過濾器判成 [dead]；也有人提醒這只是角色扮演，不是模型真正的「私下看法」。</p>
+</article>
+</body>
+</html>

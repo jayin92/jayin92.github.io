@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 晚報｜2026-11-13（週五）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 晚報｜2026-11-13（週五）</h1>
+<p><b>今日導讀</b>：今晚的論文主題是「世界模型與 policy 能不能真的對變化做出反應」：NVIDIA 的 BirdDreams 讓駕駛世界模型同時生成鳥瞰圖，讓周圍車輛會對 ego 的動作讓路或減速；另一篇分析則直接指出現有駕駛世界模型「只移動相機、不移動場景」。機器人這邊，ActionCodec2 把動作 token 改成逐步串流，讓 VLA 在一個 chunk 內也能吃回饋；3D 則有 NVIDIA 與交大合作的 TTB，把 cross-view attention「烤」進小 MLP，換來 23 FPS 的穩定渲染。新聞方面，Microsoft 365 經歷超過 12 小時的大當機，台積電則發布員工資料外流的聲明。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. BirdDreams：讓駕駛世界模型同時「想像」鳥瞰圖，周圍車輛才會對你反應</h3>
+<p><a href="https://arxiv.org/abs/2611.14815">arXiv:2611.14815</a>｜cs.CV｜NVIDIA（HF Daily Papers 37 票）</p>
+<p><b>問題</b>：駕駛世界模型要能模擬「如果 ego 換一種開法，場景會怎麼演變」。OmniDreams 這類方法把 HD map 和周圍車輛的未來軌跡當條件輸入，畫面很穩，但從 log 重播軌跡等於把別的車釘死在原本的路線上，ego 切進車道時後車不會減速。如果拿掉這些輸入、只從透視影片學車輛運動，又很難：運動和紋理、光照糾纏在一起，車輛常被遮擋，同樣的像素位移在遠近不同時代表完全不同的速度。作者自己的 OmniDreams baseline 在複雜路口就會出現車輛消失或亂轉的情況。</p>
+<p><b>方法</b>：把場景佈局從「輸入」變成「要預測的輸出」。模型同時生成前視 RGB 影片和一個示意式 BEV 影片：道路畫成折線和多邊形，車輛是前紅後藍的有向方塊，固定公尺比例、以 ego 為中心。架構是兩條 causal video DiT（Mixture-of-Transformers），每個 block 用 joint attention 讓兩條 stream 互看，但各自保有 attention projection、FFN 與輸出頭；透視分支繼承 OmniDreams，BEV 分支用同一份權重初始化，VAE 用凍結的 Cosmos-Predict2.5。訓練用 Diffusion Forcing，每個 chunk（3 個 latent frame）且每條 stream 的 noise level 獨立抽樣，讓模型學會「一邊乾淨、一邊很吵」時互相補資訊；之後再用 Resampling Forcing 微調以減少自迴歸誤差累積。控制 ego 的方式很巧妙：因為 BEV 是正交投影、固定比例，作者直接把最新一幀 BEV 依輸入軌跡平移、旋轉，當作「如果周圍都不動，畫面應該怎麼移動」的 soft condition 加進 BEV 分支，透視分支再透過 joint attention 讀到它。資料是約 670 小時的 RDS-HQ-1M 子集加 nuScenes，在 64 張 H100 上訓練。推論時只需要一張相機影像，不需要 HD map 或車輛狀態。</p>
+<p><b>結果</b>：不給 ego 動作時，在 PhysicalAI-AV／nuScenes 上 minADE 6.15／3.91，OmniDreams (Vanilla) 是 7.76／6.20（降 21% 與 37%），GEM 是 10.43／7.03；FVD 271／309，也是全場最低。給定 ego 軌跡時，ADE 3.83／3.42，對比以 Plücker ray 條件化的 OmniDreams 5.88／5.38（約降 35%），DTW 從 197.1 降到 95.2（PhysicalAI-AV）。人工評估中，25 位受試者共 375 次成對比較，在相同道路幾何與反事實 ego 動作下，57% 偏好 BirdDreams、24% 偏好 OmniDreams (HDMap)、19% 平手；baseline 被標記「不可能的運動」的比例是 27%，BirdDreams 只有 9%。延伸實驗中，加上動作頭變成 WAM 後，3 秒 best-of-6 minADE 0.295 m 對 0.318 m。</p>
+<p><b>限制與疑問</b>：反應行為的證據主要是挑選過的定性例子和一次 pairwise 人評，沒有量化的「反應率」或碰撞統計。ego 軌跡是用 Depth Anything 3 從生成影片反推回來的，評估本身有誤差。BEV 訓練目標依賴高品質的地圖與 3D box 標註，換到沒有這類標註的資料（例如網路行車影片）就不容易擴展。WAM 的提升只有 7.3%，而且是在 100 個 clip 上。</p>
+<p><b>為什麼值得看</b>：「用一個低維、幾何友善的輔助 stream 承載動態，讓 RGB stream 專心畫外觀」這個想法很通用。對機器人來說，可以把 BEV 換成 top-down 的物體佈局或 point track，讓操作用的世界模型也能用 warp 的方式精準跟隨動作。BEV 還能直接編輯（拖一台車進路口再生成），對生成 corner case 很實用。可以和下面快速瀏覽的「Driving World Models Move the Camera, Not the Scene」對照著讀。</p>
+
+<h3>2. ActionCodec2：不用神經網路的串流式 action tokenizer，誤差有上界</h3>
+<p><a href="https://arxiv.org/abs/2611.15490">arXiv:2611.15490</a>｜cs.RO｜清華大學、Galaxea AI、復旦大學（Hang Zhao 組）</p>
+<p><b>問題</b>：自迴歸 VLA 的 action tokenizer（FAST 用 DCT+BPE，或各種 VQ-VAE）多半以 1 到 2 秒為一個 chunk 編碼，整個 chunk 解碼完才能執行，所以機器人只能在 chunk 邊界上反應。最簡單的串流做法是 OpenVLA 式的逐維 binning，但 7 維動作在 15 Hz 下每秒要 105 個 token。更根本的問題是「單步重建準」不等於「軌跡準」：在 LIBERO 的重播測試中，FAST 單步誤差在 1 mm 以內，卻每個 episode 累積約 40 mm 漂移，重播成功率只有 90%。</p>
+<p><b>方法</b>：編碼器跟解碼器維持同一個重建狀態，每一步量化的不是「這一步的增量」，而是「增量加上之前殘留的追蹤誤差」，選一個固定的 motion primitive 把誤差拉回容許範圍內。這讓需要量化的範圍只剩「一步能移動的距離 + 誤差」，與工作空間大小無關。作者把「最少需要幾個 primitive」寫成覆蓋問題：平移有精確解 ⌈1 + b/ε⌉，例如 1.2 m/s、15 Hz、容許 5 mm 時每軸只要 17 個 primitive（直接 bin 4 m 工作空間要 400 個）；旋轉在 SO(3) 上給出常數倍緊的界，並證明固定 primitive 在「每步一個符號」的解碼器裡是最優的。接著用 Set-BPE 無損合併跨座標、跨相鄰步的共現符號，不受座標順序限制，比一般 BPE 少 6.6% 到 10.7% 的 token。整個 tokenizer 不需要梯度訓練；通用版在 24 種 embodiment、約 2 萬小時資料上擬合，15 Hz 末端控制平均每秒 8.8 個 token。</p>
+<p><b>結果</b>：同樣用 G0.5 VLA backbone，LIBERO 98.2%（FAST 92.8%、BEAST 95.5%、OAT aligned 96.4%），SimplerEnv 93.8%（FAST 86.0%、BEAST 86.5%），LIBERO-Plus 79.5%（OAT aligned 73.2%、FAST 69.7%）；機器人初始狀態擾動類別差距最大，85.3% 對其他方法的 52.3% 到 65.7%。真機 DROID-Franka 四組未見過的任務，task progress 73.9%，FAST 50.8%、X-Tokenizer 52.8%；推論延遲約 50 ms，FAST 607 ms。在 20 Hz 實時時鐘下，同一個 checkpoint 串流執行 91.0%，等整個 chunk 解完才執行只有 73.1%。chunk 內插入回饋後，隨機物理參數任務成功率 79.0% 對 open-loop 64.7%，移動物體的抓取率 46.2% 對 27.6%。作者也讓 Claude Opus 5.5 和 GPT-6 Astra 直接輸出這些 token 並累積成 macro，在 RMBench 上每次提交的決策數從 17.0 降到 8.3。</p>
+<p><b>限制與疑問</b>：預訓練的 tokenizer 只涵蓋約 1.2 m/s 以內的末端速度，高動態動作的壓縮率可能不如 chunk tokenizer。主結果都在模擬中「暫停環境等 policy 解碼」的設定，只有一組消融是在真實時鐘下。agent macro 實驗同時改變了 reflection 和 macro 庫，作者自己也承認無法單獨歸因於 tokenizer。</p>
+<p><b>為什麼值得看</b>：這篇把「誤差回授量化」（本質上是 delta-sigma 的想法）帶進 action tokenization，並且給了可證明的上界，是少見既有理論又有大規模實驗的 tokenizer 論文。它和最近討論 VLA 反應性的工作（例如下面的「What Makes a VLA Reactive?」）互補：一個從執行策略下手，一個從表示下手。可延伸的方向：把同樣的量化方式用在 WAM 的動作分支，或結合 RL 調整每一步的容許誤差。</p>
+
+<h3>3. TTB：把 cross-view attention「烤」進 fast-weight MLP，新視角渲染快 23 倍</h3>
+<p><a href="https://arxiv.org/abs/2611.17331">arXiv:2611.17331</a>｜cs.CV｜NVIDIA、國立陽明交通大學資工系（Yu-Lun Liu、Wei-Chen Chiu、Yen-Yu Lin）（HF 18 票）</p>
+<p><b>問題</b>：geometry-free 的 Large View Synthesis Model（LVSM）不重建 3D，直接用 Transformer 回歸新視角，對鏡面、半透明這種 3DGS 不擅長的材質有優勢。decoder-only 的 DVSM 用 KV-cache 存場景，品質最好，但每個新視角都要 attend 整個 cache，輸入視角一多就很慢：DL3DV 64 視角、960p 時只有 1 FPS。LaCT 改用 Test-Time Training（TTT）層取代 cross-view attention，渲染速度固定，但品質掉很多，即使從 DVSM 權重初始化也一樣。</p>
+<p><b>方法</b>：不取代 attention，而是讓 TTT 的 fast-weight MLP 去「學 attention 的輸出」。原本 TTT 的 inner loop 讓 MLP 把 key 映射到 value；TTB 改成映射到 cross-view attention 的輸出（實際上學的是殘差），重建時多花一點算力，但渲染時不再需要 KV-cache，複雜度和 TTT 一樣。第二個關鍵是模態不對齊：重建時 context token 同時含影像和相機，但渲染時新視角 token 只有相機。作者把每個 context view 拆成兩種 token：只有 Plücker ray 的「context rendering token」當 MLP 輸入，含 RGB 的「context ground-truth token」經 cross-view attention 後當目標；這樣 MLP 從第一層開始就在「相機 → 外觀」這個與渲染時相同的映射上學習。作者把它類比成在 latent 空間做幾步 light field 最佳化。細節上用 SwiGLU MLP、Muon 更新、MSE 取代 LaCT 的 dot-product loss，inner loop 跑多步。容量不夠時，推論時用 k-means 依相機位置分群，每群各烤一份 MLP。</p>
+<p><b>結果</b>：DL3DV 960p，16／32／64 個輸入視角時 TTB 都維持 23 FPS。PSNR 分別是 27.00／28.92／30.20，DVSM 是 26.86／29.13／31.11（1 到 4 FPS），LaCT 是 24.70／26.90／28.30（10 FPS）；加上分群後 64 視角達 31.33，略高於 DVSM。Re10K 兩視角 512×512 時 PSNR 31.28，DVSM 31.17。in-the-wild（MipNeRF360、Free、Hike）64 視角下大致與 DVSM 相當，在 Hike 上分群版 25.37 對 DVSM 23.10。消融顯示 context pairing、MSE 多步 inner loop、以 attention 輸出為目標三者各自都有貢獻。</p>
+<p><b>限制與疑問</b>：重建時要在 inner loop 裡跑 cross-view attention，時間隨視角數平方成長；表中 64 視角的處理時間 65 秒，和 DVSM 的 60 秒差不多，遠多於 LaCT 的 7.3 秒，所以只適合「重建一次、渲染很多次」的場景。fast weight 容量固定，分群是啟發式。它是重建而非生成模型，無法外插到沒看過的視角。</p>
+<p><b>為什麼值得看</b>：「用 TTT 去蒸餾 attention 的結果，而不是取代 attention」這個思路不只適用於新視角合成，也可以套到長影片理解或 world model 的記憶上，讓 KV-cache 變成固定大小的權重。對做 feed-forward 3D 的人來說，它在品質／速度的 Pareto 上是目前的新點，而且是交大與 NVIDIA 台灣研發中心的合作，值得追一下 project page。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>Driving World Models Move the Camera, Not the Scene</h3>
+<p>作者用重新計時的行車 log 和雙目相機的側移視角當作「沒開過的計畫」的真實參考，發現現有 plan-conditioned 駕駛世界模型只會讓相機跟著指令走，場景本身幾乎不變：場景反應最多只有真實影片的約三分之一，現有軌跡分數也分不出速度指令有沒有被執行。他們提出免訓練的 ReTime-Compose，把計畫以幾何（轉移後的畫面）而非 token 的形式交給凍結的生成器，在 KITTI、nuScenes、Argoverse 2 上能跟隨 0.54 m 的側移。和 BirdDreams 一起讀很有意思。<a href="https://arxiv.org/abs/2611.15260">arXiv:2611.15260</a></p>
+
+<h3>Back to Pixels（PixVid）：把 latent 影片擴散模型搬回像素空間</h3>
+<p>保留 diffusion transformer，把 VAE decoder 換成卷積 head 直接輸出每一幀像素。關鍵是改成預測乾淨影片而非 velocity，再加大 noise shift。從 Wan2.1-14B 微調約 130 萬個 clip 就能和 latent 版本競爭；逐幀生成讓相同 token 數下解析度提高 2 倍、深度條件編輯在快速運動下仍能對齊，互動時能在下一幀就回應動作。對互動式世界模型很有啟發。<a href="https://arxiv.org/abs/2611.17336">arXiv:2611.17336</a></p>
+
+<h3>Iris-Z：一個生成模型打敗專門的幾何模型</h3>
+<p>作者主張 bitter lesson 也適用於視覺：一個同時產生外觀與深度的通用影像生成器，用同一組權重生成「影像＋深度」、從照片估深度、以及依給定深度上色。摘要說在足夠規模下，深度 benchmark 上超越 SOTA 專用模型，同時保留原 backbone 的生成能力，並釋出兩個模型；摘要沒有給具體數字。<a href="https://arxiv.org/abs/2611.16010">arXiv:2611.16010</a></p>
+
+<h3>Open Vision Banana：把影像生成器變成感知模型的完整開源配方</h3>
+<p>Vision Banana 把視覺任務當成條件式影像編輯，但沒有公開任何東西。OVB 從 4B 與 9B 開放權重模型出發、用 210 萬到 380 萬筆公開資料訓練，Cityscapes zero-shot 73.9 mIoU 超過 Vision Banana 報告的 69.9，深度估計逼近 SOTA。test-time 的「legend ensembling」用多組類別配色分割再投票，Cityscapes 最多 +8.7、COCO-Object +15.0 mIoU。資料管線、程式與所有 checkpoint 都釋出。<a href="https://arxiv.org/abs/2611.15844">arXiv:2611.15844</a></p>
+
+<h3>What Makes a VLA Reactive?</h3>
+<p>用 π0.5 在兩個動態模擬 benchmark 與三個真機任務上系統性比較執行策略。結論：最佳預測 horizon 約 1 秒，最佳執行 horizon 因 checkpoint 而異；短 horizon 在非同步推論時幫助更大；讓軌跡保持連續的方法勝過只降低延遲的方法。在輸送帶任務上，單純調執行 horizon 的效果和改 policy 一樣多，作者因此建議 policy 和執行管線必須一起評估。<a href="https://arxiv.org/abs/2611.15491">arXiv:2611.15491</a></p>
+
+<h3>Reins：讓前沿多模態模型零樣本驅動真實雙臂機器人</h3>
+<p>一個 harness：模型透過 3D 感知工具和會回報接觸、抓握狀態的原子動作操控雙臂，一次呼叫可串接多個帶前置條件的動作，條件不成立就停；另一個模型實例當「旁白」持續看相機、回報變化。只用自然語言 prompt、沒有任務專屬程式碼，GPT-6.1 Sol 在五個任務的真實 episode 中成功率 88%；沒有 harness 時猜杯子遊戲全部失敗。三個前沿模型表現接近，差別在於能否追蹤「思考時場景已經變了」。<a href="https://arxiv.org/abs/2611.16632">arXiv:2611.16632</a></p>
+
+<h3>BlinkMimic：單張 GPU 幾分鐘訓練人形機器人動作追蹤</h3>
+<p>延續 SuperMimic（透過平行模擬學到的 world model 反向傳播訓練 policy）與 InstantTrack（Muon 更新、殘差 policy），在模擬 Unitree G1 上用一張 RTX 4090、3.4 分鐘訓練出能追蹤 LAFAN1 全部 40 段動作的 policy。新元件是遞減步長、依部署 policy 失敗位置重置，以及整個迭代的 GPU graph capture，並用 leave-one-out 消融逐一說明各元件影響哪一項成本。<a href="https://arxiv.org/abs/2611.16422">arXiv:2611.16422</a></p>
+
+<h3>全尺寸人形機器人的急停：按下去反而更危險</h3>
+<p>Unitree H1-2 的開源 autonomy stack 經驗分享：所有關節指令都經過獨立的安全層，但推倒測試中 MPC 下肢控制器從未自己恢復平衡，每次都得按急停，而急停會移除平衡控制、機器人直接倒下；為操作設定的關節限制在正常行走時就會被超過。作者主張「力量權限」應分階段授予，並明確指定負責人。做人形機器人實驗的實驗室值得讀。<a href="https://arxiv.org/abs/2611.15928">arXiv:2611.15928</a></p>
+
+<h2>新聞與討論</h2>
+
+<h3>Microsoft 365 全球大當機超過 12 小時</h3>
+<p>Exchange Online 大規模失效，Outlook 網頁、桌面與行動版都無法存取信箱、郵件延遲，Teams 的行事曆與會議排程連帶受影響，admin center、Copilot、SharePoint、Power BI 等依賴 Exchange 的服務也出問題，愛爾蘭、德國、英國、澳洲、日本、巴西、美國都有回報。依 HN 串引述的官方狀態更新，微軟先重新分配流量、重啟伺服器並暫停所有部署與設定變更，表示負載升高「不是整體流量增加造成的」，之後發現伺服器自動健康檢查失敗、重啟後一收到流量又失去回應，再後來說是「負責建立安全連線的程序被壓垮」，並在部分地區限流、逐步恢復。截至目前沒有正式的根因。<a href="https://status.cloud.microsoft/">Microsoft 365 狀態頁</a>｜<a href="https://news.ycombinator.com/item?id=50471731">HN 討論（770+ 則留言）</a></p>
+<p>HN 上最有價值的角度是 cascading failure：把不健康的伺服器移出會讓剩下的承擔更多負載，重試和重啟風暴（thundering herd）讓恢復更難；也有前員工形容 Exchange 是極少人能完整理解端到端流程的老程式碼。</p>
+
+<h3>台積電：部分員工個資遭外流，系統未被入侵</h3>
+<p>台積電 11 月 12 日向 SEC 提交 6-K 聲明：部分現任及前任員工資料被未經授權地張貼在外部網站，經比對與一家雲端服務供應商系統中的資料相符，與公司營運及客戶資料無關，「目前未發現台積電系統遭入侵的證據」。公司正通知受影響員工，並與雲端供應商、調查機關和第三方資安公司合作釐清。聲明沒有說明受影響人數或外流的資料類型。HN 標題「TSMC Hacked」顯然比聲明本身誇張。<a href="https://www.sec.gov/Archives/edgar/data/1046179/000104617926000800/a20261112statementregardin.htm">TSMC 6-K 聲明</a>｜<a href="https://news.ycombinator.com/item?id=50479721">HN 討論</a></p>
+
+<h3>Edge0-145B：宣稱筆電就能跑的 145B MoE 模型</h3>
+<p>Edge0 釋出 145B 總參數、約 10B active 的 MoE 模型（每 64 個 expert 共用兩個大矩陣、各自保留少量參數），宣稱峰值記憶體 29GB、decode 80+ tokens/s、context 128K 到 256K。自家評測中 DeepSWE 1.1 64.6、Terminal-Bench 2.1 86.52，高於 Qwen3.8-Flash-Next 的 58.7 與 83.3，但 HLE、GPQA 較低。權重為 NVFP4 版本，放在 Hugging Face。<a href="https://edge0.ai/blog/introducing-edge0-145b-frontier-ai-capabilities-on-your-own-computer">Edge0 部落格</a>｜<a href="https://news.ycombinator.com/item?id=50475713">HN 討論</a></p>
+<p>HN 留言指出幾個問題：GitHub repo 寫明它是 Qwen3.8 Flash Next 的微調版加上 Strata 引擎的 fork；29GB 不含另外約 40GB 放在系統記憶體的 expert 庫和 48GB 放在 SSD 的詞表資料；NVFP4 只能在 Blackwell 上跑。數字都是自家測的，先存疑。</p>
+
+<h3>Apple Foundation Models framework 擴展到雲端與第三方模型</h3>
+<p>Apple 的開發者頁面整理了 WWDC26 之後的版本：同一套 Swift API 現在可以接 Claude、Gemini、MLX 模型等伺服器端模型，支援 tool calling 與 guided generation；新增可動態切換模型、溫度、推理等級與工具的 Dynamic Profiles、多模態影像輸入（整合 Vision 的 OCR 和條碼）、Evaluations framework，以及 macOS 27 的 fm 命令列工具。加入 Small Business Program 且首次下載少於 200 萬的開發者，可免雲端 API 費用使用 Private Cloud Compute 上的 Apple 模型，但有每日用量限制。<a href="https://developer.apple.com/foundation-models-framework/">Apple Developer</a>｜<a href="https://news.ycombinator.com/item?id=50474361">HN 討論</a></p>
+<p>實際用過的開發者說 PCC 很快，但 context window 偏小、安全拒答過於積極，用量又綁在使用者的 Apple ID 上。</p>
+
+<h3>Rust 1.100：never type 終於穩定</h3>
+<p>Rust 1.100 讓 ! 型別可以在任何地方使用（例如 Result&lt;T, !&gt;），Infallible 變成它的別名；舊 edition 的 never-type fallback 從 () 改成 !，可能影響部分程式。Allocator trait 核心部分穩定，可以替 Vec、Box 寫自訂 allocator；新增 core::mem::DropGuard。Cargo 開始警告未使用的依賴，並能設定 global-min-publish-age，略過太新發布的版本，算是對供應鏈攻擊的一層防護。<a href="https://blog.rust-lang.org/2026/11/12/Rust-1.100.0/">Rust Blog</a>｜<a href="https://news.ycombinator.com/item?id=50472038">HN 討論</a></p>
+
+<h3>Relax：給 Rust 開發迴圈用的 JIT</h3>
+<p>Makepad 團隊做的實驗性 Rust 執行環境，不經過 rustc、LLVM 和 linker：函式第一次被呼叫才編譯，熱點在背景從直譯器升級到 O1、O3，自己的後端產生 x86-64 與 AArch64 機器碼，並支援部分程式碼的熱更新。在 M4 MacBook 上，一個大型 3D 遊戲從乾淨 checkout 到第一幀約 11 秒（cargo build 約 3 分鐘），存檔後重跑 92 個測試 2.2 秒。代價是穩態程式碼比 release build 慢（21 個 workload 幾何平均 x64 1.12 倍、arm64 1.24 倍），記憶體用量也較大。他們把它用在 AI agent 的 build/test 迴圈，中位 patch 時間約 3.6 秒。<a href="https://makepad.github.io/relax/">Relax</a>｜<a href="https://news.ycombinator.com/item?id=50458849">HN 討論</a></p>
+
+<h3>Brave Search API 開放 AI agent 用 x402 付費</h3>
+<p>Agent 不需要帳號或 API key：沒付費的請求會收到 HTTP 402，內含價格與付款資訊，agent 簽一筆 Base 鏈上的 USDC 付款後重送即可取得結果與交易收據。LLM Context、網頁、新聞、圖片等端點都是每次 0.005 美元，Base 的 gas 費限時由 Brave 負擔。這是 HTTP 402 狀態碼少見的實際應用，也是「agent 直接按次付費」的一個具體樣板。<a href="https://brave.com/blog/search-api-agentic-payments/">Brave 部落格</a>｜<a href="https://news.ycombinator.com/item?id=50477649">HN 討論</a></p>
+
+<h3>Show HN：刺繡機要訂閱制，於是自己寫了一個 app</h3>
+<p>作者買了 Brother Skitch（PP1）藍牙刺繡機，用 PacketLogger 逆向它的藍牙協定，再用 AI 寫出 Rust 開源編輯器 Zigzag：匯入 SVG 或描圖點陣 logo、指定填充／緞面／平針，輸出 PES、DST 等格式，直接透過藍牙送到機器縫製，還內建 MCP server 讓 Claude Code 之類的 agent 編輯設計。<a href="https://github.com/simpsoka/zigzag">GitHub</a>｜<a href="https://news.ycombinator.com/item?id=50470488">HN 討論</a></p>
+<p>留言有人指出協定是建立在既有專案 Respira 的逆向成果上，原作者說自己去年就用 Claude 做過，認為這次沒有充分致謝；另一條討論是韌體簽章與防降版會讓這類硬體自由越來越難。</p>
+</article>
+</body>
+</html>

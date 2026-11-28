@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 早報｜2026-11-07（週六）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 早報｜2026-11-07（週六）</h1>
+<p><b>今日導讀</b>：週末沒有新的 arXiv 清單，今天從週五清單裡挑出之前沒談過的幾篇。共同的主題是「別把東西外包出去」：Concertina 不再替 VLM 接一個外掛 action expert，AffineGS 不再用一組全域 scale/shift 對齊單眼深度，RoboImagine 則不只看像素誤差，也讓 judge 比較哪個未來比較像在完成任務。新聞部分有一篇關於「便宜模型先判、沒把握再問 Opus」的實測，剛好呼應 calibration 的重要性。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. Concertina：把 action 直接放進 diffusion VLM 的 hidden space</h3>
+<p><a href="https://arxiv.org/abs/2611.07513">arXiv:2611.07513</a>｜cs.CV / cs.RO｜University of Sydney、TokenRhythm Technologies、City University of Hong Kong</p>
+<p><b>問題</b>：現在的 VLA 大致分兩派。RT-2、OpenVLA、FAST 把動作離散成 token，cross-entropy 對「差一格」和「差很遠」罰得一樣重，FAST 的壓縮 token 錯一個就可能毀掉整段軌跡。π0、π0.5、GR00T N1、X-VLA 則外接 flow-matching action expert，連續座標保住了，但動作梯度主要更新外掛模組，甚至要像 Knowledge Insulation 那樣擋住梯度以免傷到 VLM。作者主張動作與認知應該住在同一個模型裡，稱為 eVLM。</p>
+<p><b>方法</b>：底座是 blockwise diffusion VLM BARD-VL。每個控制時間步的完整動作向量（20 維，含平移、6D 旋轉、夾爪）經一個 position-wise MLP 編成「一個」連續 latent action token，輸出端再用另一個 MLP 解回物理座標；兩個 MLP 不做任何時間混合，所有跨時間的耦合都交給共享的 Transformer。長度 H=50 的軌跡切成 5 個 10 步的 block，block 之間 causal、block 內雙向。訓練時把多模態 prefix、加噪的動作副本、乾淨的 teacher-forcing 副本打包成一條序列，一次 forward 就監督所有 block 的條件分布。加噪沿用 BARD 的 mask 式 corrupt-and-reconstruct，每個 block 分層抽樣不同 mask 比例。損失直接在正規化物理座標上算：平移、旋轉、夾爪權重 500:10:1，前兩者用 Smooth-L1，夾爪用機率值 BCE。預訓練資料是 AgiBot World、RoboMIND 等五個來源、14.6 萬條 episode、8,020 萬幀。動作介面只佔 4.46B 模型的 0.21% 參數，相比之下 π0 的 action expert 佔 16.5%、X-VLA 佔 35.1%。</p>
+<p><b>結果</b>：LIBERO 四個 suite 平均 98.15%（Spatial 99.0、Object 100、Goal 98.8、LIBERO-10 94.8），高於 π0.5 的 97.5% 和 X-VLA 的 98.1%。10,030 個擾動任務的 LIBERO-Plus 總分 85.9%，比 EFFVLA 高 6.1 點、比 OpenVLA-OFT 高 16.3 點。CALVIN ABC→D 平均完成鏈長 4.142，SR@1 98.6%，但仍低於 X-VLA 的 4.43 和 UniVLA 的 4.41，後段 SR@4、SR@5 也較弱。消融裡最有意思的是 block 寬度：在相同預算下把 K=5 改成 K=10，LIBERO 從 38.5% 跳到 73.0%，CALVIN 鏈長從 0.055 升到 1.945。作者用 AgiBot 動作增量的自相關解釋：方向一致性要到第 19 幀才掉到 0.5 以下，K=5 會把一段連貫動作切斷。另一個反事實實驗顯示，在同一個 hidden space 再掛一個座標目標，兩組梯度餘弦是 -0.891，CALVIN 鏈長從 2.970 崩到 0.237。</p>
+<p><b>限制與疑問</b>：全部結果都是模擬 benchmark，論文沒有真機實驗。「Action Interface Audit」的三個指標是作者自己提出、自己用來證明自己的設計，需要別人用來檢驗才有說服力。CALVIN 長鏈表現不是最好，說明 0.33 秒一個 block 的 receding horizon 在長任務上仍有累積誤差。</p>
+<p><b>為什麼值得看</b>：如果你在想「VLA 到底該不該有 action head」，這篇給了一個乾淨的對照：同一個 backbone、同一個 masked reconstruction 目標，只換動作表示。K=10 那組消融也很實用，提醒我們 chunk/block 長度應該對齊資料裡動作基元的時間尺度，而不是隨手設。延伸方向：把同樣的 block 設計搬到人形機器人的高維動作上，或拿 world model 的預測 token 和動作 token 共用同一個去噪過程。</p>
+
+<h3>2. AffineGS：單眼深度不是差一組 scale/shift，而是一塊一塊地歪</h3>
+<p><a href="https://arxiv.org/abs/2611.07709">arXiv:2611.07709</a>｜cs.CV｜dConstruct Robotics、National University of Singapore（Angela Yao）｜NeurIPS 2026</p>
+<p><b>問題</b>：3DGS 畫面漂亮，幾何卻常有浮點、多層表面。拿 Depth-Anything-V2 這類單眼深度當正則是常見做法，但 DRGS、DN-Splatter 都假設預測的 disparity 只要一組全域 scale 和 shift 就能對齊到真實深度。作者在 MuSHRoom 和 ScanNet++ 上量化這個假設：用一組全域仿射對齊，在 0.02 殘差門檻下只有約 59% 的像素是 inlier；把畫面分成 3 塊各自對齊，inlier 就升到約 85%，分成 5 塊升到 92%，RMSE 減半。結論是單眼深度的誤差是分區、分段線性的，常沿物體邊界斷開。</p>
+<p><b>方法</b>：把 1/d 與 3DGS 渲染深度 D 的關係寫成空間變化的仿射：1/d = α(u,v)·D + β(u,v)。對螢幕座標微分並假設 α、β 在區域內變化緩慢，就能用 disparity 梯度與渲染深度梯度的比值估出每個像素的 α，先截到 5 到 95 百分位，再用以 disparity 為 guide 的 guided filter 做 edge-aware 平滑，讓它在同一表面內平滑、跨物體邊界保持銳利。這組場每次迭代都重新估。損失有三項：disparity 梯度匹配（大小 MSE 加方向 cosine）、利用法向量與相機內參推出的「法向一致梯度」、以及用最小平方重新對齊的度量深度 L1。表示本身與 densification 完全沿用 Splatfacto，不改 Gaussian。</p>
+<p><b>結果</b>：LLFF 稀疏視角（2 到 5 張）平均 PSNR 比 DRGS 高 1.5 到 2.5 dB，例如 2 張圖 18.79 對 17.31，並在部分場景接近或超過用全部影像做偽 GT 深度的 Oracle；feed-forward 的 DepthSplat 在 zero-shot 下落後 4.3 到 5.0 dB。MuSHRoom 上，DN-Splatter 換成單眼深度後 Abs Rel 崩到 0.354，AffineGS 用同一個先驗做到 0.055，PSNR 24.49 與用感測器深度的 DN-Splatter（24.58）相當。網格 F-score 0.710，高於 2DGS 的 0.604、SuGaR 的 0.638，但仍低於用感測器深度的 DN-Splatter 0.924。ScanNet++ 上法向一致性最好，但 Chamfer 和 F-score 輸給 SuGaR 與 2DGS。</p>
+<p><b>限制與疑問</b>：所謂 sensor-free 指的是訓練監督；初始化依照 DN-Splatter 的設定，用了訓練資料感測器深度反投影的 100 萬個點，這點讀的時候要注意。度量尺度仍綁在 SfM 的座標系，一個 ScanNet++ 場景整體短了約 5%，在 2 到 4 公尺距離就是 10 到 20 公分。透明、鏡面這種單眼模型本身就失敗的區域也救不回來。有兩個 MuSHRoom 場景需要手動把權重調到 0.5 或 0.25 才不出浮點。</p>
+<p><b>為什麼值得看</b>：「單眼深度分段線性失真」這個觀察本身就值得記住，任何拿 Depth Anything 或 MoGe 當先驗的管線（SLAM、feed-forward 3DGS、機器人建圖）都可能吃到同樣的虧。它的作法幾乎不增加成本，可以直接當作 depth loss 的替換件試試看。也可以反過來想：如果 α 場能估得出來，它本身就是單眼深度模型的錯誤圖，可以拿來做不確定性估計或主動補拍。</p>
+
+<h3>3. RoboImagine：讓機器人 world model 從「比較幾個想像的未來」裡學</h3>
+<p><a href="https://arxiv.org/abs/2611.07850">arXiv:2611.07850</a>｜cs.RO｜CMU（Laszlo A. Jeni）、CCNY、NTU、UW–Madison、UC Merced（Ming-Hsuan Yang）</p>
+<p><b>問題</b>：action-conditioned 影片 world model 通常用重建或感知損失訓練，但畫面像不代表物理對：外觀保住了，物體卻沒被推動；反過來，用 VLM 打語意分數又抓不到局部變形。之前的 RLVR-World 只用視覺指標當 reward，RoboAlign-R1 則把 judge 蒸餾成對單支影片打分的 reward model。作者認為在相同觀測、動作、指令下產生多個候選未來再互相比較，訊號會比絕對分數更穩定。</p>
+<p><b>方法</b>：模型是 GPT 式自回歸 world model：FSQ 把每幀編成 1,280 個 context token 和 80 個 dynamics token，12 層 LLaMA decoder 預測 dynamics token，文字在第 4、8、12 層用 cross-attention 注入。第一階段 SFT；第二階段用 grouped diverse beam search（4 組各 2 beam，多樣性懲罰 0.1）生出四個 10 幀候選，凍結的多模態評審把候選兩兩比較「誰更像在完成任務」，而且正反兩種順序都問一次以降低位置偏差；同時用 MAE 加 LPIPS 對真實未來算視覺一致性。兩種訊號各自在組內標準化，以 0.25:0.75 加權成 group-relative advantage 做 GRPO 式更新，只更新生成器和文字 cross-attention。長序列生成保留固定的初始 context 與 anchor，加上每條分支自己的 6 步滾動歷史，訓練打分時重播同一段歷史，讓生成與評分的條件一致。</p>
+<p><b>結果</b>：RT-1 上用 RoboAlign-Judge 六維評分，總分 8.98/10，高於 RoboAlign-R1 的 8.52、iVideoGPT 的 7.74，也高於 Kling 2.6（6.84）等閉源影片模型；action–outcome 一致性從 0.72 升到 0.82。視覺指標上 RT-1 PSNR 22.57 dB、RoboCasa 18.39 dB，比列表中最強基線分別高 2.03 和 1.68 dB。最乾淨的對照是同一個 5 萬步 SFT checkpoint 再訓 500 步：繼續 SFT 停在 21.31 dB，RoboImagine 到 22.57 dB，LPIPS 降 11.15%。代價是 28.15 GPU-hours 對 1.06 GPU-hours。消融顯示只用視覺回饋的像素指標最好，加上語意後 Qwen3-VL 評分從 7.04 升到 8.30。</p>
+<p><b>限制與疑問</b>：作者自己寫明，證據只到離線影片預測，沒有證明閉環規劃或真機控制變好。BridgeV2 的增益只在 32 條驗證軌跡上成立，換到 128 條的報告集就沒有贏過 SFT，論文也坦白寫出來。外部基線多半引用他人數字，訓練預算與條件介面不同。Doubao 和 GPT-6 Astra 兩個獨立評審的信賴區間都包含零。</p>
+<p><b>為什麼值得看</b>：這是 LLM 那套「多採樣、相對比較、group advantage」搬到 world model 的完整案例，而且誠實記錄了哪裡沒效、成本多高。對做 world model 評估的人，「同條件下比較候選」比「給單支影片打絕對分」更好校準，是個值得借的設計。下一步顯然是把 reward 換成下游 policy 的成功率，看看比較出來的「好未來」是否真的讓規劃更準。</p>
+
+<h2>快速瀏覽</h2>
+<ul>
+<li><b>SM4RT：先重建幾何、再估運動的 4D feed-forward 模型</b>（<a href="https://arxiv.org/abs/2611.08436">2611.08436</a>，Tsung-Wei Ke 團隊）。把動態場景重建拆成串接的兩步：先預測 3D 幾何，再以此為基礎估每個像素在自己相機座標系下的 3D 運動，減少相機運動造成的歧義；另用弱監督損失讓沒有運動標註的點也受約束。在 Kubric、Waymo、Point Odyssey 的運動估計多數指標最好，五個資料集上的幾何重建與 SOTA 相當。</li>
+<li><b>MOMASPLAT：替行動操作的示範做「換底座位置」的資料增強</b>（<a href="https://arxiv.org/abs/2611.08372">2611.08372</a>，UT Austin Roberto Martín-Martín 組）。行動操作時機器人很少停在示範時的同一個位置，現有 novel-view 增強又假設場景靜止，接觸之後被搬動的物體就畫不出來。作者用 3DGS 加 feed-forward 3D 基礎模型分別重建場景與被操作物，配合運動學重定向生成新視角下的完整示範。五個真實任務上，成功率是最強基線的兩倍以上，底座偏移很大時仍有成功率。</li>
+<li><b>OopsieRecover：用幾次語意修正教 VLA 從失敗中恢復</b>（<a href="https://arxiv.org/abs/2611.08462">2611.08462</a>，同一組）。DAgger 式修正常要幾十到上百次介入，而且只在示範過的情境有效。這篇用 abduction 推斷少量修正示範背後的意圖，編成密集空間表示與條件 cost，告訴 policy 什麼時候某種行為不好、該往哪個動作區域移。六個任務上，只要幾次修正就能泛化到新物體、新場景。</li>
+<li><b>HeLM：用明確的語言記憶處理非 Markov 操作</b>（<a href="https://arxiv.org/abs/2611.02660">2611.02660</a>，HF 6 票）。多數 VLA 只看當下觀測，遇到「剛剛已經放過哪個」這種任務就失敗。HeLM 是階層式 VLA，靠事件偵測觸發，把任務相關歷史寫成文字記憶。10 個真實任務、56 個變體中，episode 內成功率比最強基線高 12.8 點，長程時記憶用量少 4.5 倍、速度快 2.5 倍。</li>
+<li><b>ArtCrafter：從開、關兩張圖直接生成帶 URDF 的關節物件</b>（<a href="https://arxiv.org/abs/2611.07658">2611.07658</a>）。DiT 一次生成兩種狀態下的零件 mesh，用「1 個共用 base slot 加 N 對 rest/open slot」的佈局讓每一對綁定同一個零件，加上 triplet attention 和防穿插的 repulsion loss。關節類型、軸、原點與範圍不是回歸出來的，而是從每對 mesh 的剛體變換解析推出，對做模擬資產的人很實用。</li>
+<li><b>WeLM-Image：微信的統一影像生成模型</b>（<a href="https://arxiv.org/abs/2611.07392">2611.07392</a>，HF 37 票）。為單卡部署設計，Mixture-of-Transformers 加 MoE，總參數 31.7B、每個 token 啟用約 5.4B。生成與編輯分別用 rubric/checklist reward 做 RL，再用 noise-aware on-policy distillation 合併。1536 解析度版本在 PRISM-Bench、Qwen-Image-Bench、UnicBench 的開源模型中排第一；Turbo 版在一張 H20 上 8 步、4.98 秒生成 1024² 影像。</li>
+<li><b>TailSteer：多輪影像編輯不再越改越歪</b>（<a href="https://arxiv.org/abs/2611.06741">2611.06741</a>，HF 35 票）。觀察到漂移主要能在去噪軌跡尾端壓制：前段保持和 base model 一樣，只在尾端用編輯器自己的 on-policy rollout、以沒改動的原圖內容當保留參考做修正，不需要成對標註資料。在 FLUX、SenseNova、Qwen 系列上，15 到 20 輪編輯的累積漂移明顯下降，單輪能力大致不變。</li>
+<li><b>3.5 美元能買到什麼樣的閉環操作評估</b>（<a href="https://arxiv.org/abs/2611.07441">2611.07441</a>，IROS 2026 workshop）。在 serverless L4 GPU 上 8 個 shard 平行，200 次 rollout 約 38 分鐘、3.5 美元。順帶報了一個負面結果：資料稀少時，三個 action chunking checkpoint 在 780 次 rollout 中零成功，單步預測的三個 checkpoint 則有 2.6% 到 11.8%；逐步重新規劃的對照顯示問題出在 chunk 的訓練目標，而不是開環執行。</li>
+</ul>
+
+<h2>新聞與討論</h2>
+
+<h3>便宜的 decision model 先判，沒把握再問 Opus</h3>
+<p>Hightouch 實測用 LLM 檢查 identity resolution 是否「過度合併」（把兩個人併成一個身分）。他們用 pseudopeople 模擬一個美國小鎮的普查、稅單等紀錄，做出 1,000 個一半正確、一半錯併的身分。Claude Opus 5.5 準確率 99.0%、每千筆 3.86 美元；只回傳 0 到 1 信心值的 decision model Jev 是 95.7%、0.05 美元，GPT-6 Luna 是 97.3%。關鍵在 calibration：Jev 的錯誤多半信心接近 50%，Luna 則常在 90% 以上信心時犯錯。所以讓 Jev 先判、把信心 30% 到 90% 的案例轉給 Opus，準確率 98.8%、成本 0.88 美元；換到刻意設計的難題集時，這個混合系統自動把更多案子送給 Opus，做到 95.3%，略高於 Opus 單獨的 95.1%，成本仍只有一半多。Luna 的混合版在難題集只剩 91.6%。HN 上有人提到他們用同樣的方式重做了判斷 tool call 的 auto mode，也有人指出 Luna 其實是小型 LLM 而不是 decision model。（<a href="https://hightouch.com/blog/llm-judges-identity-resolution">原文</a>｜<a href="https://news.ycombinator.com/item?id=50397429">HN 討論</a>）</p>
+
+<h3>Firecracker microVM 逃逸：PwnEscape 第二部</h3>
+<p>PWN Research 示範如何從 Firecracker guest 內拿到 host 的 root 執行權。第一部已經給出讀寫部分 host 實體記憶體的能力；這篇是後半段：在 guest 頁放一段 nonce，掃描候選 EPT root 找到它在 host 上的實體位址，反查 host 頁表找出 Firecracker 行程與 ASLR 偏移，再找到 vCPU 執行緒卡在 <b>ioctl(KVM_RUN)</b> 時存下的 pt_regs，改掉返回位址，讓它從 KVM 返回時執行指定的呼叫，事後再把堆疊改回來，VM 繼續正常運作。作者也註明測試環境沒有啟用 jailer，正式部署的 namespace、seccomp 與降權需要另外評估。HN 上有人提醒這不是新漏洞，而是第一部漏洞在 Firecracker 上的利用示範；也有人藉機推薦小型、經形式化驗證的 microhypervisor 路線。（<a href="https://pwn.ai/blog/firecracker-escape">原文</a>｜<a href="https://news.ycombinator.com/item?id=50397219">HN 討論</a>）</p>
+
+<h3>Gemini Omni 1.2 Flash：15 秒影片、降價 30%</h3>
+<p>Google DeepMind 推出 Gemini Omni 1.2 Flash，原生生成 3 到 15 秒的影片（1.1 版上限 10 秒），可以用多輪對話修改片段，不必整支重生。參考圖片、最多三秒的動作片段與音訊都能當條件，官方強調人臉、衣服、包裝文字在鏡頭轉換間更一致。720p 價格降到每秒 0.07 美元，已在 Gemini API 與 Google Cloud 正式上線。對做影片 world model 的人來說，「在既有影片後面延伸 15 秒」與多參考一致性是值得拿來當 baseline 或資料產生器的能力。（<a href="https://blog.google/innovation-and-ai/technology/developers-tools/introducing-gemini-omni-1-2-flash/">原文</a>｜<a href="https://news.ycombinator.com/item?id=50392118">HN 討論</a>）</p>
+
+<h3>BUI：把 Blender 的 UI 拆成通用函式庫</h3>
+<p>有人把 Blender 的介面系統抽出來，做成可從 Python、Rust、JavaScript（React、Svelte）、C/C++ 與 Dear ImGui 使用的 GUI 函式庫，授權 GPL-3.0。它提供 45 個 Blender 原生元件（數值拖曳欄位、pie menu、node editor），也能讓未修改的 tkinter 程式直接跑在上面。README 宣稱在他們的 benchmark 中每幀 CPU 用量比 gpui 少 2 到 4 倍、首幀約 5 毫秒；React 應用可打包成 6.3 MB 的單一執行檔。HN 意見兩極：有人希望 GIMP、Inkscape 也採用，也有人說 Blender 的 UI 很好，但請只留在 Blender。（<a href="https://github.com/ppmpreetham/BUI">GitHub</a>｜<a href="https://news.ycombinator.com/item?id=50389333">HN 討論</a>）</p>
+
+<h3>Tesla 將在 2027 年中停產 Cybertruck</h3>
+<p>Musk 宣布德州工廠的 Cybertruck 產線約在 2027 年中收掉，以便擴大新推出的 Cybercab 產能。根據 Kelley Blue Book，Cybertruck 去年在美國只賣出 20,237 輛，比前一年少 48%，遠低於 Musk 當初預估的年銷 25 萬輛；它的不鏽鋼稜角設計也因行人碰撞規範進不了歐洲。HN 上最多回覆的一則是颶風 Helene 停電兩週期間，有人用 Cybertruck 供電給整棟房子，再開去超充站充電後回家繼續供電。（<a href="https://www.nbcnews.com/tech/tech-news/tesla-wind-cybertruck-production-years-poor-sales-markets-rcna607817">原文</a>｜<a href="https://news.ycombinator.com/item?id=50391456">HN 討論</a>）</p>
+
+<h3>美國 FAA：2028 年前讓航管告別磁碟片</h3>
+<p>FAA 表示會在 2028 年底前，用 Enterprise Information Display System 取代 400 多個航管設施裡仍靠磁碟片傳遞天氣等關鍵資訊的系統，一次換掉四套 1980 年代的系統。路透同時披露一份 10 月的內部備忘錄：近期多起航管中斷來自光纖被挖斷，包括休士頓機場一次因此全面停飛。FAA 至今還在用舊 Compaq 電腦和 eBay 買來的零件，紙本 flight strip 的汰換也要到 2028 年才完成。HN 留言查到其中的 IDS-4 其實是 1990 年代初、跑 MS-DOS 的系統。（<a href="https://www.reuters.com/world/us/us-faa-says-it-will-phase-out-floppy-disks-air-traffic-control-by-2028-2026-11-05/">原文</a>｜<a href="https://news.ycombinator.com/item?id=50388001">HN 討論</a>）</p>
+
+<h3>知道 15,579 個網站被植入惡意 JS，卻不知道怎麼通知他們</h3>
+<p>Report URI 的 Scott Helme 說，他們目前確認有 15,579 個網站正在執行惡意 JavaScript，保守估計每月合計超過 1.35 億次造訪。類型包括 Magecart 信用卡側錄、ClickFix 假驗證、針對特定 iOS 版本的攻擊與轉址；入侵途徑有 WordPress 漏洞、第三方腳本供應鏈、XSS，以及他們命名為 DeadTag 的手法：買下網站仍在載入 JS 的過期網域，重新架起來放惡意程式。問題在於通報跟不上發現的速度，security.txt 使用率低，多數郵件石沉大海，他請歐洲各國 CERT 主動聯絡。HN 建議包括回報給瀏覽器的惡意網站清單，也有人感嘆 GDPR 之後 WHOIS 聯絡人資料不見了。（<a href="https://scotthelme.co.uk/we-know-15-579-websites-are-infected-how-do-we-tell-them/">原文</a>｜<a href="https://news.ycombinator.com/item?id=50396064">HN 討論</a>）</p>
+
+<h3>日本鄉間人口流失，野生生物反而變少</h3>
+<p>直覺上人走了自然會回來，但日本研究發現相反：山腳小農維持的稻田、草地與零星林地拼成的地景，養活了許多與人共同演化的物種，例如稻田裡的青鱂魚和平家螢。2025 年的研究顯示，只有在人口穩定的地方生物多樣性才穩定，人口下降的區域蝴蝶、螢火蟲、青蛙、鳥類與原生植物都減少。歐洲阿爾卑斯 Lake Constance 地區的研究也發現植物多樣性在中世紀小農時代最高。HN 有人問：如果一個物種要靠人類照料才能存活，那它還算野生嗎？（<a href="https://e360.yale.edu/digest/japan-depopulation-biodiversity">原文</a>｜<a href="https://news.ycombinator.com/item?id=50397264">HN 討論</a>）</p>
+</article>
+</body>
+</html>

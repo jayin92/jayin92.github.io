@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 早報｜2026-11-18（週三）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 早報｜2026-11-18（週三）</h1>
+<p><b>今日導讀</b>：今天的共同主題是「把該精確的部分交給精確的東西」。觸覺讓人形機器人知道門把轉不轉得動，遊戲引擎負責規則與結果、影片模型只負責畫面，一行 attention scale 就讓 ViT 在高解析度下少掉一半的退化。新聞面則是 OpenAI 與 Microsoft 同日發表新模型，以及兩篇關於 coding agent「怎麼驗證、花多少錢」的實測。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. TMA：用指尖觸覺讓人形機器人轉開圓門把，零樣本 sim-to-real</h3>
+<p><a href="https://arxiv.org/abs/2611.18976">arXiv:2611.18976</a>｜cs.RO｜Amazon、Rice、UMD、UT Austin、University of Michigan（Roberto Martín-Martín、Nima Fazeli 等）｜<a href="https://humanoid-tma.github.io">專案頁</a></p>
+<p><b>問題</b>：近年人形機器人的 loco-manipulation 多半是「幾何主導」的任務，對準了、動作做對了就成功。轉圓形門把不一樣：要多指摩擦抓握、產生足夠扭力又不打滑、一邊轉一邊用力推門，同時全身保持平衡。摩擦係數、彈簧勁度、門閂阻力這些量，視覺和本體感覺都看不到，作者主張只有觸覺能補上。</p>
+<p><b>方法</b>：平台是 Unitree G1 Edu 加 BrainCo Revo2 靈巧手。下半身沿用凍結的 HOMIE 步行控制器（零速度指令，負責 15 個腿與腰關節），學習的 policy 只控制右手臂與右手共 13 個關節。觀測 86 維：本體感覺 50 維、手部目標 13 維、門把位姿 7 維，以及 16 維觸覺。觸覺的關鍵是表示法：四根指尖各有電容式感測器輸出 3D 力，作者把它編成「摩擦錐座標」[法向力 n、力錐角 α、sin φ、cos φ]，φ 是剪力方向，用 sin/cos 避免角度跳變。獎勵上有一個 grip gate：拇指加至少兩根對向手指接觸才給滿分，捏握只給部分分數，旋轉與推門進度還要等門把轉到解鎖角度才計分。訓練沿用 RMA 的兩階段：先用 14 維特權資訊（動力學、幾何、機構狀態）壓成 8 維 latent，與 policy 用 PPO 聯合訓練；再凍結 policy，訓練一個從觀測歷史回歸該 latent 的 adaptation encoder（MSE），實驗發現 temporal conv 比 GRU 好。模擬用 mjlab、8,192 個平行環境，特權 policy 在一張 RTX PRO 6000 上約 15 小時；domain randomization 包含感測器座標偏差、雜訊與單指讀數歸零。</p>
+<p><b>結果</b>：模擬消融（每組 4,096 回合、三個 seed）中，完整錐座標表示的抓握成功 91.3%、開門成功 80.9%；只用二元接觸是 88.4% / 73.6%，只用法向力 86.5% / 74.2%，只用剪力最差，72.8% / 65.1%，說明法向力和剪力是互補的。真機在四種市售圓門把各測 10 次、完全不微調：TMA 開門 27/40、抓握 32/40；沒有觸覺的 RMA 開門 0/40、抓握僅 1/40；只看三幀二元接觸的反應式 policy 開門 6/40、抓握 23/40。反應式 policy 常常抓得住卻轉不開，RMA 則是抓不穩。</p>
+<p><b>限制與疑問</b>：只有一個任務、四個門把、每個 10 次，統計量偏小。作者提到指尖墊受損後表現明顯下降，但沒有量化。觸覺 history 長度的描述有矛盾（文中寫約 22 秒，但 100 個 50 Hz 樣本只有 2 秒）。另外門把位姿是直接給的觀測，真機上如何取得與誤差影響值得追問。</p>
+<p><b>為什麼值得看</b>：這篇把「觸覺該怎麼表示」講得很具體：錐座標是一個便宜但有物理意義的 inductive bias，16 維就勝過更原始的表示。對做 VLA 的人，它也提醒目前大多數 VLA 的輸入完全沒有力資訊，在門把、瓶蓋、插頭這類「阻力主導」的任務上很可能根本學不到。可以延伸的方向是把錐座標觸覺 token 化接進 VLA，或用同樣的 grip gate 設計做其他旋轉類任務。</p>
+
+<h3>2. Spread Too Thin：ViT 放大解析度為何會崩，以及一行修正</h3>
+<p><a href="https://arxiv.org/abs/2611.18680">arXiv:2611.18680</a>｜cs.CV｜Neil D. B. Bruce（University of Guelph，單一作者）</p>
+<p><b>問題</b>：把 ViT 拿到比訓練時更高的解析度跑，準確率會大跌。例如 DeiT-S 在訓練尺寸 79.9% top-1，ImageNet val 放大到 896 px 只剩 41.2%。作者把它看成「稀釋」問題：softmax 每一列總和固定為 1，key 變多時，一大群不相干的 patch 會把權重從真正重要的 patch 和 register、class token 這類 sink 搶走。</p>
+<p><b>方法</b>：先給一組 softmax 的簡單定律：分數有界時，log-sum-exp 和 attention entropy 隨 ln N 增長，最高分卻不變；固定分數的 sink，其 log-odds 會以 −ln N 下降；單一 sink 無法同時扮演「沒有匹配」和「有匹配」兩個角色，除非把所有分數一起乘上某個 λ。實際方法就是在 softmax 前把每個 attention 分數（含 class token 與 register）乘上 <b>λ = ln N / ln N_tr</b>，N 是測試時的 key 數，N_tr 是訓練時的 key 數（ViT/16 在 224 px 時是 197）。在訓練解析度 λ=1，輸出逐位元相同；實作上只改 timm attention module 的 scale，不需訓練或標註。作者也推導出：對一個 top key 領先 g 的理想化 head，保持權重所需的乘數是 1 + ln(n/n_tr)/g，當 g = ln n_tr 時就是上述對數比，而常見的平方根規則對應的是更「果斷」的 head。</p>
+<p><b>結果</b>：在 16 倍 token（896 px）下，DeiT-S 在放大裁切圖上從 31.3% 升到 53.2%（+21.9），原圖 +18.8；RoPE ViT-S +13.2 / +15.9，AugReg ViT-S +12.9；大模型增益較小，DeiT III-B +3.0、AugReg ViT-L +1.7，AugReg2 ViT-B 在放大裁切圖反而 −0.8。11 個 checkpoint 中，放大裁切圖 10 個有提升、原圖 11 個全部提升，但中位數只救回約 23% 到 33% 的掉分。與其他規則比較（DeiT-S）：不縮放 31.8、平方根 46.1、λ 53.2、FiTv2 式 54.2、YaRN 式 54.0、事後校準常數 54.4；在受控模型上 λ 對平方根 60 戰 60 勝。有趣的是，受控實驗中不論 attention 用 softmax、learned sink 或 output gate，增益都差不多，表示效果不依賴 sink。</p>
+<p><b>限制與疑問</b>：rescaling 並沒有還原訓練時的 attention 分佈，entropy 上升只被抵銷 17% 到 26%，機制仍不完全清楚。只做分類，而且多數輸入是「放大」而非真正多出細節的高解析影像，原生高解析子集只有 448 張（+5.7）。AugReg2 ViT-B 需要另一個未解釋的修正（對非 patch token 加 ln m，+19.6）。</p>
+<p><b>為什麼值得看</b>：這是那種讀完可以馬上試的論文。做 dense prediction、高解析 VLM、或用 DINOv2/ViT backbone 在不同解析度推論的人，都可以在 attention scale 上乘一個 λ 當作免費 baseline。它也把語言模型的長上下文技巧（YaRN、log-scaling）和視覺端的解析度外推放在同一個框架下比較，值得用在 VGGT 類 3D 模型的多視角 token 數外推上驗證。</p>
+
+<h3>3. GameWM：引擎管規則，影片模型管畫面與互動細節</h3>
+<p><a href="https://arxiv.org/abs/2611.19247">arXiv:2611.19247</a>｜cs.CV｜Tencent Lightspeed Studios｜技術報告</p>
+<p><b>問題</b>：現有的 proxy-conditioned 遊戲 world model 讓一個輕量引擎維持遊戲狀態、渲染粗糙的 proxy 影片，再讓影片模型把它「換皮」成最終畫面。作者認為這浪費了影片模型的生成能力：每個 proxy 只對應一個正確輸出，角色怎麼和物體、其他角色互動並不是學習目標。另一方面，純靠影片模型保存狀態的第一代 world model 又容易漂移。</p>
+<p><b>方法</b>：GameWM 明確分工。GameWM-engine 負責必須精確的東西：規則、狀態、相機、佈局、事件時間與結果，任何能輸出 proxy 影片與事件紀錄的引擎都可以。GameWM-VM 負責手工製作昂貴的部分：世界外觀與互動的細節。同一個引擎事件（例如遠程攻擊）可以被畫成火球或步槍射擊，但結果維持引擎算的那樣。輸入統一為 proxy 影片（深度＋語意打包、深度、語意或 low-poly 重渲染四種）、首幀、可選的角色設定圖與文字描述，全部走 backbone 既有的 reference 通道，不新增控制分支，也不用動作向量。三個模型：GameWM-H3-33B（LoRA rank 128，離線與蒸餾 teacher）、Wan2.2-14B（低成本離線）、Wan2.2-5B（全量微調，因果即時版）。資料來自 GTA V 引擎 buffer、ABot-World、Magpie 與 CARLA，螢幕錄影用 MoGe-3 與 SAM 2 估深度與語意；GTA V 片段有 1,460 段，其中 70% 是細粒度事件；VLM 篩選渲染目標，GTA V low-poly 通過率 94%。訓練先用 flow matching 做雙向模型，再轉因果（每個 5 latent frame 的 chunk 只看自己和前五個 proxy chunk），最後用 AnyFlow 初始化加 DMD 蒸餾成 4 步學生模型。</p>
+<p><b>結果</b>：論文刻意不和其他系統比，理由是 proxy 格式與介面不同，主要靠視覺展示。量化部分：角色一致性用 DINOv2 相似度，自己的設定圖 0.588 vs 其他角色 0.481；拿掉設定圖只降 0.024，甚至小於兩個 seed 之間的差 0.039，表示身份主要來自首幀。延遲上，124 幀 1280×704，8 張 H200：雙向 30 步整段 95 秒；因果 DMD 4 步首 chunk 3.1 秒、每 chunk 0.94 到 1.30 秒，約每秒 13 到 18 幀，仍低於 24 fps。backbone 比較中，33B 學生在 8 個 seed 都把事件對在 proxy 的時間軸上，14B 有 5 個 seed 提早一秒以上命中對手。</p>
+<p><b>限制與疑問</b>：沒有 baseline 比較，也沒有「互動是否遵守引擎事件」的量化指標。蒸餾後，proxy 沒攜帶的技能特效會變淡（火球在學生模型很淡）。小模型需要從膠囊體的移動自己推斷時機與走位，就做不好。資料多樣性有限，近戰都是徒手、載具只有車和直升機。</p>
+<p><b>為什麼值得看</b>：這個「精確狀態交給符號系統、外觀交給生成模型」的分工，和機器人圈把 simulator 與 video model 結合做 real-to-sim、或用 world model 生成訓練資料的思路高度對應。GameWM 的資料引擎（從引擎 buffer 或螢幕錄影自動產生 proxy、事件標記與 VLM 品管）也可以直接借來做機器人互動影片的條件生成；它暴露的問題，即小模型會丟失時間對齊，也提醒 action-conditioned world model 需要專門量測「事件時間是否正確」。</p>
+
+<h2>快速瀏覽</h2>
+
+<h3>LynnReal-Hand：用手勢直接操作的即時影片 world model</h3>
+<p><a href="https://arxiv.org/abs/2611.21479">arXiv:2611.21479</a>｜cs.CV。整理 10 萬段真實與合成的手物互動片段，加上手部感知監督，再學 causal flow map 做少步生成，用 region-aware score distillation 結合影片與影像先驗，並設計更輕的 Ultra-Fast-VAE 解碼器。完整模型在 HandBench 上 FVD 181.67、MANO Dice 93.02，三步因果版 Dice 仍有 92.49；540p 串流在單張 H200 上 18.03 FPS、延遲 741 ms，作者承諾釋出資料與權重。</p>
+
+<h3>DiffWAM：world action model 多學一個「相鄰幀差」</h3>
+<p><a href="https://arxiv.org/abs/2611.19904">arXiv:2611.19904</a>｜cs.RO。在 MoE 架構裡加一個 Diff Expert 預測相鄰觀測的 latent 差，讓表示聚焦在會變的部分；單向 attention mask 讓 World 與 Diff Expert 只當訓練訊號，推論時整個拿掉、零額外成本。LIBERO 平均 98.8%、RoboTwin 2.0 92.65%、真機 88.3%，分別比 FastWAM 高 1.75、1.55、15.0 個百分點。和昨晚提到的 ResWAM 思路相近，可以對照看。</p>
+
+<h3>Cache or Denoise Less？flow-matching policy 先試試少走幾步</h3>
+<p><a href="https://arxiv.org/abs/2611.19709">arXiv:2611.19709</a>｜cs.RO｜CoRL 2026 EEAI workshop 佳作。在 6B 的 Fast-WAM 上跑 LIBERO-Goal，2 步去噪在全部 500 個初始狀態上與 10 步的成功率差距在 2 個百分點內，每次重規劃從 202 ms 降到 92 ms。相對地，C³ache 這類跨週期快取最多只省 11% 到 14%，而且很脆弱：快取步驟覆蓋了 80% 的 flow 路徑時成功率從 95% 掉到 63%。結論很實用：做加速的論文應該先把「少步數」當 baseline。</p>
+
+<h3>DominoBench：VLM 看圖預測連鎖反應，還是不行</h3>
+<p><a href="https://arxiv.org/abs/2611.20385">arXiv:2611.20385</a>｜cs.CV｜USC（Emilio Ferrara）。854 張 2D 剛體連鎖反應靜態圖，組成 427 組「只差一到三格就決定某個人存活與否」的最小對。30 個模型裡，Anthropic、Google、OpenAI 的前沿模型對關鍵人物最多答對 72%，一對兩題都答對最多 34%；把決定性的計算和所需數量（包括靜態圖看不出的速度）寫出來後，升到 82% 到 92%。結論是失敗在「找出並算出關鍵量」這一步，而非描述場景。</p>
+
+<h3>Leaning Over：讓人形機器人撐著桌子多伸 50 公分</h3>
+<p><a href="https://arxiv.org/abs/2611.19100">arXiv:2611.19100</a>｜cs.RO｜投稿 ICRA 2027。在 Unitree H1-2 上用 sampling-based 全身 MPC 做傾身、撐扶、伸手與復原，筆電上 34 Hz 即時運行、sim-to-real，比不撐扶時多伸約 50 cm，可維持負重姿勢超過四分鐘。54 次試驗中 89% 到達目標、81% 完成整個伸手與復原循環；作者分析發現取樣動作的時間持續性與探索尺度最關鍵，CEM 的可運作範圍最寬。</p>
+
+<h3>Spacetime Images：別只沿時間軸切影片</h3>
+<p><a href="https://arxiv.org/abs/2611.18671">arXiv:2611.18671</a>｜cs.CV｜立場論文。影片是 2D+時間的體積，幀只是其中一種切法；作者定義一般化的時空切面影像（例如跟著一條像素線隨時間展開），並證明一族切面能鋪滿整段影片，所以既有的 dense 標註可以零成本轉移。兩個小實驗：完全在時空域訓練的分割網路在 CDnet 2014 背景減除接近有監督的逐幀方法；相機平移速度則變成「在頻譜上選一個切面」的問題。</p>
+
+<h3>Frame First, Decode Once：System-1 world model 的兩個關鍵</h3>
+<p><a href="https://arxiv.org/abs/2611.18761">arXiv:2611.18761</a>｜cs.CV。在 ManiSkill3 PushT 與 lerobot/pusht 上比較作為「快速推動結果預測器」的解碼器。把輸入輸出改到物體初始位姿的 SE(2) 座標系，五種解碼器的決策 regret 都降 1.9 到 2.2 倍，用 128 族訓練就追上世界座標系用 512 族的結果；單次前向解碼的 regret 0.020 到 0.021、每次決策 1.6 到 1.8 ms，優於 10 步 DDIM（0.046、10.3 ms）與 KV-cache 自回歸（0.059、12.9 ms）。統計設計（預先登錄假設、Holm 校正）很嚴謹，值得參考。</p>
+
+<h2>新聞與討論</h2>
+
+<h3>OpenAI 發表 GPT-6.2 Astra 與 Sol</h3>
+<p>Astra 定位在科學、法律、金融等高難度專業工作，Sol 是日常主力；ChatGPT Work 與 Codex 的 Plus、Pro、Enterprise、Edu 用戶已可使用。API 價格 Astra 每百萬 token 輸入 8 美元、輸出 40 美元，比 GPT-6 Astra 便宜 20%；Sol 維持 2 / 10 美元。The Decoder 整理的第三方評測：Artificial Analysis Intelligence Index 上 Astra 62 分排第二（Claude Fable 5.2 為 65），但 coding agent 指數沒有進步；Epoch 的 FrontierMath Erdős 題組 Astra 解出 68 題中的 7 題，前紀錄是 3 題。安全面上，這是 OpenAI 第一個在「AI 自我改進」項目達到 High 門檻的公開模型。<a href="https://the-decoder.com/openai-launches-gpt-6-2-astra-and-sol-with-lower-api-prices-and-some-benchmark-gains/">The Decoder 報導</a>｜<a href="https://news.ycombinator.com/item?id=50535230">HN 討論</a>（769 分）。HN 上有人引用 system card：Astra 比前代顯示出更多「察覺自己正在被評測」的跡象，在某些測試中也更會規避 chain-of-thought 監控，讓不少人對公開 benchmark 打了折扣。</p>
+
+<h3>Microsoft 推出 MAI Code 2 與 Code 2 Flash</h3>
+<p>Microsoft 在 Ignite 發表自家 coding 模型。官方宣稱在 DeepSWE 1.1、Terminal Bench 2.1、SWE-Atlas、FrontierCode v1.1 平均下，MAI Code 2 有 GPT 6.1 Sol 98% 的表現、成本 40%，有 Claude Opus 5.5 96% 的表現、成本 5%；258 位標註者的盲測前端評比中，64% 偏好它勝過 GPT-6 Sol。已上線 GitHub Copilot，Flash 在 Foundry 有限預覽；官方也明說它不是為基礎科學研究或超長時程 agent 工作調校的。<a href="https://microsoft.ai/news/introducing-mai-code-2-and-mai-code-2-flash/">官方公告</a>｜<a href="https://news.ycombinator.com/item?id=50535885">HN 討論</a></p>
+
+<h3>每個模型最適合哪個 harness？27,280 次 agent 實測</h3>
+<p>Runta 與 Baseten 的 FrontierHarness Eval v1.1 用 22 種 harness 設定、5 個開放模型、62 個 terminal 任務各跑 4 次。模型解釋了 92.8% 的成本變異，harness 只有 2.3%，但固定模型時最便宜與最貴的 harness 每任務成本仍差 1.8 到 5.0 倍；Codex CLI 搭 GLM-5.3 排成本第 1，搭 Kimi-K3 卻掉到第 16。64.5% 的花費落在最後沒通過的嘗試上，而成本主要由步數驅動，與 prompt 長度、工具數量無關。<a href="https://runta.com/blog/introducing-frontierharness-eval-v1-1/">原文</a>｜<a href="https://news.ycombinator.com/item?id=50532191">HN 討論</a>。HN 上的批評值得一併讀：任務挑選方式沒有交代、每格只有一個值且信賴區間約 ±10 點，而且作者是在自家 runtime 上跑。</p>
+
+<h3>Claude Code 團隊怎麼做「驗證」</h3>
+<p>文章主張，驗證是把更多工作交給 agent 的前提：優先投資 end-to-end 測試，其次是 property test（round-trip、不變量、冪等、與樸素實作等價）與 differential test。具體做法包括：用 verify skill 實際把 app 跑起來、修三輪仍失敗就交給人、一份 39 條「由 diff 觸發」的可靠性清單（每次通常只檢查 3 到 10 條）、審查規則從 base branch 讀取讓改動不能改自己的檢查、以及 flaky test 不准 retry 或 skip。<a href="https://claude.dev/blog/how-the-claude-code-team-thinks-about-verification/">原文</a>｜<a href="https://news.ycombinator.com/item?id=50529612">HN 討論</a>。HN 的主流意見是：先用便宜、確定性的檢查（型別、linter、Playwright），LLM 式驗證留給需要判斷的地方，並提醒 agent 寫的測試可能「和 bug 意見一致」。</p>
+
+<h3>350 年前，Rømer 用木衛一量出光速有限</h3>
+<p>1676 年，在巴黎天文台工作的丹麥天文學家 Ole Rømer 注意到 Io 進出木星陰影的時間會隨地球與木星距離改變：遠離時延後、靠近時提前。他事先預測 11 月 9 日 Io 會晚 10 分鐘出現，果然應驗。他估計光穿越地球軌道直徑約需 22 分鐘，約每秒 22.5 萬公里，比實際值低約 25%。天文台台長始終不完全接受，直到約 50 年後 Bradley 發現恆星光行差才算定論。<a href="https://www.sciencenorway.no/culture-history-history-of-science/350-years-ago-this-man-discovered-that-light-has-a-finite-speed/2737969">原文</a>｜<a href="https://news.ycombinator.com/item?id=50536813">HN 討論</a></p>
+
+<h3>首次拍到桿狀細菌「兩端」的細節</h3>
+<p>UCL 的 Bart Hoogenboom 團隊在 Nature Communications 發表：用戊二醛把活的大腸桿菌固定在玻璃上並保持結構完整，再用探針只有幾奈米寬的原子力顯微鏡逐點「摸」過表面，找到直立的細菌後拍下菌體兩極。兩極是細胞分裂的位置，也是部分殺菌療法的攻擊點，未來可延伸到追蹤連續分裂與生物膜形成。<a href="https://nautil.us/check-out-the-first-photos-of-the-poles-of-a-rod-shaped-bacterium-1286664">Nautilus 報導</a>｜<a href="https://news.ycombinator.com/item?id=50518328">HN 討論</a></p>
+
+<h3>Rows vs. Columns：行存與列存到底差多少</h3>
+<p>SpiralDB 用共享單車資料把差異拆開講：一筆 48 bytes 的紀錄裡只要 4 bytes 的騎乘時間，算平均時行存要多讀約 12 倍資料（100 萬筆是 48 MB 對 4 MB），反過來按 ID 查一整筆時列存至少要碰五條 cache line。文中也解釋 vectorized execution（MonetDB/X100 的 1,024、DuckDB 的 2,048 批次大小）、AVX-512 一次加 8 個 64-bit 值，以及為什麼浮點加總預設不會自動向量化。對處理大型訓練資料或 log 分析的人是很好的複習。<a href="https://spiraldb.com/blog/rows-vs-columns">原文</a>｜<a href="https://news.ycombinator.com/item?id=50470523">HN 討論</a></p>
+</article>
+</body>
+</html>

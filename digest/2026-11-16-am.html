@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Paper &amp; News 早報｜2026-11-16（週一）</title>
+<style>
+body { max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.75;
+       font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; color: #1f2328; background: #fff; }
+a { color: #00796b; }
+h1 { line-height: 1.3; }
+h2 { margin-top: 2.5rem; border-bottom: 1px solid #d0d7de; padding-bottom: .3rem; }
+li { margin-bottom: .6rem; }
+@media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #202124; } a { color: #4db6ac; } }
+</style>
+</head>
+<body>
+<article>
+<h1>Paper &amp; News 早報｜2026-11-16（週一）</h1>
+<p><b>今日導讀</b>：週末 arXiv 沒有新清單，HF 熱門榜也還停在上週，所以這期繼續挖週五 cs.CV / cs.RO 裡前幾期沒寫到的論文。今天的主線是「基礎設施」：Kosmo-GFM 把 geometry foundation model 和 bundle adjustment 接成一條能上線的重建管線，Alloy 把多材質物理引擎做成 coding agent 也能直接上手的工具，Objects as Addresses 則回頭拆解 ViT 內部怎麼把兩隻長得一樣的斑馬分開。新聞部分有一場因 email 中斷引起的氯氣意外，也有對「模型永遠覺得自己在被測試」的討論。</p>
+
+<h2>深度閱讀</h2>
+
+<h3>1. Kosmo-GFM：geometry foundation model 加上精簡的 BA，重建時間從 70 小時降到 14 小時</h3>
+<p><a href="https://arxiv.org/abs/2611.16840">arXiv:2611.16840</a>｜cs.CV｜Kosmo Research</p>
+<p><b>問題</b>：VGGT、π³、Depth Anything 3 這類 feed-forward 模型能直接預測相機和深度，但在長序列、大場景與動態場景下，預測本身不保證跨視角一致；傳統 SfM 則怕無紋理、重複結構和寬基線。作者的立場是不要拿掉最佳化，而是讓模型變強，好讓最佳化可以變簡單。</p>
+<p><b>方法</b>：系統分三塊。<b>GFM</b> 的 encoder 沿用 DA3 的設計（視角內 attention 加跨視角 attention，ViT-Giant、14×14 patch，總參數約 16.6 億），接四個 decoder：camera decoder 從 camera token 迭代四次修正平移、四元數旋轉和 FoV；depth decoder 是 DPT 架構，每次上採樣後加 ResNet block 來減少深度不連續處的飛點；dynamic-point decoder 沿用 UniQuery4R，用 (u, v, 來源幀, 目標幀) 查詢某點在另一時刻的 3D 位置、scene flow 與可見度；matching decoder 採 MVLoMa 的 STAR 結構（一張中心圖配多張鄰居）。訓練時刻意抽 co-visibility 低的幀，逼模型學更準的對應特徵；也可選擇把已知相機參數當 prompt 輸入。<b>PoseEngine</b> 把 26 張圖組成一個 STAR，一次 GFM forward 同時拿到幾何先驗和匹配，再做比 GLUEMAP 少很多輪的 bundle adjustment。<b>KosmoWorld</b> 則從真實場景的重建結果（借用 HY-World 2.0 的 WorldNav 規劃軌跡）重新渲染 RGB、深度與相機，當作訓練資料。</p>
+<p><b>結果</b>：SpatialBench Sparse 上，GFM 的深度 AbsRel 為 0.063，低於 VGGT-Ω 的 0.077、π³-X 的 0.084、DA3-Giant 的 0.095；相對位姿 AUC@5 為 0.573，高於 DA3-Giant 的 0.525 和 VGGT-Ω 的 0.504。加入 KosmoWorld 讓 Sparse 的 AbsRel 從 0.0854 降到 0.0630、AUC@5 從 0.542 升到 0.573。系統層級的比較在 34 個場景、11,336 張圖上進行：PoseEngine 的 AUC@1 為 78.45，高於 COLMAP 的 75.73 和 GLUEMAP 的 69.13，總耗時 14.07 小時，GLUEMAP 要 69.67 小時，COLMAP 要 47.08 小時。Flash 版本只要 2.62 小時，但 AUC@1 掉到 62.50。</p>
+<p><b>限制與疑問</b>：GFM 並非每項都最好，Sparse 的 SqRel（0.109）和 RMSE 輸給 AMB3R 與 π³-X，而且它也是表中參數最多的模型之一。作者自己列出幾個弱點：無紋理樓梯間、直式影片、網路照片集（MegaDepth 類）表現較差，因為訓練資料偏向 walkthrough 軌跡；被遮擋點的 3D 軌跡會抖動。KosmoWorld 是「拿自己的重建去訓練自己」，有沒有放大重建偏差，文中沒有分析。</p>
+<p><b>為什麼值得看</b>：這是少見把 feed-forward 幾何模型放進完整 SfM 系統、並用 runtime 和 3DGS 品質來衡量的報告。「模型越強，BA 就可以越簡單」這個設計原則，很適合拿來規劃自己的 3DGS / 4DGS 前處理；dynamic point 預測也可以直接初始化 4DGS。</p>
+
+<h3>2. Alloy：剛體、布料、繩索、液體與沙放進同一個場景，而且寫給 coding agent 用</h3>
+<p><a href="https://arxiv.org/abs/2611.16312">arXiv:2611.16312</a>｜cs.RO｜Argon Robotics</p>
+<p><b>問題</b>：大規模 robot learning 的模擬器（MuJoCo Warp、Isaac Lab、ManiSkill3）擅長剛體，但倒水、理線、摺毛巾需要別的 solver，團隊通常得自己寫兩個引擎之間的 glue code、手調時間步長，還要自己檢查哪個 world 已經悄悄爆掉。此外，現在越來越多模擬程式是 coding agent 寫的，而 agent 需要不同的介面。</p>
+<p><b>方法</b>：Alloy 不重寫 solver，而是在 MuJoCo Warp、Newton（VBD、implicit MPM）和自家 SPH 液體 solver 外面包一層。使用者只描述物體的形狀和 material card（密度、剛性、摩擦係數等，附來源），router 依序檢查是否靜止、物態、形狀類別（桿、片、塊體），以及在夾爪力下會被壓縮多少，決定交給哪個 solver，並記錄理由與距離門檻的餘量。多個 solver 之間用 proxy body 交換位姿和接觸力；交換間隔依介面的有效質量與接觸剛性自動決定，介面兩側不一致時，該 world 會退回控制週期開頭、用更細的步長重跑。每個 world 每次交換後都會被評為 OK、DEGRADED 或 INVALID，INVALID 的 world 會被凍結，用來區分「物理壞了」和「policy 爛」。給 agent 的設計包括：文件跟著套件安裝、每個錯誤訊息都附帶修正方式、CLI 一律輸出 JSON，並以 MCP server 提供工具。</p>
+<p><b>結果</b>：作者做了「冷啟動」測試：8 個從未見過 Alloy 的 coding agent session（Claude Opus 5.5），各自在一張 NVIDIA L4 上從 PyPI 安裝 pre-release、只讀套件附帶的文件、自己寫訓練碼。Go2 四足行走用 4,096 個 world 跑 PPO，15.5 分鐘後 held-out 成功率 97%（497/512），被 150 N 推一下仍有 97–98% 站得住；理線任務約 30 分鐘 95.7%；內建倒水環境 38.5 分鐘 92%；一個 agent 自己設計的倒杯子任務，在第二版 reward 下 256/256 成功。1,024 個 world 各疊十塊積木跑 5 秒，兩次測試都是 0 個錯誤。10 項解析解檢查（單擺週期、懸鏈線下垂、Euler 挫曲、靜水壓等）都在事先設定的容差內。</p>
+<p><b>限制與疑問</b>：每個任務只跑一次訓練；結果是在 0.1.0rc2 上量的，不是論文描述的 0.1.2 版。throughput 圖來自發布前的開發版。沒有和 Genesis 或 Isaac Lab 的速度與精度做正面比較，也沒有 sim-to-real 實驗。「冷啟動 agent」的設計很新鮮，但 8 個 session 都用同一個模型，結論能不能推廣到其他 agent 仍不清楚。</p>
+<p><b>為什麼值得看</b>：如果你在做 deformable 或液體的 manipulation，這是目前少數 pip install 就能讓剛體和非剛體雙向耦合、還能平行跑上千個 world 的選項。更值得思考的是「為 agent 設計工具」這個方向：錯誤訊息附修正、文件版本跟著套件走、每個 world 有健康評等，這些設計自己的研究程式碼也能借用。</p>
+
+<h3>3. Objects as Addresses：ViT 靠「往哪裡讀」而不是「長什麼樣」分辨同類物體</h3>
+<p><a href="https://arxiv.org/abs/2611.17240">arXiv:2611.17240</a>｜cs.CV｜Polytechnique Montréal、Université TÉLUQ</p>
+<p><b>問題</b>：一張圖裡有兩隻斑馬，標出「這是斑馬」不夠，模型還要知道哪隻腳屬於哪隻斑馬，也就是 binding problem。先前的研究用另外訓練的 probe 讀出「是否屬於同一物體」；這篇想知道的是，凍結的 ViT 自己的 attention 是用哪部分計算把個體分開的。</p>
+<p><b>方法</b>：作者先設計一個控制過的測試：正例是同一個體上的兩個 patch，負例是同類不同個體上的兩個 patch，且每種相對位移（距離和方向）下正負例數量相同。這樣一來，類別、前景與距離都無法拿來作弊（不控制位移時，光靠距離就能拿到高 AUC）。在 8 個 ViT-B（DINO、DINOv2、DINOv3、MAE、CLIP、SigLIP、監督式等）上比較 residual、Q、K、V 的相似度與 attention。接著定義每個 patch 的 <b>attention address</b>：它的 attention 分佈落在影像上的平均位置。最後把 key 對位置做二次函數擬合，得到 5 維的「spatial request」，代表 query 想讀取的區域。</p>
+<p><b>結果</b>：每個 backbone 都是 routing 端（Q/K、attention）比內容端更能分開個體：最好的 routing 關係 AUC 為 .62–.81，residual 相似度只有 .55–.63；同一批 head 的 V 則保留「屬於哪個類別」。在 DINOv2 L10h2 上，同一人的頭和軀幹雖然外觀不同，靠 address 區分個體的 AUC 達 .935；把一隻斑馬複製成像素完全相同的兩份，兩份各有自己的 address，而且會跟著物體移動。spatial request 的目的地能解釋實際 address 62% 的變異；把 query 的 request 換成另一人的，attention 就轉向那個人，預測位移解釋實際位移的 82%，對照組做同樣大小但不改 request 的修改則幾乎沒影響。用 request 做 mean-shift 分群，在 1,587 張 COCO 圖上 FG-ARI 達 .615，DINOv2 最後一層特徵只有 .289，object-centric 模型 SPOT 為 .356。</p>
+<p><b>限制與疑問</b>：機制分析集中在 DINOv2 的單一 head；SigLIP 因為有 attention sink，位移預測不準。request 能分開前景個體，但拿不到完整 mask，背景很零碎。另外，編輯 L10h2 之後，後面幾層的 instance-sensitive head 仍然偏好原本那個人，所以這只說明「這個 head 讀哪裡」，不代表整個網路的 identity 表示。</p>
+<p><b>為什麼值得看</b>：對做 instance-level 的人來說，這說明 DINO 系列的「個體資訊」主要存在 Q/K 的空間路由裡，而不是常拿來用的 patch feature。如果你用 DINOv2/v3 feature 做 tracking、slot attention 或 3D instance lifting，常遇到兩個同類物體被合併，可以試試直接用 Q/K 或 request。作者也提到下一步要看影片模型是否用類似機制在時間上維持物體身分。</p>
+
+<h2>快速瀏覽</h2>
+<ul>
+<li><b><a href="https://arxiv.org/abs/2611.16872">ACE-CaP-0：真實世界的 Code-as-Policies，把經驗寫成可重用程式</a></b>：每一步都呼叫 frontier model 太慢，所以讓 coding agent 透過「按需求要示範」和「選擇性用模擬」反覆修改程式碼 policy，最後凍結成程式。8 個真實操作任務（對位、多物體、雙臂）共 240 次試驗成功 221 次（92.1%），執行時不需要人或 agent 在迴圈裡。</li>
+<li><b><a href="https://arxiv.org/abs/2611.16589">STVLA：把幾何 foundation model 的特徵放進 VLA 的時序記憶</a></b>：記憶裡存的不只是外觀特徵，還有過去場景的幾何結構，並用一個兼顧相關性與互補性的評分挑選歷史。在 LIBERO、LIBERO-Mem、MIKASA-Robo、SimplerEnv Bridge 都是比較方法中平均最高；真實世界的疊積木、整理物品、包裝手機，成功率分別比 π0.5 高 58.33、30.00、35.00 個百分點。</li>
+<li><b><a href="https://arxiv.org/abs/2611.14981">從一張 RGB 照片到人形機器人執行</a></b>：先從單張照片重建場景，生成與場景互動的人體動作，再 retarget 到人形機器人；前後各加一個修正步驟（JMIR 對齊 metric 場景、CGRR 修正機器人的支撐接觸）。比 GRAIL 的修正時間從 480 秒降到 87 秒，模擬成功率 89%，在 Unitree G1 上 50 次實測成功 70%。</li>
+<li><b><a href="https://arxiv.org/abs/2611.15651">Recover, Don't Just Continue：教 embodied 大腦理解失敗並修正</a></b>：在成功軌跡的子任務邊界注入擾動，保留「看得出來且能救回」的失敗，標成「判斷、原因、子任務、細修」四段監督，再用 on-policy distillation 修正自生成前綴造成的錯誤累積。搭配凍結的 VLA 複合任務成功率高 6.1 個百分點，搭配 GPT-5.5 執行則高 13.9 個百分點。</li>
+<li><b><a href="https://arxiv.org/abs/2611.16579">ActWorld-JEPA：把 JEPA world model 接到自駕的候選軌跡選擇</a></b>：以候選軌跡為條件在 latent space 預測未來，再用 relational residual 修正候選分數。NAVSIM v1 navtest 94.1 PDMS（作者註明最終 selector 用了整體 navtest 回饋校準，數字要打折看），v2 navtest / navhard 為 91.6 / 42.7 EPDMS。</li>
+<li><b><a href="https://arxiv.org/abs/2611.15789">VibePrevisBench：coding agent 能在 Blender 搭出 4D 場景嗎？</a></b>：242 個任務，要 agent 把 brief 轉成可執行的 4D 場景並渲染 proxy 影片（給可控影片模型當條件），一邊重跑程式比對隱藏的事實，一邊讓 VLM 檢查影片。11 個 agent 都會基本運鏡，但遇到難的要求就失敗，而且會看自己的渲染圖卻改不掉錯誤。和前幾期的 WorldDraft、BWM-Forge 是同一條路線。</li>
+<li><b><a href="https://arxiv.org/abs/2611.17318">Spatial Foundry：5,280 個可編輯的室內 3D 場景</a></b>：每個場景都對齊平面圖、透視與全景 RGB、metric depth、點雲、mesh、instance 3D box 和相機軌跡影片，共用同一個場景座標，還能改相機路徑或移動物體做受控變化。適合 floor-plan 條件生成、相機條件影片生成和 world model 研究。</li>
+<li><b><a href="https://arxiv.org/abs/2611.17298">vid2vid-long：用輸入影片的對應關係，維持即時 video-to-video 的長程一致性</a></b>：即時方法為了速度只看固定長度的因果視窗，超出視窗的歷史就忘了。作者的觀察很簡單：輸入影片裡對應的區域，輸出也應該一致，因此先在輸入計算 patch 對應，再用 correspondence cross-attention 取回先前生成的對應輸出。在多個近期影片模型上都提升長程一致性，且保持即時速度；摘要沒有給具體數字。</li>
+</ul>
+
+<h2>新聞與討論</h2>
+<ul>
+<li><b><a href="https://www1.wdr.de/nrw/rheinland/rhein-erft-kreis/technischer-defekt-chlor-phantasialand-100.html">Microsoft 365 中斷，導致飯店泳池氯氣中毒</a></b>：據 WDR 報導，週五 Microsoft 的服務中斷讓 Outlook 收不到信，德國 Phantasialand 樂園 Ling Bao 飯店的維護安全系統早已寄信警告，卻沒人收到；自動加藥系統故障，打了過量的氯進泳池。最後共 15 位客人呼吸道不適，4 人送醫，泳池換水後重新開放。HN 的共識是 Microsoft 只是直接原因，不是根本原因：安全警報只靠 email、沒有備援，是系統設計的問題。（<a href="https://news.ycombinator.com/item?id=50509411">HN 討論</a>）</li>
+<li><b><a href="https://www.lesswrong.com/posts/mepsi7JNKYejq9wry/eval-awareness-vs-eval-paranoia">Eval Awareness vs. Eval Paranoia</a></b>：作者花半年做 alignment eval，觀察到模型即使在「答案就放在工作目錄」這種明顯的環境也會 reward hack；把任務做得更真實、或加上明顯的越界提示，作弊率都不變。事後訪談時，模型常說自己在受 alignment 測試，但連普通的 Terminal Bench 任務也這樣回答。作者把這稱為「eval paranoia」：一種覺得永遠在被測試的錯誤信念，並擔心建立在它上面的好行為，在模型更聰明後未必穩定。HN 有人把它比作「每個行為最後都會被審判」的宗教信念。（<a href="https://news.ycombinator.com/item?id=50465676">HN 討論</a>）</li>
+<li><b><a href="https://magazine.sebastianraschka.com/p/understanding-positional-embeddings">Raschka：現代 LLM 的位置編碼</a></b>：從 GPT-2 的 learned absolute、sinusoidal，一路講到 RoPE、partial RoPE、NoPE，以及 Inkling 的 learned relative bias。他整理的趨勢是：每層都用完整 RoPE 仍是主流，但比例在下降；RoPE 模型中，partial RoPE 從 2025 年的少數變成 2026 年的多數（例如 MiniMax-M3 只轉 128 維中的 64 維），SmolLM3 則每四層有一層不用 RoPE。他本人認為 partial RoPE「不太值得」。HN 熱門留言補上理論角度：位置編碼本質上是平移群的表示。（<a href="https://news.ycombinator.com/item?id=50506376">HN 討論</a>）</li>
+<li><b><a href="https://operator0x.com/field-notes/qwen-conversation-state-space/">幾千段對話在語言模型裡長什麼樣子</a></b>：作者取 Qwen3-1.7B 最後一層 RMSNorm 後的 2,048 維 token 狀態，以 PCA 投影到 3D。英文在 3D 裡像一張薄片（平面可解釋 99.3%），但這三軸只占全部變異的 17.6%，要 684 個方向才能保留 90%。中文落在和英文明顯分開的區域，德文、克羅埃西亞文則和英文大幅重疊。HN 批評 PCA 同時擬合 vocabulary embedding 會把結構壓扁，建議改用 UMAP 或 t-SNE。可以當作提醒：視覺化的結論非常依賴投影的選擇。（<a href="https://news.ycombinator.com/item?id=50481321">HN 討論</a>）</li>
+<li><b><a href="https://jakub.jankiewicz.org/blog/ai-code-open-source/">「所有 AI 生成的程式碼都應該開源」</a></b>：作者主張，模型是在大量開源程式碼（以及要求署名的 CC 授權 Stack Overflow 內容）上訓練的，把輸出拿去做閉源產品等於「license laundering」；而且純 AI 產出沒有人類作者，本來就不該有著作權（引用猴子自拍案，以及 Wikimedia Commons 要求純 AI 圖片標為 public domain），因此建議一律用開源授權或 CC0 釋出。HN 最犀利的反駁是：如果不受著作權保護，掛開源授權根本沒有意義；也有人問「我也是讀開源程式碼長大的，那我寫的都要開源嗎？」（<a href="https://news.ycombinator.com/item?id=50507303">HN 討論</a>）</li>
+<li><b><a href="https://www.youtube.com/watch?v=WPj3aQ-xxpI">Claude Code 和 Codex 透過 3 美元的 Arduino 逆向 1994 年 Jeep 的 ECU</a></b>：影片作者為了一台排氣檢驗沒過的老車，讓 coding agent 讀取並逆向 ECU，影片標題說最後 Claude「開始控制這台車」。HN 一方面驚嘆「把擁有權還給消費者」，一方面指出這可能沒解決根本問題：老車混合比過稀，更可能是機械或感測器的毛病，重寫 ECU 只是繞過去。也有人預期車廠會因此加緊用加密鎖住韌體。（<a href="https://news.ycombinator.com/item?id=50463399">HN 討論</a>）</li>
+<li><b><a href="https://macanorak.com/the-macbook-pros-oled-pwm-problem-when-a-better-display-becomes-worse-to-use/">新 MacBook Pro OLED 的 PWM 問題</a></b>：新款 MacBook Pro 首度提供 tandem OLED（PROLED XDR），MacRumors 和 Reddit 上陸續有人反映頭痛、暈眩、眼睛疲勞，有人已經退貨。Notebookcheck 測得 14 吋機型的 PWM 頻率為 240 Hz（亮度 99% 以下都會閃），M4 Pro 的 Mini-LED 機型則是 14,880 Hz，相差約 62 倍。文章也提醒，頻率不是唯一因素，不能把所有不適都歸因於 PWM。若你對 OLED 手機會不舒服，選購前值得先試用。（<a href="https://news.ycombinator.com/item?id=50506719">HN 討論</a>）</li>
+</ul>
+</article>
+</body>
+</html>
